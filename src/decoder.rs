@@ -524,4 +524,25 @@ mod test {
     fn map_keys_must_ascend() {
         decode_err(b"d3:fooi1e3:bari1ee");
     }
+
+    #[test]
+    fn map_keys_must_be_unique() {
+        decode_err(b"d3:fooi1e3:fooi1ee");
+    }
+
+
+
+    #[test]
+    fn dict_drop_should_consume_struct() {
+        let mut decoder = Decoder::new(b"d3:fooi1e3:quxi2ee");
+        drop(decoder.next());
+        assert!(decoder.next().unwrap().is_none())
+    }
+
+    #[test]
+    fn list_drop_should_consume_struct() {
+        let mut decoder = Decoder::new(b"li1ei2ei3ee");
+        drop(decoder.next());
+        assert!(decoder.next().unwrap().is_none())
+    }
 }
