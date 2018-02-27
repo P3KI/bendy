@@ -14,12 +14,20 @@ trait Stack<T> {
 impl<T> Stack<T> for Vec<T> {
     fn peek_mut(&mut self) -> Option<&mut T> {
         let len = self.len();
-        self.get_mut(len - 1)
+        if len == 0 {
+            None
+        } else {
+            Some(&mut self[len - 1])
+        }
     }
 
     fn peek(&self) -> Option<&T> {
         let len = self.len();
-        self.get(len - 1)
+        if len == 0 {
+            None
+        } else {
+            Some(&self[len - 1])
+        }
     }
 }
 
@@ -76,7 +84,7 @@ impl<'obj, 'ser: 'obj> Object<'obj, 'ser> {
 }
 
 ///
-#[derive(Clone, Ord, PartialOrd, Eq, PartialEq)]
+#[derive(Clone, Ord, PartialOrd, Eq, PartialEq, Debug)]
 enum DecodeState<'a> {
     /// An inner list. Allows any token
     Seq,
@@ -94,8 +102,8 @@ pub struct Decoder<'a> {
     state: Vec<DecodeState<'a>>,
 }
 
-impl<'a> Decoder<'a> {
-    pub fn new(buffer: &'a [u8]) -> Self {
+impl<'ser> Decoder<'ser> {
+    pub fn new(buffer: &'ser [u8]) -> Self {
         Decoder {
             source: buffer,
             offset: 0,
@@ -113,7 +121,7 @@ impl<'a> Decoder<'a> {
         }
     }
 
-    fn take_chunk(&mut self, count: usize) -> Option<&'a [u8]> {
+    fn take_chunk(&mut self, count: usize) -> Option<&'ser [u8]> {
         match self.offset.checked_add(count) {
             Some(end_pos) if end_pos < self.source.len() => {
                 let ret = &self.source[self.offset..end_pos];
@@ -124,7 +132,7 @@ impl<'a> Decoder<'a> {
         }
     }
 
-    fn take_int(&mut self, expected_end: char) -> Result<&'a str, Error> {
+    fn take_int(&mut self, expected_end: char) -> Result<&'ser str, Error> {
         use std::str;
         enum State {
             Start,
@@ -180,7 +188,8 @@ impl<'a> Decoder<'a> {
             }
         }
         if success {
-            let slice = &self.source[self.offset..endpos];
+            let slice = &self.source[self.offset..endpos-1];
+            assert!(slice.len() >= 0);
             self.offset = endpos;
             let ival = if cfg!(debug) {
                 str::from_utf8(slice).expect("We've already examined every byte in the string")
@@ -209,7 +218,7 @@ impl<'a> Decoder<'a> {
         }
     }
 
-    fn raw_next_token(&mut self) -> Result<Token<'a>, Error> {
+    fn raw_next_token(&mut self) -> Result<Token<'ser>, Error> {
         let token = match self.take_byte().ok_or(Error::UnexpectedEof)? as char {
             'e' => Token::End,
             'l' => Token::List,
@@ -237,7 +246,7 @@ impl<'a> Decoder<'a> {
     }
 
     /// Read the next token. Returns Ok(Some(token)) if a token was successfully read,
-    pub fn next_token(&mut self) -> Result<Option<Token<'a>>, Error> {
+    fn next_token(&mut self) -> Result<Option<Token<'ser>>, Error> {
         use self::Token::*;
         use self::DecodeState::*;
 
@@ -256,6 +265,7 @@ impl<'a> Decoder<'a> {
         let tok_result = self.raw_next_token();
         let tok = self.latch_err(tok_result)?;
 
+        eprintln!("State: {:?}", self.state.peek());
         match (self.state.peek(), tok) {
             (None, End) => {
                 self.offset = start_offset;
@@ -285,6 +295,14 @@ impl<'a> Decoder<'a> {
                     "Map keys must be strings".to_owned(),
                 )));
             }
+            (Some(&MapValue(label)), List) => {
+                self.state.replace_top(MapKey(Some(label)));
+                self.state.push(Seq);
+            }
+            (Some(&MapValue(label)), Dict) => {
+                self.state.replace_top(MapKey(Some(label)));
+                self.state.push(MapKey(None));
+            }
             (Some(&MapValue(label)), _) => {
                 self.state.replace_top(MapKey(Some(label)));
             }
@@ -296,8 +314,11 @@ impl<'a> Decoder<'a> {
             }
             (_, _) => (),
         }
-
         Ok(Some(tok))
+    }
+
+    pub fn tokens(self) -> Tokens<'ser> {
+        Tokens(self)
     }
 }
 
@@ -307,6 +328,10 @@ impl<'a> Iterator for Tokens<'a> {
     type Item = Result<Token<'a>, Error>;
 
     fn next(&mut self) -> Option<Self::Item> {
+        // Only report an error once
+        if self.0.check_error().is_err() {
+            return None;
+        }
         match self.0.next_token() {
             Ok(Some(token)) => Some(Ok(token)),
             Ok(None) => None,
@@ -318,13 +343,13 @@ impl<'a> Iterator for Tokens<'a> {
 // High level interface
 
 impl<'ser> Decoder<'ser> {
-    fn next<'obj>(&'obj mut self) -> Result<Option<Object<'obj, 'ser>>, Error> {
+    pub fn next<'obj>(&'obj mut self) -> Result<Option<Object<'obj, 'ser>>, Error> {
         use self::Token::*;
         Ok(match self.next_token()? {
             None => None,
             Some(End) => None,
-            Some(List) => Some(Object::List(ListDecoder{decoder: self, finished: false})),
-            Some(Dict) => Some(Object::Dict(DictDecoder{decoder: self, finished: false})),
+            Some(List) => Some(Object::List(ListDecoder::new(self))),
+            Some(Dict) => Some(Object::Dict(DictDecoder::new(self))),
             Some(String(s)) => Some(Object::Bytes(s)),
             Some(Num(s)) => Some(Object::Integer(s)),
         })
@@ -335,14 +360,27 @@ impl<'ser> Decoder<'ser> {
 pub struct DictDecoder<'obj, 'ser: 'obj> {
     decoder: &'obj mut Decoder<'ser>,
     finished: bool,
+    start_point: usize,
 }
 pub struct ListDecoder<'obj, 'ser: 'obj> {
     decoder: &'obj mut Decoder<'ser>,
     finished: bool,
+    start_point: usize,
 }
 
 impl<'obj, 'ser: 'obj> DictDecoder<'obj, 'ser> {
-    fn next<'item>(&'item mut self) -> Result<Option<(&'ser [u8], Object<'item, 'ser>)>, Error> {
+    fn new(decoder: &'obj mut Decoder<'ser>) -> Self {
+        let offset = decoder.offset - 1;
+        DictDecoder {
+            decoder: decoder,
+            finished: false,
+            start_point: offset,
+        }
+    }
+
+    pub fn next<'item>(
+        &'item mut self,
+    ) -> Result<Option<(&'ser [u8], Object<'item, 'ser>)>, Error> {
         if self.finished {
             return Ok(None);
         }
@@ -352,7 +390,9 @@ impl<'obj, 'ser: 'obj> DictDecoder<'obj, 'ser> {
 
         if let Some(Token::String(k)) = key {
             // This unwrap should be safe because None would produce an error here
-            Ok(Some((k, self.decoder.next()?.unwrap())))
+            let start = self.decoder.offset;
+            let v = self.decoder.next()?.unwrap();
+            Ok(Some((k, v)))
         } else {
             // We can't have gotten anything but a string, as anything else would be
             // a state error
@@ -360,18 +400,39 @@ impl<'obj, 'ser: 'obj> DictDecoder<'obj, 'ser> {
             Ok(None)
         }
     }
+
+    pub fn consume_all(&mut self) -> Result<(), Error> {
+        while let Some(_) = self.next()? {
+            // just drop the items
+        }
+        Ok(())
+    }
+
+    pub fn into_raw(mut self) -> Result<&'ser [u8], Error> {
+        self.consume_all()?;
+        Ok(&self.decoder.source[self.start_point..self.decoder.offset])
+    }
+
 }
 
 impl<'obj, 'ser: 'obj> Drop for DictDecoder<'obj, 'ser> {
     fn drop(&mut self) {
-        while let Ok(Some(_)) = self.next() {
-            // just drop the items
-        }
+        // we don't care about errors in drop; they'll be reported again in the parent
+        self.consume_all().ok();
     }
 }
 
 impl<'obj, 'ser: 'obj> ListDecoder<'obj, 'ser> {
-    fn next<'item>(&'item mut self) -> Result<Option<Object<'item, 'ser>>, Error> {
+    fn new(decoder: &'obj mut Decoder<'ser>) -> Self {
+        let offset = decoder.offset - 1;
+        ListDecoder {
+            decoder: decoder,
+            finished: false,
+            start_point: offset,
+        }
+    }
+
+    pub fn next<'item>(&'item mut self) -> Result<Option<Object<'item, 'ser>>, Error> {
         if self.finished {
             return Ok(None);
         }
@@ -383,13 +444,24 @@ impl<'obj, 'ser: 'obj> ListDecoder<'obj, 'ser> {
 
         Ok(item)
     }
+
+    pub fn consume_all(&mut self) -> Result<(), Error> {
+        while let Some(_) = self.next()? {
+            // just drop the items
+        }
+        Ok(())
+    }
+
+    pub fn into_raw(mut self) -> Result<&'ser [u8], Error> {
+        self.consume_all()?;
+        Ok(&self.decoder.source[self.start_point..self.decoder.offset])
+    }
 }
 
 impl<'obj, 'ser: 'obj> Drop for ListDecoder<'obj, 'ser> {
     fn drop(&mut self) {
-        while let Ok(Some(_)) = self.next() {
-            // just drop the items
-        }
+        // we don't care about errors in drop; they'll be reported again in the parent
+        self.consume_all().ok();
     }
 }
 
@@ -397,9 +469,59 @@ impl<'obj, 'ser: 'obj> Drop for ListDecoder<'obj, 'ser> {
 mod test {
     use super::*;
 
-    static SIMPLE_MSG: &'static str = &b"d3:bari1e3:fooli2ei3ee";
+    static SIMPLE_MSG: &'static [u8] = b"d3:bari1e3:fooli2ei3eee";
+
+    fn decode_tokens(msg: &[u8]) -> Vec<Token> {
+        let tokens: Vec<Result<Token, Error>> = Decoder::new(msg).tokens().collect();
+        if tokens.iter().all(Result::is_ok) {
+            tokens.into_iter().map(Result::unwrap).collect()
+        } else {
+            panic!("Unexpected tokenization error. Received tokens: {:?}", tokens);
+
+        }
+    }
+
+    fn decode_err(msg: &[u8]) -> Error {
+        let mut tokens: Vec<Result<Token, Error>> = Decoder::new(msg).tokens().collect();
+        if tokens.iter().all(Result::is_ok) {
+            panic!("Unexpected parse success: {:?}", tokens);
+        } else {
+            tokens.pop().unwrap().err().unwrap()
+        }
+    }
+
     #[test]
     fn simple_bdecode_tokenization() {
-        let mut decoder = Decoder::new(SIMPLE_MSG);
+        use super::Token::*;
+        let mut tokens: Vec<_> = decode_tokens(SIMPLE_MSG);
+        assert_eq!(
+            tokens,
+            vec![
+                Dict,
+                String(&b"bar"[..]),
+                Num(&"1"[..]),
+                String(&b"foo"[..]),
+                List,
+                Num(&"2"[..]),
+                Num(&"3"[..]),
+                End,
+                End,
+            ]
+        );
+    }
+
+    #[test]
+    fn short_message_should_fail() {
+        decode_err(b"d");
+    }
+
+    #[test]
+    fn map_keys_must_be_strings() {
+        decode_err(b"d3:fooi1iei2ei3ee");
+    }
+
+    #[test]
+    fn map_keys_must_ascend() {
+        decode_err(b"d3:fooi1e3:bari1ee");
     }
 }
