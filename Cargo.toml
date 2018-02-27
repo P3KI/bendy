@@ -1,5 +1,5 @@
 [package]
-name = "bencode"
+name = "bencode_zero"
 version = "0.1.0"
 authors = ["TQ Hirsch <tq@p3ki.com>"]
 
