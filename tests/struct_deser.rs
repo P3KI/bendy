@@ -16,12 +16,12 @@ impl<'ser, T: DecodeFrom<'ser>> DecodeFrom<'ser> for Vec<T> {
         match object {
             Object::List(mut list) => {
                 let mut result = Vec::new();
-                while let Some(item) = list.next()? {
+                while let Some(item) = list.next_object()? {
                     result.push(T::decode(item)?);
                 }
                 Ok(result)
             }
-            _ => Err("Unexpected object type")?
+            _ => Err("Unexpected object type")?,
         }
     }
 }
@@ -29,10 +29,8 @@ impl<'ser, T: DecodeFrom<'ser>> DecodeFrom<'ser> for Vec<T> {
 impl<'ser> DecodeFrom<'ser> for i64 {
     fn decode<'obj>(object: Object<'obj, 'ser>) -> Result<Self, Box<StdError>> {
         match object {
-            Object::Integer(int) => {
-                Ok(i64::from_str_radix(int, 10)?)
-            }
-            _ => Err("Unexpected object type")?
+            Object::Integer(int) => Ok(i64::from_str_radix(int, 10)?),
+            _ => Err("Unexpected object type")?,
         }
     }
 }
@@ -54,22 +52,28 @@ struct TestStruct {
 }
 
 impl<'ser> DecodeFrom<'ser> for TestStruct {
+    #[cfg_attr(feature = "cargo-clippy", allow(blacklisted_name))]
     fn decode<'obj>(object: Object<'obj, 'ser>) -> Result<Self, Box<StdError>> {
         let mut foo = None;
         let mut bar = None;
 
         if let Object::Dict(mut dict) = object {
-            while let Some((key, value)) = dict.next()? {
+            while let Some((key, value)) = dict.next_pair()? {
                 match key {
-                    b"foo" => { foo = Some(DecodeFrom::decode(value)?); }
-                    b"bar" => { bar = Some(DecodeFrom::decode(value)?); }
+                    b"foo" => {
+                        foo = Some(DecodeFrom::decode(value)?);
+                    }
+                    b"bar" => {
+                        bar = Some(DecodeFrom::decode(value)?);
+                    }
                     _ => (), // ignore unknown keys
                 }
             }
 
-            Ok(TestStruct{
+            Ok(TestStruct {
                 foo: foo.ok_or("Missing foo field")?,
-                bar: bar.ok_or("Missing bar field")? })
+                bar: bar.ok_or("Missing bar field")?,
+            })
         } else {
             Err("Expected a dict")?
         }
@@ -80,10 +84,13 @@ impl<'ser> DecodeFrom<'ser> for TestStruct {
 #[test]
 fn should_decode_struct() {
     let mut decoder = Decoder::new(SIMPLE_MSG);
-    let result = TestStruct::decode(decoder.next().unwrap().unwrap())
+    let result = TestStruct::decode(decoder.next_object().unwrap().unwrap())
         .expect("Decoding shouldn't fail");
-    assert_eq!(result, TestStruct{
-        foo: vec![2,3],
-        bar: 1,
-    })
+    assert_eq!(
+        result,
+        TestStruct {
+            foo: vec![2, 3],
+            bar: 1,
+        }
+    )
 }
