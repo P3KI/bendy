@@ -589,6 +589,30 @@ mod test {
     }
 
     #[test]
+    fn negative_numbers_and_zero_should_parse() {
+        use super::Token::*;
+        let tokens: Vec<_> = decode_tokens(b"i0ei-1e");
+        assert_eq!(
+            tokens,
+            vec![
+                Num(&"0"),
+                Num(&"-1"),
+            ],
+        );
+    }
+
+    #[test]
+    fn negative_zero_is_illegal() {
+        decode_err(b"i-0e", "got '0'");
+    }
+
+    #[test]
+    fn leading_zeros_are_illegal() {
+        decode_err(b"i01e", "got '1'");
+        decode_err(b"i-01e", "got '0'");
+    }
+
+    #[test]
     fn map_keys_must_be_strings() {
         decode_err(b"d3:fooi1ei2ei3ee", r"^Map keys must be strings$");
     }
@@ -614,6 +638,11 @@ mod test {
     }
 
     #[test]
+    fn ints_must_have_bodies() {
+        decode_err(b"ie", r"Expected.*got 'e'");
+    }
+
+    #[test]
     fn recursion_should_be_limited() {
         use std::iter::repeat;
         let mut msg = Vec::new();
@@ -631,15 +660,15 @@ mod test {
 
     #[test]
     fn dict_drop_should_consume_struct() {
-        let mut decoder = Decoder::new(b"d3:fooi1e3:quxi2ee");
+        let mut decoder = Decoder::new(b"d3:fooi1e3:quxi2eei1000e");
         drop(decoder.next_object());
-        assert!(decoder.next_object().unwrap().is_none())
+        assert_eq!(decoder.tokens().next(), Some(Ok(Token::Num("1000"))));
     }
 
     #[test]
     fn list_drop_should_consume_struct() {
-        let mut decoder = Decoder::new(b"li1ei2ei3ee");
+        let mut decoder = Decoder::new(b"li1ei2ei3eei1000e");
         drop(decoder.next_object());
-        assert!(decoder.next_object().unwrap().is_none())
+        assert_eq!(decoder.tokens().next(), Some(Ok(Token::Num("1000"))));
     }
 }
