@@ -394,6 +394,14 @@ impl<'a> Iterator for Tokens<'a> {
 
 impl<'ser> Decoder<'ser> {
     /// Read the next object from the encoded stream
+    ///
+    /// If the beginning of an object was successfully read, returns `Ok(Some(object))`.
+    /// At the end of the input stream, this will return `Ok(None)`; otherwise, returns
+    /// `Err(some_error)`.
+    ///
+    /// Note that complex objects (lists and dicts) are not fully validated before being
+    /// returned from this method, so you may still get an error while decoding the contents
+    /// of the object
     pub fn next_object<'obj>(&'obj mut self) -> Result<Option<Object<'obj, 'ser>>, Error> {
         use self::Token::*;
         Ok(match self.next_token()? {
@@ -430,7 +438,8 @@ impl<'obj, 'ser: 'obj> DictDecoder<'obj, 'ser> {
         }
     }
 
-    /// Parse the next key/value pair from the dictionary
+    /// Parse the next key/value pair from the dictionary. Returns `Ok(None)`
+    /// at the end of the dictionary
     pub fn next_pair<'item>(
         &'item mut self,
     ) -> Result<Option<(&'ser [u8], Object<'item, 'ser>)>, Error> {
@@ -453,7 +462,9 @@ impl<'obj, 'ser: 'obj> DictDecoder<'obj, 'ser> {
         }
     }
 
-    /// Consume the rest of the items from the dictionary
+    /// Consume (and validate the structure of) the rest of the items from the
+    /// dictionary. This method should be used to check for encoding errors if
+    /// [DictDecoder::next_pair] is not called until it returns `Ok(None)`.
     pub fn consume_all(&mut self) -> Result<(), Error> {
         while let Some(_) = self.next_pair()? {
             // just drop the items
@@ -485,7 +496,7 @@ impl<'obj, 'ser: 'obj> ListDecoder<'obj, 'ser> {
         }
     }
 
-    /// Get the next item from the list
+    /// Get the next item from the list. Returns `Ok(None)` at the end of the list
     pub fn next_object<'item>(&'item mut self) -> Result<Option<Object<'item, 'ser>>, Error> {
         if self.finished {
             return Ok(None);
@@ -499,7 +510,9 @@ impl<'obj, 'ser: 'obj> ListDecoder<'obj, 'ser> {
         Ok(item)
     }
 
-    /// Consume the rest of the items from the list
+    /// Consume (and validate the structure of) the rest of the items from the
+    /// list. This method should be used to check for encoding errors if
+    /// [ListDecoder::next_pair] is not called until it returns `Ok(None)`.
     pub fn consume_all(&mut self) -> Result<(), Error> {
         while let Some(_) = self.next_object()? {
             // just drop the items
