@@ -10,5 +10,7 @@
 
 #[macro_use]
 extern crate derive_error;
+#[cfg(test)]
+extern crate regex;
 
 pub mod decoder;

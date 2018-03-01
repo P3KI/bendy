@@ -524,6 +524,7 @@ impl<'obj, 'ser: 'obj> Drop for ListDecoder<'obj, 'ser> {
 #[cfg(test)]
 mod test {
     use super::*;
+    use regex;
 
     static SIMPLE_MSG: &'static [u8] = b"d3:bari1e3:fooli2ei3eee";
 
@@ -539,12 +540,17 @@ mod test {
         }
     }
 
-    fn decode_err(msg: &[u8]) -> Error {
-        let mut tokens: Vec<Result<Token, Error>> = Decoder::new(msg).tokens().collect();
+    fn decode_err(msg: &[u8], err_regex: &str) {
+        use std::error::Error;
+        let mut tokens: Vec<Result<Token, self::Error>> = Decoder::new(msg).tokens().collect();
         if tokens.iter().all(Result::is_ok) {
             panic!("Unexpected parse success: {:?}", tokens);
         } else {
-            tokens.pop().unwrap().err().unwrap()
+            let err = format!("{}", tokens.pop().unwrap().err().unwrap());
+            let err_regex = regex::Regex::new(err_regex).expect("Test regexes should be valid");
+            if !err_regex.is_match(&err) {
+                panic!("Unexpected error: {}", err);
+            }
         }
     }
 
@@ -570,32 +576,32 @@ mod test {
 
     #[test]
     fn short_message_should_fail() {
-        decode_err(b"d");
+        decode_err(b"d", r"EOF");
     }
 
     #[test]
     fn map_keys_must_be_strings() {
-        decode_err(b"d3:fooi1iei2ei3ee");
+        decode_err(b"d3:fooi1ei2ei3ee", r"^Map keys must be strings$");
     }
 
     #[test]
     fn map_keys_must_ascend() {
-        decode_err(b"d3:fooi1e3:bari1ee");
+        decode_err(b"d3:fooi1e3:bari1ee", r"Keys were not sorted");
     }
 
     #[test]
     fn map_keys_must_be_unique() {
-        decode_err(b"d3:fooi1e3:fooi1ee");
+        decode_err(b"d3:fooi1e3:fooi1ee", r"Keys were not sorted");
     }
 
     #[test]
     fn map_keys_must_have_values() {
-        decode_err(b"d3:fooe");
+        decode_err(b"d3:fooe", r"^Missing map value$");
     }
 
     #[test]
     fn strings_must_have_bodies() {
-        decode_err(b"3e");
+        decode_err(b"3:", r"EOF");
     }
 
     #[test]
@@ -604,7 +610,7 @@ mod test {
         let mut msg = Vec::new();
         msg.extend(repeat('l' as u8).take(4096));
         msg.extend(repeat('e' as u8).take(4096));
-        decode_err(&msg);
+        decode_err(&msg, r"nesting depth");
     }
 
     #[test]
