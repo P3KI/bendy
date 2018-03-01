@@ -176,11 +176,7 @@ impl<'ser> Decoder<'ser> {
 
     /// Read the next token. Returns Ok(Some(token)) if a token was successfully read,
     fn next_token(&mut self) -> Result<Option<Token<'ser>>, Error> {
-        use self::Token::*;
-
         self.state.check_error()?;
-
-        let start_offset = self.offset;
 
         if self.offset == self.source.len() {
             self.state.observe_eof()?;
