@@ -1,4 +1,5 @@
 //! Decodes a bencoded struct
+
 trait Stack<T> {
     fn peek_mut(&mut self) -> Option<&mut T>;
 
@@ -33,6 +34,7 @@ impl<T> Stack<T> for Vec<T> {
     }
 }
 
+/// A decoding error
 #[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Debug, Error)]
 pub enum Error {
     /// Saw the wrong type of token
@@ -58,21 +60,30 @@ impl Error {
     }
 }
 
+/// A raw bencode token
 #[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Debug)]
 pub enum Token<'a> {
+    /// The beginning of a list
     List,
+    /// The beginning of a dictionary
     Dict,
+    /// A byte string; may not be UTF-8
     String(&'a [u8]),
     /// A number; we explicitly *don't* parse it here, as it could be signed, unsigned, or a bignum
     Num(&'a str),
+    /// The end of a list or dictionary
     End,
 }
 
 /// An object read from a decoder
 pub enum Object<'obj, 'ser: 'obj> {
+    /// A list of arbitrary objects
     List(ListDecoder<'obj, 'ser>),
+    /// A map of string-valued keys to arbitrary objects
     Dict(DictDecoder<'obj, 'ser>),
+    /// An unparsed integer
     Integer(&'ser str),
+    /// A byte string
     Bytes(&'ser [u8]),
 }
 
@@ -87,7 +98,7 @@ impl<'obj, 'ser: 'obj> Object<'obj, 'ser> {
     }
 }
 
-///
+/// The state of current level of the decoder
 #[derive(Clone, Ord, PartialOrd, Eq, PartialEq, Debug)]
 enum DecodeState<'a> {
     /// An inner list. Allows any token
@@ -100,6 +111,10 @@ enum DecodeState<'a> {
     Failed(Error),
 }
 
+/// A bencode decoder
+///
+/// This can be used to either get a stream of tokens (using the [Self::tokens] method) or to
+/// read a complete object at a time (using the [Self::next_object]) method.
 pub struct Decoder<'a> {
     source: &'a [u8],
     offset: usize,
@@ -109,6 +124,7 @@ pub struct Decoder<'a> {
 
 #[cfg_attr(feature = "cargo-clippy", allow(match_same_arms))]
 impl<'ser> Decoder<'ser> {
+    /// Create a new decoder from the given byte array
     pub fn new(buffer: &'ser [u8]) -> Self {
         Decoder {
             source: buffer,
@@ -118,6 +134,9 @@ impl<'ser> Decoder<'ser> {
         }
     }
 
+    /// Set the maximum nesting depth of the decoder. An unlimited-depth decoder may be
+    /// created using `with_max_depth(<usize>::max_value())`, but be warned that this will likely
+    /// exhaust memory if the nesting depth is too deep (even when reading raw tokens)
     pub fn with_max_depth(self, new_max_depth: usize) -> Self {
         Decoder{
             max_depth: new_max_depth,
@@ -344,11 +363,15 @@ impl<'ser> Decoder<'ser> {
         Ok(Some(tok))
     }
 
+    /// Iterate over the tokens in the input stream. This guarantees that the resulting stream
+    /// of tokens constitutes a valid bencoded structure.
     pub fn tokens(self) -> Tokens<'ser> {
         Tokens(self)
     }
 }
 
+/// Iterator over the tokens in the input stream. This guarantees that the resulting stream
+/// of tokens constitutes a valid bencoded structure.
 pub struct Tokens<'a>(Decoder<'a>);
 
 impl<'a> Iterator for Tokens<'a> {
@@ -370,6 +393,7 @@ impl<'a> Iterator for Tokens<'a> {
 // High level interface
 
 impl<'ser> Decoder<'ser> {
+    /// Read the next object from the encoded stream
     pub fn next_object<'obj>(&'obj mut self) -> Result<Option<Object<'obj, 'ser>>, Error> {
         use self::Token::*;
         Ok(match self.next_token()? {
@@ -382,12 +406,14 @@ impl<'ser> Decoder<'ser> {
     }
 }
 
-// The option is set to None when the object ends
+/// A dictionary read from the input stream
 pub struct DictDecoder<'obj, 'ser: 'obj> {
     decoder: &'obj mut Decoder<'ser>,
     finished: bool,
     start_point: usize,
 }
+
+/// A list read from the input stream
 pub struct ListDecoder<'obj, 'ser: 'obj> {
     decoder: &'obj mut Decoder<'ser>,
     finished: bool,
@@ -404,6 +430,7 @@ impl<'obj, 'ser: 'obj> DictDecoder<'obj, 'ser> {
         }
     }
 
+    /// Parse the next key/value pair from the dictionary
     pub fn next_pair<'item>(
         &'item mut self,
     ) -> Result<Option<(&'ser [u8], Object<'item, 'ser>)>, Error> {
@@ -426,6 +453,7 @@ impl<'obj, 'ser: 'obj> DictDecoder<'obj, 'ser> {
         }
     }
 
+    /// Consume the rest of the items from the dictionary
     pub fn consume_all(&mut self) -> Result<(), Error> {
         while let Some(_) = self.next_pair()? {
             // just drop the items
@@ -433,6 +461,7 @@ impl<'obj, 'ser: 'obj> DictDecoder<'obj, 'ser> {
         Ok(())
     }
 
+    /// Get the raw bytes that made up this dictionary
     pub fn into_raw(mut self) -> Result<&'ser [u8], Error> {
         self.consume_all()?;
         Ok(&self.decoder.source[self.start_point..self.decoder.offset])
@@ -456,6 +485,7 @@ impl<'obj, 'ser: 'obj> ListDecoder<'obj, 'ser> {
         }
     }
 
+    /// Get the next item from the list
     pub fn next_object<'item>(&'item mut self) -> Result<Option<Object<'item, 'ser>>, Error> {
         if self.finished {
             return Ok(None);
@@ -469,6 +499,7 @@ impl<'obj, 'ser: 'obj> ListDecoder<'obj, 'ser> {
         Ok(item)
     }
 
+    /// Consume the rest of the items from the list
     pub fn consume_all(&mut self) -> Result<(), Error> {
         while let Some(_) = self.next_object()? {
             // just drop the items
@@ -476,6 +507,7 @@ impl<'obj, 'ser: 'obj> ListDecoder<'obj, 'ser> {
         Ok(())
     }
 
+    /// Get the raw bytes that made up this list
     pub fn into_raw(mut self) -> Result<&'ser [u8], Error> {
         self.consume_all()?;
         Ok(&self.decoder.source[self.start_point..self.decoder.offset])
