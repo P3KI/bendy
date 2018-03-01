@@ -45,6 +45,8 @@ pub enum Error {
     /// Malformed number or unexpected character
     #[error(msg_embedded, no_from, non_std)]
     SyntaxError(String),
+    /// Maximum nesting depth exceeded
+    NestingTooDeep,
 }
 
 impl Error {
@@ -102,6 +104,7 @@ pub struct Decoder<'a> {
     source: &'a [u8],
     offset: usize,
     state: Vec<DecodeState<'a>>,
+    max_depth: usize,
 }
 
 #[cfg_attr(feature = "cargo-clippy", allow(match_same_arms))]
@@ -111,6 +114,14 @@ impl<'ser> Decoder<'ser> {
             source: buffer,
             offset: 0,
             state: vec![],
+            max_depth: 2048,
+        }
+    }
+
+    pub fn with_max_depth(self, new_max_depth: usize) -> Self {
+        Decoder{
+            max_depth: new_max_depth,
+            ..self
         }
     }
 
@@ -298,10 +309,16 @@ impl<'ser> Decoder<'ser> {
             }
             (Some(&MapValue(label)), List) => {
                 self.state.replace_top(MapKey(Some(label)));
+                if self.state.len() >= self.max_depth {
+                    return self.latch_err(Err(Error::NestingTooDeep))
+                }
                 self.state.push(Seq);
             }
             (Some(&MapValue(label)), Dict) => {
                 self.state.replace_top(MapKey(Some(label)));
+                if self.state.len() >= self.max_depth {
+                    return self.latch_err(Err(Error::NestingTooDeep))
+                }
                 self.state.push(MapKey(None));
             }
             (Some(&MapValue(_)), End) => {
@@ -311,9 +328,15 @@ impl<'ser> Decoder<'ser> {
                 self.state.replace_top(MapKey(Some(label)));
             }
             (_, List) => {
+                if self.state.len() >= self.max_depth {
+                    return self.latch_err(Err(Error::NestingTooDeep))
+                }
                 self.state.push(Seq);
             }
             (_, Dict) => {
+                if self.state.len() >= self.max_depth {
+                    return self.latch_err(Err(Error::NestingTooDeep))
+                }
                 self.state.push(MapKey(None));
             }
             (_, _) => (),
@@ -541,6 +564,22 @@ mod test {
     #[test]
     fn strings_must_have_bodies() {
         decode_err(b"3e");
+    }
+
+    #[test]
+    fn recursion_should_be_limited() {
+        use std::iter::repeat;
+        let mut msg = Vec::new();
+        msg.extend(repeat('l' as u8).take(4096));
+        msg.extend(repeat('e' as u8).take(4096));
+        decode_err(&msg);
+    }
+
+    #[test]
+    fn recursion_bounds_should_be_tight() {
+        let test_msg = b"lllleeee";
+        assert!(Decoder::new(test_msg).with_max_depth(4).tokens().last().unwrap().is_ok());
+        assert!(Decoder::new(test_msg).with_max_depth(3).tokens().last().unwrap().is_err());
     }
 
     #[test]
