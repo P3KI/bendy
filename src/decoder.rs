@@ -1,79 +1,8 @@
 //! Decodes a bencoded struct
 
-trait Stack<T> {
-    fn peek_mut(&mut self) -> Option<&mut T>;
-
-    fn peek(&self) -> Option<&T>;
-
-    fn replace_top(&mut self, new_value: T);
-}
-
-impl<T> Stack<T> for Vec<T> {
-    fn peek_mut(&mut self) -> Option<&mut T> {
-        let len = self.len();
-        if len == 0 {
-            None
-        } else {
-            Some(&mut self[len - 1])
-        }
-    }
-
-    fn peek(&self) -> Option<&T> {
-        let len = self.len();
-        if len == 0 {
-            None
-        } else {
-            Some(&self[len - 1])
-        }
-    }
-
-    fn replace_top(&mut self, new_value: T) {
-        self.peek_mut()
-            .map(|top| *top = new_value)
-            .expect("Shouldn't replace_top with nothing on the stack");
-    }
-}
-
-/// A decoding error
-#[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Debug, Error)]
-pub enum Error {
-    /// Saw the wrong type of token
-    #[error(msg_embedded, no_from, non_std)]
-    InvalidState(String),
-    /// Keys were not sorted
-    UnsortedKeys,
-    /// Reached EOF in the middle of a message
-    UnexpectedEof,
-    /// Malformed number or unexpected character
-    #[error(msg_embedded, no_from, non_std)]
-    SyntaxError(String),
-    /// Maximum nesting depth exceeded
-    NestingTooDeep,
-}
-
-impl Error {
-    fn unexpected(expected: &str, got: char, offset: usize) -> Self {
-        Error::SyntaxError(format!(
-            "Expected {}, got {:?} at offset {}",
-            expected, got, offset
-        ))
-    }
-}
-
-/// A raw bencode token
-#[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Debug)]
-pub enum Token<'a> {
-    /// The beginning of a list
-    List,
-    /// The beginning of a dictionary
-    Dict,
-    /// A byte string; may not be UTF-8
-    String(&'a [u8]),
-    /// A number; we explicitly *don't* parse it here, as it could be signed, unsigned, or a bignum
-    Num(&'a str),
-    /// The end of a list or dictionary
-    End,
-}
+use state_tracker::StateTracker;
+pub use state_tracker::Token;
+use super::Error;
 
 /// An object read from a decoder
 pub enum Object<'obj, 'ser: 'obj> {
@@ -98,19 +27,6 @@ impl<'obj, 'ser: 'obj> Object<'obj, 'ser> {
     }
 }
 
-/// The state of current level of the decoder
-#[derive(Clone, Ord, PartialOrd, Eq, PartialEq, Debug)]
-enum DecodeState<'a> {
-    /// An inner list. Allows any token
-    Seq,
-    /// Inside a map, expecting a key. Contains the last key read, so sorting can be validated
-    MapKey(Option<&'a [u8]>),
-    /// Inside a map, expecting a value. Contains the last key read, so sorting can be validated
-    MapValue(&'a [u8]),
-    /// Received an error while decoding
-    Failed(Error),
-}
-
 /// A bencode decoder
 ///
 /// This can be used to either get a stream of tokens (using the [Decoder::tokens()] method) or to
@@ -118,8 +34,7 @@ enum DecodeState<'a> {
 pub struct Decoder<'a> {
     source: &'a [u8],
     offset: usize,
-    state: Vec<DecodeState<'a>>,
-    max_depth: usize,
+    state: StateTracker<&'a [u8]>,
 }
 
 #[cfg_attr(feature = "cargo-clippy", allow(match_same_arms))]
@@ -129,19 +44,16 @@ impl<'ser> Decoder<'ser> {
         Decoder {
             source: buffer,
             offset: 0,
-            state: vec![],
-            max_depth: 2048,
+            state: StateTracker::new(),
         }
     }
 
     /// Set the maximum nesting depth of the decoder. An unlimited-depth decoder may be
     /// created using `with_max_depth(<usize>::max_value())`, but be warned that this will likely
     /// exhaust memory if the nesting depth is too deep (even when reading raw tokens)
-    pub fn with_max_depth(self, new_max_depth: usize) -> Self {
-        Decoder{
-            max_depth: new_max_depth,
-            ..self
-        }
+    pub fn with_max_depth(mut self, new_max_depth: usize) -> Self {
+        self.state.set_max_depth(new_max_depth);
+        self
     }
 
     fn take_byte(&mut self) -> Option<u8> {
@@ -235,21 +147,6 @@ impl<'ser> Decoder<'ser> {
         }
     }
 
-    fn latch_err<T>(&mut self, result: Result<T, Error>) -> Result<T, Error> {
-        if let Err(ref err) = result {
-            self.state.push(DecodeState::Failed(err.clone()))
-        }
-        result
-    }
-
-    fn check_error(&self) -> Result<(), Error> {
-        if let Some(&DecodeState::Failed(ref error)) = self.state.peek() {
-            Err(error.clone())
-        } else {
-            Ok(())
-        }
-    }
-
     fn raw_next_token(&mut self) -> Result<Token<'ser>, Error> {
         let token = match self.take_byte().ok_or(Error::UnexpectedEof)? as char {
             'e' => Token::End,
@@ -280,86 +177,20 @@ impl<'ser> Decoder<'ser> {
     /// Read the next token. Returns Ok(Some(token)) if a token was successfully read,
     fn next_token(&mut self) -> Result<Option<Token<'ser>>, Error> {
         use self::Token::*;
-        use self::DecodeState::*;
 
-        self.check_error()?;
+        self.state.check_error()?;
 
         let start_offset = self.offset;
 
         if self.offset == self.source.len() {
-            if self.state.is_empty() {
-                return Ok(None);
-            } else {
-                return self.latch_err(Err(Error::UnexpectedEof));
-            }
+            self.state.observe_eof()?;
+            return Ok(None)
         }
 
         let tok_result = self.raw_next_token();
-        let tok = self.latch_err(tok_result)?;
+        let tok = self.state.latch_err(tok_result)?;
 
-        match (self.state.peek(), tok) {
-            (None, End) => {
-                self.offset = start_offset;
-                return self.latch_err(Err(Error::InvalidState(
-                    "End not allowed at top level".to_owned(),
-                )));
-            }
-            (Some(&Seq), End) => {
-                self.state.pop();
-            }
-            (Some(&MapKey(_)), End) => {
-                self.state.pop();
-            }
-            (Some(&MapKey(None)), String(label)) => {
-                self.state.replace_top(MapValue(label));
-            }
-            (Some(&MapKey(Some(oldlabel))), String(label)) => {
-                if oldlabel >= label {
-                    self.offset = start_offset;
-                    return self.latch_err(Err(Error::UnsortedKeys));
-                }
-                self.state.replace_top(MapValue(label));
-            }
-            (Some(&MapKey(_)), _tok) => {
-                self.offset = start_offset;
-                return self.latch_err(Err(Error::InvalidState(
-                    "Map keys must be strings".to_owned(),
-                )));
-            }
-            (Some(&MapValue(label)), List) => {
-                self.state.replace_top(MapKey(Some(label)));
-                if self.state.len() >= self.max_depth {
-                    return self.latch_err(Err(Error::NestingTooDeep))
-                }
-                self.state.push(Seq);
-            }
-            (Some(&MapValue(label)), Dict) => {
-                self.state.replace_top(MapKey(Some(label)));
-                if self.state.len() >= self.max_depth {
-                    return self.latch_err(Err(Error::NestingTooDeep))
-                }
-                self.state.push(MapKey(None));
-            }
-            (Some(&MapValue(_)), End) => {
-                return self.latch_err(Err(Error::InvalidState("Missing map value".to_owned())))
-            }
-            (Some(&MapValue(label)), _) => {
-                self.state.replace_top(MapKey(Some(label)));
-            }
-            (_, List) => {
-                if self.state.len() >= self.max_depth {
-                    return self.latch_err(Err(Error::NestingTooDeep))
-                }
-                self.state.push(Seq);
-            }
-            (_, Dict) => {
-                if self.state.len() >= self.max_depth {
-                    return self.latch_err(Err(Error::NestingTooDeep))
-                }
-                self.state.push(MapKey(None));
-            }
-            (_, _) => (),
-        }
+        self.state.observe_token(&tok)?;
         Ok(Some(tok))
     }
 
@@ -379,7 +210,7 @@ impl<'a> Iterator for Tokens<'a> {
 
     fn next(&mut self) -> Option<Self::Item> {
         // Only report an error once
-        if self.0.check_error().is_err() {
+        if self.0.state.check_error().is_err() {
             return None;
         }
         match self.0.next_token() {
