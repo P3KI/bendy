@@ -113,8 +113,8 @@ enum DecodeState<'a> {
 
 /// A bencode decoder
 ///
-/// This can be used to either get a stream of tokens (using the [Self::tokens] method) or to
-/// read a complete object at a time (using the [Self::next_object]) method.
+/// This can be used to either get a stream of tokens (using the [Decoder::tokens()] method) or to
+/// read a complete object at a time (using the [Decoder::next_object()]) method.
 pub struct Decoder<'a> {
     source: &'a [u8],
     offset: usize,
@@ -541,7 +541,6 @@ mod test {
     }
 
     fn decode_err(msg: &[u8], err_regex: &str) {
-        use std::error::Error;
         let mut tokens: Vec<Result<Token, self::Error>> = Decoder::new(msg).tokens().collect();
         if tokens.iter().all(Result::is_ok) {
             panic!("Unexpected parse success: {:?}", tokens);
@@ -575,8 +574,18 @@ mod test {
     }
 
     #[test]
-    fn short_message_should_fail() {
+    fn short_dict_should_fail() {
         decode_err(b"d", r"EOF");
+    }
+
+    #[test]
+    fn short_list_should_fail() {
+        decode_err(b"l", r"EOF");
+    }
+
+    #[test]
+    fn short_int_should_fail() {
+        decode_err(b"i12", r"EOF");
     }
 
     #[test]
