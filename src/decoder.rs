@@ -179,7 +179,7 @@ impl<'ser> Decoder<'ser> {
 
         if self.offset == self.source.len() {
             self.state.observe_eof()?;
-            return Ok(None)
+            return Ok(None);
         }
 
         let tok_result = self.raw_next_token();
@@ -431,13 +431,7 @@ mod test {
     fn negative_numbers_and_zero_should_parse() {
         use super::Token::*;
         let tokens: Vec<_> = decode_tokens(b"i0ei-1e");
-        assert_eq!(
-            tokens,
-            vec![
-                Num(&"0"),
-                Num(&"-1"),
-            ],
-        );
+        assert_eq!(tokens, vec![Num(&"0"), Num(&"-1")],);
     }
 
     #[test]
@@ -493,8 +487,22 @@ mod test {
     #[test]
     fn recursion_bounds_should_be_tight() {
         let test_msg = b"lllleeee";
-        assert!(Decoder::new(test_msg).with_max_depth(4).tokens().last().unwrap().is_ok());
-        assert!(Decoder::new(test_msg).with_max_depth(3).tokens().last().unwrap().is_err());
+        assert!(
+            Decoder::new(test_msg)
+                .with_max_depth(4)
+                .tokens()
+                .last()
+                .unwrap()
+                .is_ok()
+        );
+        assert!(
+            Decoder::new(test_msg)
+                .with_max_depth(3)
+                .tokens()
+                .last()
+                .unwrap()
+                .is_err()
+        );
     }
 
     #[test]

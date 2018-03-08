@@ -63,17 +63,24 @@ pub enum DecodeState<S: AsRef<[u8]>> {
 }
 
 /// Used to validate that a structure is valid
+#[derive(Debug)]
 pub(crate) struct StateTracker<S: AsRef<[u8]>> {
     state: Vec<DecodeState<S>>,
     max_depth: usize,
 }
 
-impl<S: AsRef<[u8]>> StateTracker<S> {
-    pub fn new() -> Self {
-        StateTracker{
+impl<S: AsRef<[u8]>> Default for StateTracker<S> {
+    fn default() -> Self {
+        StateTracker {
             state: Vec::new(),
             max_depth: 2048,
         }
+    }
+}
+
+impl<S: AsRef<[u8]>> StateTracker<S> {
+    pub fn new() -> Self {
+        <Self as Default>::default()
     }
 
     pub fn set_max_depth(&mut self, new_max_depth: usize) {
@@ -90,8 +97,11 @@ impl<S: AsRef<[u8]>> StateTracker<S> {
         }
     }
 
+    #[cfg_attr(feature = "cargo-clippy", allow(match_same_arms))]
     pub fn observe_token<'a>(&mut self, token: &Token<'a>) -> Result<(), Error>
-    where S: From<&'a [u8]> {
+    where
+        S: From<&'a [u8]>,
+    {
         use self::Token::*;
         use self::DecodeState::*;
 
@@ -101,10 +111,8 @@ impl<S: AsRef<[u8]>> StateTracker<S> {
                     "End not allowed at top level".to_owned(),
                 )));
             }
-            (Some(Seq), End) => {
-            }
-            (Some(MapKey(_)), End) => {
-            }
+            (Some(Seq), End) => {}
+            (Some(MapKey(_)), End) => {}
             (Some(MapKey(None)), String(label)) => {
                 self.state.push(MapValue(S::from(label)));
             }
@@ -114,7 +122,7 @@ impl<S: AsRef<[u8]>> StateTracker<S> {
                 }
                 self.state.push(MapValue(S::from(label)));
             }
-            (Some(oldstate@MapKey(_)), _tok) => {
+            (Some(oldstate @ MapKey(_)), _tok) => {
                 self.state.push(oldstate);
                 return self.latch_err(Err(Error::InvalidState(
                     "Map keys must be strings".to_owned(),
@@ -123,20 +131,20 @@ impl<S: AsRef<[u8]>> StateTracker<S> {
             (Some(MapValue(label)), List) => {
                 self.state.push(MapKey(Some(label)));
                 if self.state.len() >= self.max_depth {
-                    return self.latch_err(Err(Error::NestingTooDeep))
+                    return self.latch_err(Err(Error::NestingTooDeep));
                 }
                 self.state.push(Seq);
             }
             (Some(MapValue(label)), Dict) => {
                 self.state.push(MapKey(Some(label)));
                 if self.state.len() >= self.max_depth {
-                    return self.latch_err(Err(Error::NestingTooDeep))
+                    return self.latch_err(Err(Error::NestingTooDeep));
                 }
                 self.state.push(MapKey(None));
             }
-            (Some(oldstate@MapValue(_)), End) => {
+            (Some(oldstate @ MapValue(_)), End) => {
                 self.state.push(oldstate);
-                return self.latch_err(Err(Error::InvalidState("Missing map value".to_owned())))
+                return self.latch_err(Err(Error::InvalidState("Missing map value".to_owned())));
             }
             (Some(MapValue(label)), _) => {
                 self.state.push(MapKey(Some(label)));
@@ -146,7 +154,7 @@ impl<S: AsRef<[u8]>> StateTracker<S> {
                     self.state.push(oldstate);
                 }
                 if self.state.len() >= self.max_depth {
-                    return self.latch_err(Err(Error::NestingTooDeep))
+                    return self.latch_err(Err(Error::NestingTooDeep));
                 }
                 self.state.push(Seq);
             }
@@ -156,7 +164,7 @@ impl<S: AsRef<[u8]>> StateTracker<S> {
                 }
 
                 if self.state.len() >= self.max_depth {
-                    return self.latch_err(Err(Error::NestingTooDeep))
+                    return self.latch_err(Err(Error::NestingTooDeep));
                 }
                 self.state.push(MapKey(None));
             }
@@ -165,7 +173,6 @@ impl<S: AsRef<[u8]>> StateTracker<S> {
                     self.state.push(oldstate);
                 }
             }
-            ,
         }
         Ok(())
     }

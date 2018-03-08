@@ -1,6 +1,6 @@
 //! An encoder for bencode. Guarantees that the output string is valid bencode
 
-use state_tracker::{Token, StateTracker};
+use state_tracker::{StateTracker, Token};
 use std::io::{self, Write};
 use std::collections::BTreeMap;
 use super::Error;
@@ -23,7 +23,7 @@ write!(w, "{}", self)
 
 impl_integer!(u8 u16 u32 u64 usize i8 i16 i32 i64 isize);
 
-impl<'a, T: Integer+Copy> Integer for &'a T {
+impl<'a, T: Integer + Copy> Integer for &'a T {
     fn write_to<W: Write>(self, w: W) -> io::Result<()> {
         T::write_to(*self, w)
     }
@@ -54,13 +54,13 @@ impl Encoder {
                 // Writing to a vec can't fail
                 write!(&mut self.output, "{}:", s.len()).unwrap();
                 self.output.extend_from_slice(s);
-            },
+            }
             Token::Num(num) => {
                 // Alas, this doesn't verify that the given number is valid
                 self.output.push(b'i');
                 self.output.extend_from_slice(num.as_bytes());
                 self.output.push(b'e');
-            },
+            }
             Token::End => self.output.push(b'e'),
         }
 
@@ -92,15 +92,19 @@ impl Encoder {
 
     /// Emit a dictionary where you know that the keys are already sorted
     pub fn emit_dict<F>(&mut self, content_cb: F) -> Result<(), Error>
-    where F: FnOnce(SortedDictEncoder) -> Result<(), Error> {
+    where
+        F: FnOnce(SortedDictEncoder) -> Result<(), Error>,
+    {
         self.emit_token(Token::Dict)?;
-        content_cb(SortedDictEncoder {encoder: self})?;
+        content_cb(SortedDictEncoder { encoder: self })?;
         self.emit_token(Token::End)
     }
 
     /// Emit an arbitrary list
     pub fn emit_list<F>(&mut self, list_cb: F) -> Result<(), Error>
-    where F: FnOnce(&mut Encoder) -> Result<(), Error> {
+    where
+        F: FnOnce(&mut Encoder) -> Result<(), Error>,
+    {
         self.emit_token(Token::List)?;
         list_cb(self)?;
         self.emit_token(Token::End)
@@ -110,18 +114,20 @@ impl Encoder {
     /// values to temporary memory, then sort them before adding them to the serialized
     /// stream
     pub fn emit_unsorted_dict<F>(&mut self, content_cb: F) -> Result<(), Error>
-        where F: FnOnce(&mut UnsortedDictEncoder) -> Result<(), Error> {
+    where
+        F: FnOnce(&mut UnsortedDictEncoder) -> Result<(), Error>,
+    {
         // emit the dict token so that that error is reported early
         self.emit_token(Token::Dict)?;
 
         let mut encoder = UnsortedDictEncoder {
             content: BTreeMap::new(),
-            error: Ok(())
+            error: Ok(()),
         };
         content_cb(&mut encoder)?;
 
         encoder.error?;
-        for (k,v) in encoder.content {
+        for (k, v) in encoder.content {
             self.emit_bytes(&k)?;
             // We know that the output is a single object by construction
             self.state.observe_token(&Token::Num(""))?;
@@ -165,14 +171,18 @@ impl<'a> SingleItemEncoder<'a> {
 
     /// Emit an arbitrary list
     pub fn emit_list<F>(self, list_cb: F) -> Result<(), Error>
-        where F: FnOnce(&mut Encoder) -> Result<(), Error> {
+    where
+        F: FnOnce(&mut Encoder) -> Result<(), Error>,
+    {
         *self.value_written = true;
         self.encoder.emit_list(list_cb)
     }
 
     /// Emit a sorted dictionary. If the input dictionary is unsorted
     pub fn emit_dict<F>(self, content_cb: F) -> Result<(), Error>
-        where F: FnOnce(SortedDictEncoder) -> Result<(), Error> {
+    where
+        F: FnOnce(SortedDictEncoder) -> Result<(), Error>,
+    {
         *self.value_written = true;
         self.encoder.emit_dict(content_cb)
     }
@@ -181,7 +191,9 @@ impl<'a> SingleItemEncoder<'a> {
     /// values to temporary memory, then sort them before adding them to the serialized
     /// stream
     pub fn emit_unsorted_dict<F>(self, content_cb: F) -> Result<(), Error>
-        where F: FnOnce(&mut UnsortedDictEncoder) -> Result<(), Error> {
+    where
+        F: FnOnce(&mut UnsortedDictEncoder) -> Result<(), Error>,
+    {
         *self.value_written = true;
         self.encoder.emit_unsorted_dict(content_cb)
     }
@@ -195,23 +207,26 @@ pub struct SortedDictEncoder<'a> {
 impl<'a> SortedDictEncoder<'a> {
     /// Emit a key/value pair
     pub fn emit_pair<F>(&mut self, key: &[u8], value_cb: F) -> Result<(), Error>
-    where F: FnOnce(SingleItemEncoder) -> Result<(), Error> {
+    where
+        F: FnOnce(SingleItemEncoder) -> Result<(), Error>,
+    {
         use std::mem::replace;
 
         let mut value_written = false;
 
         self.encoder.emit_token(Token::String(key))?;
         let old_state = replace(&mut self.encoder.state, StateTracker::new());
-        let ret = value_cb(SingleItemEncoder{
+        let ret = value_cb(SingleItemEncoder {
             encoder: &mut self.encoder,
             value_written: &mut value_written,
         });
 
-
         let temp_state = replace(&mut self.encoder.state, old_state);
         self.encoder.state.latch_err(temp_state.check_error())?;
         if !value_written {
-            return self.encoder.state.latch_err(Err(Error::InvalidState("No value was emitted".to_owned())));
+            return self.encoder
+                .state
+                .latch_err(Err(Error::InvalidState("No value was emitted".to_owned())));
         }
         ret
     }
@@ -228,21 +243,21 @@ pub struct UnsortedDictEncoder {
 impl UnsortedDictEncoder {
     /// Emit a key/value pair
     pub fn emit_pair<F>(&mut self, key: &[u8], value_cb: F) -> Result<(), Error>
-        where F: FnOnce(SingleItemEncoder) -> Result<(), Error> {
+    where
+        F: FnOnce(SingleItemEncoder) -> Result<(), Error>,
+    {
         if self.error.is_err() {
             return self.error.clone();
         }
-
 
         let mut value_written = false;
 
         let mut encoder = Encoder::new();
 
-        let ret = value_cb(SingleItemEncoder{
+        let ret = value_cb(SingleItemEncoder {
             encoder: &mut encoder,
             value_written: &mut value_written,
         });
-
 
         if !value_written {
             self.error = Err(Error::InvalidState("No value was emitted".to_owned()));
@@ -250,8 +265,14 @@ impl UnsortedDictEncoder {
             self.error = encoder.state.observe_eof();
         }
 
-        if self.content.insert(key.to_owned(), encoder.get_output()?).is_some() {
-            self.error = Err(Error::InvalidState(format!("Duplicate key {}", String::from_utf8_lossy(key))))
+        if self.content
+            .insert(key.to_owned(), encoder.get_output()?)
+            .is_some()
+        {
+            self.error = Err(Error::InvalidState(format!(
+                "Duplicate key {}",
+                String::from_utf8_lossy(key)
+            )))
         }
 
         if self.error.is_err() {
@@ -268,14 +289,22 @@ mod test {
     #[test]
     pub fn simple_encoding_works() {
         let mut encoder = Encoder::new();
-        encoder.emit_dict(|mut e| {
-            e.emit_pair(b"bar", |e| e.emit_int(25))?;
-            e.emit_pair(b"foo", |e| e.emit_list(|e| {
-                e.emit_str("baz")?;
-                e.emit_str("qux")
-            }))
-        }).expect("Encoding shouldn't fail");
-        assert_eq!(&encoder.get_output().expect("Complete object should have been written"),
-                    &b"d3:bari25e3:fool3:baz3:quxee");
+        encoder
+            .emit_dict(|mut e| {
+                e.emit_pair(b"bar", |e| e.emit_int(25))?;
+                e.emit_pair(b"foo", |e| {
+                    e.emit_list(|e| {
+                        e.emit_str("baz")?;
+                        e.emit_str("qux")
+                    })
+                })
+            })
+            .expect("Encoding shouldn't fail");
+        assert_eq!(
+            &encoder
+                .get_output()
+                .expect("Complete object should have been written"),
+            &b"d3:bari25e3:fool3:baz3:quxee"
+        );
     }
 }
