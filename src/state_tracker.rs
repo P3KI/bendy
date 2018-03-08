@@ -63,7 +63,7 @@ pub enum DecodeState<S: AsRef<[u8]>> {
 }
 
 /// Used to validate that a structure is valid
-pub struct StateTracker<S: AsRef<[u8]>> {
+pub(crate) struct StateTracker<S: AsRef<[u8]>> {
     state: Vec<DecodeState<S>>,
     max_depth: usize,
 }
@@ -80,7 +80,9 @@ impl<S: AsRef<[u8]>> StateTracker<S> {
         self.max_depth = new_max_depth
     }
 
+    /// Observe that an EOF was seen. This function is idempotent.
     pub fn observe_eof(&mut self) -> Result<(), Error> {
+        self.check_error()?;
         if self.state.is_empty() {
             return Ok(());
         } else {

@@ -29,15 +29,14 @@ impl<'obj, 'ser: 'obj> Object<'obj, 'ser> {
 
 /// A bencode decoder
 ///
-/// This can be used to either get a stream of tokens (using the [Decoder::tokens()] method) or to
-/// read a complete object at a time (using the [Decoder::next_object()]) method.
+/// This can be used to either get a stream of tokens (using the [`Decoder::tokens()`] method) or to
+/// read a complete object at a time (using the [`Decoder::next_object()`]) method.
 pub struct Decoder<'a> {
     source: &'a [u8],
     offset: usize,
     state: StateTracker<&'a [u8]>,
 }
 
-#[cfg_attr(feature = "cargo-clippy", allow(match_same_arms))]
 impl<'ser> Decoder<'ser> {
     /// Create a new decoder from the given byte array
     pub fn new(buffer: &'ser [u8]) -> Self {

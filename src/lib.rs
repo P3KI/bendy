@@ -13,6 +13,7 @@ extern crate derive_error;
 extern crate regex;
 
 pub mod decoder;
+pub mod encoder;
 mod state_tracker;
 
 /// An encoding or decoding error
