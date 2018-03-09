@@ -12,13 +12,13 @@ pub trait Integer {
 }
 
 macro_rules! impl_integer {
-($($type:ty)*) => {$(
-impl Integer for $type {
-fn write_to<W: Write>(self, mut w: W) -> io::Result<()> {
-write!(w, "{}", self)
-}
-}
-)*}
+    ($($type:ty)*) => {$(
+        impl Integer for $type {
+            fn write_to<W: Write>(self, mut w: W) -> io::Result<()> {
+                write!(w, "{}", self)
+            }
+        }
+    )*}
 }
 
 impl_integer!(u8 u16 u32 u64 usize i8 i16 i32 i64 isize);
@@ -41,6 +41,12 @@ impl Encoder {
     /// Create a new encoder
     pub fn new() -> Self {
         <Self as Default>::default()
+    }
+
+    /// Set the max depth of the encoded object
+    pub fn with_max_depth(mut self, max_depth: usize) -> Self {
+        self.state.set_max_depth(max_depth);
+        self
     }
 
     /// Emit a single token to the encoder
@@ -66,12 +72,12 @@ impl Encoder {
 
         Ok(())
     }
-}
 
-/// Higher-level interface
-impl Encoder {
     /// Emit an integer
     pub fn emit_int<T: Integer>(&mut self, value: T) -> Result<(), Error> {
+        // This doesn't use emit_token, as that would require that I write the integer to a
+        // temporary buffer and then copy it to the output; writing it directly saves at
+        // least one memory allocation
         self.state.check_error()?;
         self.state.observe_token(&Token::Num(""))?; // the state tracker doesn't care about int values
         self.output.push(b'i');
@@ -90,7 +96,22 @@ impl Encoder {
         self.emit_token(Token::String(value))
     }
 
-    /// Emit a dictionary where you know that the keys are already sorted
+    /// Emit a dictionary where you know that the keys are already
+    /// sorted.  The callback must emit key/value pairs to the given
+    /// encoder in sorted order.  If the key/value pairs may not be
+    /// sorted, [`Encoder::emit_unsorted_dict()`] should be used
+    /// instead.
+    ///
+    /// Example:
+    ///
+    /// ```
+    /// # use bencode_zero::encoder::Encoder;
+    /// # let mut encoder = Encoder::new();
+    /// encoder.emit_dict(|mut e| {
+    ///     e.emit_pair(b"a", |e| e.emit_str("foo"))?;
+    ///     e.emit_pair(b"b", |e| e.emit_int(2))
+    /// });
+    /// ```
     pub fn emit_dict<F>(&mut self, content_cb: F) -> Result<(), Error>
     where
         F: FnOnce(SortedDictEncoder) -> Result<(), Error>,
@@ -100,7 +121,20 @@ impl Encoder {
         self.emit_token(Token::End)
     }
 
-    /// Emit an arbitrary list
+    /// Emit an arbitrary list. The callback should emit the contents
+    /// of the list to the given encoder.
+    ///
+    /// E.g., to emit the list `[1,2,3]`, you would write
+    ///
+    /// ```
+    /// # use bencode_zero::encoder::Encoder;
+    /// let mut encoder = Encoder::new();
+    /// encoder.emit_list(|e| {
+    ///    e.emit_int(1)?;
+    ///    e.emit_int(2)?;
+    ///    e.emit_int(3)
+    /// });
+    /// ```
     pub fn emit_list<F>(&mut self, list_cb: F) -> Result<(), Error>
     where
         F: FnOnce(&mut Encoder) -> Result<(), Error>,
@@ -113,16 +147,29 @@ impl Encoder {
     /// Emit a dictionary that may have keys out of order. This will write the dict
     /// values to temporary memory, then sort them before adding them to the serialized
     /// stream
+    ///
+    /// Example.
+    ///
+    /// ```
+    /// # use bencode_zero::encoder::Encoder;
+    /// # let mut encoder = Encoder::new();
+    /// encoder.emit_dict(|mut e| {
+    ///     // Unlike in the example for Encoder::emit_dict(), these keys aren't sorted
+    ///     e.emit_pair(b"b", |e| e.emit_int(2))?;
+    ///     e.emit_pair(b"a", |e| e.emit_str("foo"))
+    /// });
+    /// ```
     pub fn emit_unsorted_dict<F>(&mut self, content_cb: F) -> Result<(), Error>
     where
         F: FnOnce(&mut UnsortedDictEncoder) -> Result<(), Error>,
     {
-        // emit the dict token so that that error is reported early
+        // emit the dict token so that a pre-existing state error is reported early
         self.emit_token(Token::Dict)?;
 
         let mut encoder = UnsortedDictEncoder {
             content: BTreeMap::new(),
             error: Ok(()),
+            remaining_depth: self.state.remaining_depth(),
         };
         content_cb(&mut encoder)?;
 
@@ -144,7 +191,9 @@ impl Encoder {
     }
 }
 
-/// An encoder that can only encode a single item
+/// An encoder that can only encode a single item.  See [`Encoder`]
+/// for usage examples; the only difference between these classes is
+/// that SingleItemEncoder can only be used once.
 pub struct SingleItemEncoder<'a> {
     encoder: &'a mut Encoder,
     value_written: &'a mut bool,
@@ -238,6 +287,7 @@ impl<'a> SortedDictEncoder<'a> {
 pub struct UnsortedDictEncoder {
     content: BTreeMap<Vec<u8>, Vec<u8>>,
     error: Result<(), Error>,
+    remaining_depth: usize,
 }
 
 impl UnsortedDictEncoder {
@@ -246,18 +296,35 @@ impl UnsortedDictEncoder {
     where
         F: FnOnce(SingleItemEncoder) -> Result<(), Error>,
     {
+        use std::collections::btree_map::Entry;
         if self.error.is_err() {
             return self.error.clone();
         }
 
+        let vacancy = match self.content.entry(key.to_owned()) {
+            Entry::Vacant(vacancy) => vacancy,
+            Entry::Occupied(occupation) => {
+                self.error = Err(Error::InvalidState(format!(
+                    "Duplicate key {}",
+                    String::from_utf8_lossy(occupation.key())
+                )));
+                return self.error.clone();
+            }
+        };
+
         let mut value_written = false;
 
-        let mut encoder = Encoder::new();
+        let mut encoder = Encoder::new().with_max_depth(self.remaining_depth);
 
         let ret = value_cb(SingleItemEncoder {
             encoder: &mut encoder,
             value_written: &mut value_written,
         });
+
+        if ret.is_err() {
+            self.error = ret.clone();
+            return ret;
+        }
 
         if !value_written {
             self.error = Err(Error::InvalidState("No value was emitted".to_owned()));
@@ -265,21 +332,16 @@ impl UnsortedDictEncoder {
             self.error = encoder.state.observe_eof();
         }
 
-        if self.content
-            .insert(key.to_owned(), encoder.get_output()?)
-            .is_some()
-        {
-            self.error = Err(Error::InvalidState(format!(
-                "Duplicate key {}",
-                String::from_utf8_lossy(key)
-            )))
-        }
-
         if self.error.is_err() {
             return self.error.clone();
         }
 
-        ret
+        let encoded_object = encoder
+            .get_output()
+            .expect("Any errors should have been caught by observe_eof");
+        vacancy.insert(encoded_object);
+
+        Ok(())
     }
 }
 

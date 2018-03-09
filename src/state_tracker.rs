@@ -51,7 +51,7 @@ pub enum Token<'a> {
 
 /// The state of current level of the decoder
 #[derive(Clone, Ord, PartialOrd, Eq, PartialEq, Debug)]
-pub enum DecodeState<S: AsRef<[u8]>> {
+pub enum State<S: AsRef<[u8]>> {
     /// An inner list. Allows any token
     Seq,
     /// Inside a map, expecting a key. Contains the last key read, so sorting can be validated
@@ -65,7 +65,7 @@ pub enum DecodeState<S: AsRef<[u8]>> {
 /// Used to validate that a structure is valid
 #[derive(Debug)]
 pub(crate) struct StateTracker<S: AsRef<[u8]>> {
-    state: Vec<DecodeState<S>>,
+    state: Vec<State<S>>,
     max_depth: usize,
 }
 
@@ -87,6 +87,10 @@ impl<S: AsRef<[u8]>> StateTracker<S> {
         self.max_depth = new_max_depth
     }
 
+    pub fn remaining_depth(&self) -> usize {
+        self.max_depth - self.state.len()
+    }
+
     /// Observe that an EOF was seen. This function is idempotent.
     pub fn observe_eof(&mut self) -> Result<(), Error> {
         self.check_error()?;
@@ -103,7 +107,7 @@ impl<S: AsRef<[u8]>> StateTracker<S> {
         S: From<&'a [u8]>,
     {
         use self::Token::*;
-        use self::DecodeState::*;
+        use self::State::*;
 
         match (self.state.pop(), *token) {
             (None, End) => {
@@ -179,13 +183,13 @@ impl<S: AsRef<[u8]>> StateTracker<S> {
 
     pub fn latch_err<T>(&mut self, result: Result<T, Error>) -> Result<T, Error> {
         if let Err(ref err) = result {
-            self.state.push(DecodeState::Failed(err.clone()))
+            self.state.push(State::Failed(err.clone()))
         }
         result
     }
 
     pub fn check_error(&self) -> Result<(), Error> {
-        if let Some(&DecodeState::Failed(ref error)) = self.state.peek() {
+        if let Some(&State::Failed(ref error)) = self.state.peek() {
             Err(error.clone())
         } else {
             Ok(())
