@@ -182,6 +182,7 @@ impl<S: AsRef<[u8]>> StateTracker<S> {
     }
 
     pub fn latch_err<T>(&mut self, result: Result<T, Error>) -> Result<T, Error> {
+        self.check_error()?;
         if let Err(ref err) = result {
             self.state.push(State::Failed(err.clone()))
         }

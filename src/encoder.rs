@@ -3,6 +3,8 @@
 use state_tracker::{StateTracker, Token};
 use std::io::{self, Write};
 use std::collections::BTreeMap;
+use std::collections::HashMap;
+use std::hash::Hash;
 use super::Error;
 
 /// A value that can be formatted as a decimal integer
@@ -22,12 +24,6 @@ macro_rules! impl_integer {
 }
 
 impl_integer!(u8 u16 u32 u64 usize i8 i16 i32 i64 isize);
-
-impl<'a, T: Integer + Copy> Integer for &'a T {
-    fn write_to<W: Write>(self, w: W) -> io::Result<()> {
-        T::write_to(*self, w)
-    }
-}
 
 /// The actual encoder. Unlike the decoder, this is not zero-copy, as that would
 /// result in a horrible interface
@@ -73,6 +69,24 @@ impl Encoder {
         Ok(())
     }
 
+    /// Emit an arbitrary encodable object
+    pub fn emit<E: Encodable>(&mut self, value: E) -> Result<(), Error> {
+        let mut value_written = false;
+        let ret = value.encode(SingleItemEncoder {
+            encoder: self,
+            value_written: &mut value_written,
+        });
+
+        self.state.latch_err(ret)?;
+
+        if !value_written {
+            return self.state
+                .latch_err(Err(Error::InvalidState("No value was emitted".to_owned())));
+        }
+
+        Ok(())
+    }
+
     /// Emit an integer
     pub fn emit_int<T: Integer>(&mut self, value: T) -> Result<(), Error> {
         // This doesn't use emit_token, as that would require that I write the integer to a
@@ -108,8 +122,8 @@ impl Encoder {
     /// # use bencode_zero::encoder::Encoder;
     /// # let mut encoder = Encoder::new();
     /// encoder.emit_dict(|mut e| {
-    ///     e.emit_pair(b"a", |e| e.emit_str("foo"))?;
-    ///     e.emit_pair(b"b", |e| e.emit_int(2))
+    ///     e.emit_pair(b"a", "foo")?;
+    ///     e.emit_pair(b"b", 2)
     /// });
     /// ```
     pub fn emit_dict<F>(&mut self, content_cb: F) -> Result<(), Error>
@@ -155,8 +169,8 @@ impl Encoder {
     /// # let mut encoder = Encoder::new();
     /// encoder.emit_dict(|mut e| {
     ///     // Unlike in the example for Encoder::emit_dict(), these keys aren't sorted
-    ///     e.emit_pair(b"b", |e| e.emit_int(2))?;
-    ///     e.emit_pair(b"a", |e| e.emit_str("foo"))
+    ///     e.emit_pair(b"b", 2)?;
+    ///     e.emit_pair(b"a", "foo")
     /// });
     /// ```
     pub fn emit_unsorted_dict<F>(&mut self, content_cb: F) -> Result<(), Error>
@@ -200,6 +214,11 @@ pub struct SingleItemEncoder<'a> {
 }
 
 impl<'a> SingleItemEncoder<'a> {
+    /// Emit an arbitrary encodable object
+    pub fn emit<E: Encodable>(self, value: E) -> Result<(), Error> {
+        value.encode(self)
+    }
+
     /// Emit an integer
     pub fn emit_int<T: Integer>(self, value: T) -> Result<(), Error> {
         *self.value_written = true;
@@ -255,29 +274,21 @@ pub struct SortedDictEncoder<'a> {
 
 impl<'a> SortedDictEncoder<'a> {
     /// Emit a key/value pair
-    pub fn emit_pair<F>(&mut self, key: &[u8], value_cb: F) -> Result<(), Error>
+    pub fn emit_pair<E>(&mut self, key: &[u8], value: E) -> Result<(), Error>
+    where
+        E: Encodable,
+    {
+        self.encoder.emit_token(Token::String(key))?;
+        self.encoder.emit(value)
+    }
+
+    /// Equivalent to [`SortedDictEncoder::emit_pair()`], but forces the type of the value
+    /// to be a callback
+    pub fn emit_pair_with<F>(&mut self, key: &[u8], value_cb: F) -> Result<(), Error>
     where
         F: FnOnce(SingleItemEncoder) -> Result<(), Error>,
     {
-        use std::mem::replace;
-
-        let mut value_written = false;
-
-        self.encoder.emit_token(Token::String(key))?;
-        let old_state = replace(&mut self.encoder.state, StateTracker::new());
-        let ret = value_cb(SingleItemEncoder {
-            encoder: &mut self.encoder,
-            value_written: &mut value_written,
-        });
-
-        let temp_state = replace(&mut self.encoder.state, old_state);
-        self.encoder.state.latch_err(temp_state.check_error())?;
-        if !value_written {
-            return self.encoder
-                .state
-                .latch_err(Err(Error::InvalidState("No value was emitted".to_owned())));
-        }
-        ret
+        self.emit_pair(key, value_cb)
     }
 }
 
@@ -292,9 +303,9 @@ pub struct UnsortedDictEncoder {
 
 impl UnsortedDictEncoder {
     /// Emit a key/value pair
-    pub fn emit_pair<F>(&mut self, key: &[u8], value_cb: F) -> Result<(), Error>
+    pub fn emit_pair<E>(&mut self, key: &[u8], value_cb: E) -> Result<(), Error>
     where
-        F: FnOnce(SingleItemEncoder) -> Result<(), Error>,
+        E: Encodable,
     {
         use std::collections::btree_map::Entry;
         if self.error.is_err() {
@@ -316,7 +327,7 @@ impl UnsortedDictEncoder {
 
         let mut encoder = Encoder::new().with_max_depth(self.remaining_depth);
 
-        let ret = value_cb(SingleItemEncoder {
+        let ret = value_cb.encode(SingleItemEncoder {
             encoder: &mut encoder,
             value_written: &mut value_written,
         });
@@ -345,6 +356,75 @@ impl UnsortedDictEncoder {
     }
 }
 
+/// An object that can be encoded into a single bencode object
+pub trait Encodable {
+    /// Encode this object into the bencode stream
+    fn encode(self, encoder: SingleItemEncoder) -> Result<(), Error>;
+}
+
+impl<'a> Encodable for &'a [u8] {
+    fn encode(self, encoder: SingleItemEncoder) -> Result<(), Error> {
+        encoder.emit_bytes(self)
+    }
+}
+
+impl<'a> Encodable for &'a str {
+    fn encode(self, encoder: SingleItemEncoder) -> Result<(), Error> {
+        encoder.emit_str(self)
+    }
+}
+
+macro_rules! impl_encodable_integer {
+    ($($type:ty)*) => {$(
+        impl Encodable for $type {
+            fn encode(self, encoder: SingleItemEncoder) -> Result<(), Error> {
+                encoder.emit_int(self)
+            }
+        }
+    )*}
+}
+
+impl_encodable_integer!(u8 u16 u32 u64 usize i8 i16 i32 i64 isize);
+
+impl<F> Encodable for F
+where
+    F: FnOnce(SingleItemEncoder) -> Result<(), Error>,
+{
+    fn encode(self, encoder: SingleItemEncoder) -> Result<(), Error> {
+        self(encoder)
+    }
+}
+
+impl<K: AsRef<[u8]>, V: Encodable> Encodable for BTreeMap<K, V> {
+    fn encode(self, encoder: SingleItemEncoder) -> Result<(), Error> {
+        encoder.emit_dict(|mut e| {
+            for (k, v) in self {
+                e.emit_pair(k.as_ref(), |e: SingleItemEncoder| v.encode(e))?;
+            }
+            Ok(())
+        })
+    }
+}
+
+impl<K, V> Encodable for HashMap<K, V>
+where
+    K: AsRef<[u8]> + Eq + Hash,
+    for<'a> &'a V: Encodable,
+{
+    fn encode<'e>(self, encoder: SingleItemEncoder<'e>) -> Result<(), Error> {
+        encoder.emit_dict(|mut e| {
+            let mut pairs = self.iter()
+                .map(|(k, v)| (k.as_ref(), v))
+                .collect::<Vec<_>>();
+            pairs.sort_by_key(|&(k, _)| k);
+            for (k, v) in pairs {
+                e.emit_pair(k.as_ref(), |e: SingleItemEncoder| v.encode(e))?;
+            }
+            Ok(())
+        })
+    }
+}
+
 #[cfg(test)]
 mod test {
     use super::*;
@@ -353,8 +433,8 @@ mod test {
         let mut encoder = Encoder::new();
         encoder
             .emit_dict(|mut e| {
-                e.emit_pair(b"bar", |e| e.emit_int(25))?;
-                e.emit_pair(b"foo", |e| {
+                e.emit_pair(b"bar", 25)?;
+                e.emit_pair_with(b"foo", |e| {
                     e.emit_list(|e| {
                         e.emit_str("baz")?;
                         e.emit_str("qux")
