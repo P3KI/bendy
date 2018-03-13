@@ -8,14 +8,14 @@ use std::hash::Hash;
 use super::Error;
 
 /// A value that can be formatted as a decimal integer
-pub trait Integer {
+pub trait PrintableInteger {
     /// Write the value as a decimal integer
     fn write_to<W: Write>(self, w: W) -> io::Result<()>;
 }
 
 macro_rules! impl_integer {
     ($($type:ty)*) => {$(
-        impl Integer for $type {
+        impl PrintableInteger for $type {
             fn write_to<W: Write>(self, mut w: W) -> io::Result<()> {
                 write!(w, "{}", self)
             }
@@ -71,8 +71,16 @@ impl Encoder {
 
     /// Emit an arbitrary encodable object
     pub fn emit<E: Encodable>(&mut self, value: E) -> Result<(), Error> {
+        self.emit_with(|e| value.encode(e))
+    }
+
+    /// Emit a single object using an encoder
+    pub fn emit_with<F>(&mut self, value_cb: F) -> Result<(), Error>
+    where
+        F: FnOnce(SingleItemEncoder) -> Result<(), Error>,
+    {
         let mut value_written = false;
-        let ret = value.encode(SingleItemEncoder {
+        let ret = value_cb(SingleItemEncoder {
             encoder: self,
             value_written: &mut value_written,
         });
@@ -88,12 +96,15 @@ impl Encoder {
     }
 
     /// Emit an integer
-    pub fn emit_int<T: Integer>(&mut self, value: T) -> Result<(), Error> {
+    pub fn emit_int<T: PrintableInteger>(&mut self, value: T) -> Result<(), Error> {
         // This doesn't use emit_token, as that would require that I write the integer to a
         // temporary buffer and then copy it to the output; writing it directly saves at
         // least one memory allocation
         self.state.check_error()?;
-        self.state.observe_token(&Token::Num(""))?; // the state tracker doesn't care about int values
+        // We observe an int here, as we need something that isn't a string (and therefore
+        // possibly valid as a key) but we also want to require as few state transitions as
+        // possible (for performance)
+        self.state.observe_token(&Token::Num(""))?;
         self.output.push(b'i');
         value.write_to(&mut self.output).unwrap(); // Vec can't produce an error
         self.output.push(b'e');
@@ -210,6 +221,9 @@ impl Encoder {
 /// that SingleItemEncoder can only be used once.
 pub struct SingleItemEncoder<'a> {
     encoder: &'a mut Encoder,
+    /// Whether we attempted to write a value to the encoder. The value
+    /// of the referent of this field is meaningless if the encode method
+    /// failed.
     value_written: &'a mut bool,
 }
 
@@ -219,8 +233,16 @@ impl<'a> SingleItemEncoder<'a> {
         value.encode(self)
     }
 
+    /// Emit a single object using an encoder
+    pub fn emit_with<F>(self, value_cb: F) -> Result<(), Error>
+    where
+        F: FnOnce(SingleItemEncoder) -> Result<(), Error>,
+    {
+        value_cb(self)
+    }
+
     /// Emit an integer
-    pub fn emit_int<T: Integer>(self, value: T) -> Result<(), Error> {
+    pub fn emit_int<T: PrintableInteger>(self, value: T) -> Result<(), Error> {
         *self.value_written = true;
         self.encoder.emit_int(value)
     }
@@ -288,7 +310,8 @@ impl<'a> SortedDictEncoder<'a> {
     where
         F: FnOnce(SingleItemEncoder) -> Result<(), Error>,
     {
-        self.emit_pair(key, value_cb)
+        self.encoder.emit_token(Token::String(key))?;
+        self.encoder.emit_with(value_cb)
     }
 }
 
@@ -374,6 +397,12 @@ impl<'a> Encodable for &'a str {
     }
 }
 
+impl<'a> Encodable for &'a String {
+    fn encode(self, encoder: SingleItemEncoder) -> Result<(), Error> {
+        encoder.emit_str(self)
+    }
+}
+
 macro_rules! impl_encodable_integer {
     ($($type:ty)*) => {$(
         impl Encodable for $type {
@@ -386,20 +415,11 @@ macro_rules! impl_encodable_integer {
 
 impl_encodable_integer!(u8 u16 u32 u64 usize i8 i16 i32 i64 isize);
 
-impl<F> Encodable for F
-where
-    F: FnOnce(SingleItemEncoder) -> Result<(), Error>,
-{
-    fn encode(self, encoder: SingleItemEncoder) -> Result<(), Error> {
-        self(encoder)
-    }
-}
-
 impl<K: AsRef<[u8]>, V: Encodable> Encodable for BTreeMap<K, V> {
     fn encode(self, encoder: SingleItemEncoder) -> Result<(), Error> {
         encoder.emit_dict(|mut e| {
             for (k, v) in self {
-                e.emit_pair(k.as_ref(), |e: SingleItemEncoder| v.encode(e))?;
+                e.emit_pair(k.as_ref(), v)?;
             }
             Ok(())
         })
@@ -418,7 +438,27 @@ where
                 .collect::<Vec<_>>();
             pairs.sort_by_key(|&(k, _)| k);
             for (k, v) in pairs {
-                e.emit_pair(k.as_ref(), |e: SingleItemEncoder| v.encode(e))?;
+                e.emit_pair(k.as_ref(), v)?;
+            }
+            Ok(())
+        })
+    }
+}
+
+/// Wrapper to make anything iterable encode to a list
+pub struct List<I: IntoIterator>(I)
+where
+    I::Item: Encodable;
+
+impl<I> Encodable for List<I>
+where
+    I: IntoIterator,
+    I::Item: Encodable,
+{
+    fn encode(self, encoder: SingleItemEncoder) -> Result<(), Error> {
+        encoder.emit_list(|e| {
+            for item in self.0 {
+                e.emit(item)?;
             }
             Ok(())
         })
@@ -447,6 +487,39 @@ mod test {
                 .get_output()
                 .expect("Complete object should have been written"),
             &b"d3:bari25e3:fool3:baz3:quxee"
+        );
+    }
+
+    struct Foo {
+        bar: u32,
+        baz: Vec<String>,
+        qux: Vec<u8>,
+    }
+
+    impl Encodable for Foo {
+        fn encode(self, encoder: SingleItemEncoder) -> Result<(), Error> {
+            encoder.emit_dict(|mut e| {
+                e.emit_pair(b"bar", self.bar)?;
+                e.emit_pair(b"baz", List(&self.baz))?;
+                e.emit_pair(b"qux", self.qux.as_slice())?;
+                Ok(())
+            })
+        }
+    }
+
+    #[test]
+    fn simple_encodable_works() {
+        let mut encoder = Encoder::new();
+        encoder
+            .emit(Foo {
+                bar: 5,
+                baz: vec!["foo".to_owned(), "bar".to_owned()],
+                qux: b"qux".to_vec(),
+            })
+            .unwrap();
+        assert_eq!(
+            &encoder.get_output().unwrap()[..],
+            &b"d3:bari5e3:bazl3:foo3:bare3:qux3:quxe"[..]
         );
     }
 }
