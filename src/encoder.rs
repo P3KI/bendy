@@ -218,7 +218,7 @@ impl Encoder {
 
 /// An encoder that can only encode a single item.  See [`Encoder`]
 /// for usage examples; the only difference between these classes is
-/// that SingleItemEncoder can only be used once.
+/// that `SingleItemEncoder` can only be used once.
 pub struct SingleItemEncoder<'a> {
     encoder: &'a mut Encoder,
     /// Whether we attempted to write a value to the encoder. The value
@@ -426,19 +426,20 @@ impl<K: AsRef<[u8]>, V: Encodable> Encodable for BTreeMap<K, V> {
     }
 }
 
-impl<K, V> Encodable for HashMap<K, V>
+impl<K, V, S> Encodable for HashMap<K, V, S>
 where
     K: AsRef<[u8]> + Eq + Hash,
     for<'a> &'a V: Encodable,
+    S: ::std::hash::BuildHasher,
 {
-    fn encode<'e>(self, encoder: SingleItemEncoder<'e>) -> Result<(), Error> {
+    fn encode(self, encoder: SingleItemEncoder) -> Result<(), Error> {
         encoder.emit_dict(|mut e| {
             let mut pairs = self.iter()
                 .map(|(k, v)| (k.as_ref(), v))
                 .collect::<Vec<_>>();
             pairs.sort_by_key(|&(k, _)| k);
             for (k, v) in pairs {
-                e.emit_pair(k.as_ref(), v)?;
+                e.emit_pair(k, v)?;
             }
             Ok(())
         })
@@ -521,5 +522,12 @@ mod test {
             &encoder.get_output().unwrap()[..],
             &b"d3:bari5e3:bazl3:foo3:bare3:qux3:quxe"[..]
         );
+    }
+
+    #[test]
+    fn emit_cb_must_emit() {
+        let mut encoder = Encoder::new();
+
+        assert!(encoder.emit_with(|_| Ok(())).is_err());
     }
 }
