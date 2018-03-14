@@ -380,24 +380,40 @@ impl UnsortedDictEncoder {
 }
 
 /// An object that can be encoded into a single bencode object
-pub trait Encodable {
+pub trait Encodable: Sized {
+    /// The maximum depth that this object could encode to
+    const MAX_DEPTH: usize;
+
     /// Encode this object into the bencode stream
     fn encode(self, encoder: SingleItemEncoder) -> Result<(), Error>;
+
+    /// Encode this object to a byte string
+    fn to_bytes(self) -> Result<Vec<u8>, Error> {
+        let mut encoder = Encoder::new().with_max_depth(Self::MAX_DEPTH);
+        encoder.emit(self)?;
+        encoder.get_output()
+    }
 }
 
 impl<'a> Encodable for &'a [u8] {
+    const MAX_DEPTH: usize = 1;
+
     fn encode(self, encoder: SingleItemEncoder) -> Result<(), Error> {
         encoder.emit_bytes(self)
     }
 }
 
 impl<'a> Encodable for &'a str {
+    const MAX_DEPTH: usize = 1;
+
     fn encode(self, encoder: SingleItemEncoder) -> Result<(), Error> {
         encoder.emit_str(self)
     }
 }
 
 impl<'a> Encodable for &'a String {
+    const MAX_DEPTH: usize = 1;
+
     fn encode(self, encoder: SingleItemEncoder) -> Result<(), Error> {
         encoder.emit_str(self)
     }
@@ -406,6 +422,8 @@ impl<'a> Encodable for &'a String {
 macro_rules! impl_encodable_integer {
     ($($type:ty)*) => {$(
         impl Encodable for $type {
+            const MAX_DEPTH: usize = 1;
+
             fn encode(self, encoder: SingleItemEncoder) -> Result<(), Error> {
                 encoder.emit_int(self)
             }
@@ -415,7 +433,14 @@ macro_rules! impl_encodable_integer {
 
 impl_encodable_integer!(u8 u16 u32 u64 usize i8 i16 i32 i64 isize);
 
-impl<K: AsRef<[u8]>, V: Encodable> Encodable for BTreeMap<K, V> {
+impl<'a, K, V> Encodable for &'a BTreeMap<K, V>
+where
+    K: AsRef<[u8]> + Eq + Ord,
+    V: 'a,
+    &'a V: Encodable,
+{
+    const MAX_DEPTH: usize = <&V as Encodable>::MAX_DEPTH + 1;
+
     fn encode(self, encoder: SingleItemEncoder) -> Result<(), Error> {
         encoder.emit_dict(|mut e| {
             for (k, v) in self {
@@ -426,12 +451,15 @@ impl<K: AsRef<[u8]>, V: Encodable> Encodable for BTreeMap<K, V> {
     }
 }
 
-impl<K, V, S> Encodable for HashMap<K, V, S>
+impl<'a, K, V, S> Encodable for &'a HashMap<K, V, S>
 where
     K: AsRef<[u8]> + Eq + Hash,
-    for<'a> &'a V: Encodable,
+    V: 'a,
+    &'a V: Encodable,
     S: ::std::hash::BuildHasher,
 {
+    const MAX_DEPTH: usize = <&V as Encodable>::MAX_DEPTH + 1;
+
     fn encode(self, encoder: SingleItemEncoder) -> Result<(), Error> {
         encoder.emit_dict(|mut e| {
             let mut pairs = self.iter()
@@ -456,6 +484,8 @@ where
     I: IntoIterator,
     I::Item: Encodable,
 {
+    const MAX_DEPTH: usize = I::Item::MAX_DEPTH + 1;
+
     fn encode(self, encoder: SingleItemEncoder) -> Result<(), Error> {
         encoder.emit_list(|e| {
             for item in self.0 {
@@ -498,6 +528,8 @@ mod test {
     }
 
     impl Encodable for Foo {
+        const MAX_DEPTH: usize = 2;
+
         fn encode(self, encoder: SingleItemEncoder) -> Result<(), Error> {
             encoder.emit_dict(|mut e| {
                 e.emit_pair(b"bar", self.bar)?;
