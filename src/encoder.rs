@@ -433,6 +433,7 @@ macro_rules! impl_encodable_integer {
 
 impl_encodable_integer!(u8 u16 u32 u64 usize i8 i16 i32 i64 isize);
 
+#[cfg(feature = "compiler_bug_fixed")]
 impl<'a, K, V> Encodable for &'a BTreeMap<K, V>
 where
     K: AsRef<[u8]> + Eq + Ord,
@@ -451,6 +452,7 @@ where
     }
 }
 
+#[cfg(feature = "compiler_bug_fixed")]
 impl<'a, K, V, S> Encodable for &'a HashMap<K, V, S>
 where
     K: AsRef<[u8]> + Eq + Hash,
