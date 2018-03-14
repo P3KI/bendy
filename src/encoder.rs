@@ -229,7 +229,7 @@ pub struct SingleItemEncoder<'a> {
 
 impl<'a> SingleItemEncoder<'a> {
     /// Emit an arbitrary encodable object
-    pub fn emit<E: Encodable>(self, value: E) -> Result<(), Error> {
+    pub fn emit<E: Encodable + ?Sized>(self, value: &E) -> Result<(), Error> {
         value.encode(self)
     }
 
@@ -326,9 +326,17 @@ pub struct UnsortedDictEncoder {
 
 impl UnsortedDictEncoder {
     /// Emit a key/value pair
-    pub fn emit_pair<E>(&mut self, key: &[u8], value_cb: E) -> Result<(), Error>
+    pub fn emit_pair<E>(&mut self, key: &[u8], value: &E) -> Result<(), Error>
     where
-        E: Encodable,
+        E: Encodable + ?Sized,
+    {
+        self.emit_pair_with(key, |e| value.encode(e))
+    }
+
+    /// Emit a key/value pair where the value is produced by a callback
+    pub fn emit_pair_with<F>(&mut self, key: &[u8], value_cb: F) -> Result<(), Error>
+    where
+        F: FnOnce(SingleItemEncoder) -> Result<(), Error>,
     {
         use std::collections::btree_map::Entry;
         if self.error.is_err() {
@@ -350,7 +358,7 @@ impl UnsortedDictEncoder {
 
         let mut encoder = Encoder::new().with_max_depth(self.remaining_depth);
 
-        let ret = value_cb.encode(SingleItemEncoder {
+        let ret = value_cb(SingleItemEncoder {
             encoder: &mut encoder,
             value_written: &mut value_written,
         });
@@ -380,25 +388,33 @@ impl UnsortedDictEncoder {
 }
 
 /// An object that can be encoded into a single bencode object
-pub trait Encodable: Sized {
+pub trait Encodable {
     /// The maximum depth that this object could encode to
     const MAX_DEPTH: usize;
 
     /// Encode this object into the bencode stream
-    fn encode(self, encoder: SingleItemEncoder) -> Result<(), Error>;
+    fn encode(&self, encoder: SingleItemEncoder) -> Result<(), Error>;
 
     /// Encode this object to a byte string
-    fn to_bytes(self) -> Result<Vec<u8>, Error> {
+    fn to_bytes(&self) -> Result<Vec<u8>, Error> {
         let mut encoder = Encoder::new().with_max_depth(Self::MAX_DEPTH);
-        encoder.emit(self)?;
+        encoder.emit_with(|e| self.encode(e))?;
         encoder.get_output()
+    }
+}
+
+impl<'a, E: 'a + Encodable + Sized> Encodable for &'a E {
+    const MAX_DEPTH: usize = E::MAX_DEPTH;
+
+    fn encode(&self, encoder: SingleItemEncoder) -> Result<(), Error> {
+        E::encode(self, encoder)
     }
 }
 
 impl<'a> Encodable for &'a [u8] {
     const MAX_DEPTH: usize = 1;
 
-    fn encode(self, encoder: SingleItemEncoder) -> Result<(), Error> {
+    fn encode(&self, encoder: SingleItemEncoder) -> Result<(), Error> {
         encoder.emit_bytes(self)
     }
 }
@@ -406,15 +422,15 @@ impl<'a> Encodable for &'a [u8] {
 impl<'a> Encodable for &'a str {
     const MAX_DEPTH: usize = 1;
 
-    fn encode(self, encoder: SingleItemEncoder) -> Result<(), Error> {
+    fn encode(&self, encoder: SingleItemEncoder) -> Result<(), Error> {
         encoder.emit_str(self)
     }
 }
 
-impl<'a> Encodable for &'a String {
+impl Encodable for String {
     const MAX_DEPTH: usize = 1;
 
-    fn encode(self, encoder: SingleItemEncoder) -> Result<(), Error> {
+    fn encode(&self, encoder: SingleItemEncoder) -> Result<(), Error> {
         encoder.emit_str(self)
     }
 }
@@ -424,8 +440,8 @@ macro_rules! impl_encodable_integer {
         impl Encodable for $type {
             const MAX_DEPTH: usize = 1;
 
-            fn encode(self, encoder: SingleItemEncoder) -> Result<(), Error> {
-                encoder.emit_int(self)
+            fn encode(&self, encoder: SingleItemEncoder) -> Result<(), Error> {
+                encoder.emit_int(*self)
             }
         }
     )*}
@@ -433,16 +449,10 @@ macro_rules! impl_encodable_integer {
 
 impl_encodable_integer!(u8 u16 u32 u64 usize i8 i16 i32 i64 isize);
 
-#[cfg(feature = "compiler_bug_fixed")]
-impl<'a, K, V> Encodable for &'a BTreeMap<K, V>
-where
-    K: AsRef<[u8]> + Eq + Ord,
-    V: 'a,
-    &'a V: Encodable,
-{
-    const MAX_DEPTH: usize = <&V as Encodable>::MAX_DEPTH + 1;
+impl<K: AsRef<[u8]>, V: Encodable> Encodable for BTreeMap<K, V> {
+    const MAX_DEPTH: usize = V::MAX_DEPTH + 1;
 
-    fn encode(self, encoder: SingleItemEncoder) -> Result<(), Error> {
+    fn encode(&self, encoder: SingleItemEncoder) -> Result<(), Error> {
         encoder.emit_dict(|mut e| {
             for (k, v) in self {
                 e.emit_pair(k.as_ref(), v)?;
@@ -456,13 +466,12 @@ where
 impl<'a, K, V, S> Encodable for &'a HashMap<K, V, S>
 where
     K: AsRef<[u8]> + Eq + Hash,
-    V: 'a,
-    &'a V: Encodable,
+    V: Encodable,
     S: ::std::hash::BuildHasher,
 {
-    const MAX_DEPTH: usize = <&V as Encodable>::MAX_DEPTH + 1;
+    const MAX_DEPTH: usize = V::MAX_DEPTH + 1;
 
-    fn encode(self, encoder: SingleItemEncoder) -> Result<(), Error> {
+    fn encode(&self, encoder: SingleItemEncoder) -> Result<(), Error> {
         encoder.emit_dict(|mut e| {
             let mut pairs = self.iter()
                 .map(|(k, v)| (k.as_ref(), v))
@@ -477,21 +486,22 @@ where
 }
 
 /// Wrapper to make anything iterable encode to a list
-pub struct List<I: IntoIterator>(I)
+pub struct List<I>(I)
 where
-    I::Item: Encodable;
+    I: IntoIterator + Copy,
+    <I as IntoIterator>::Item: Encodable;
 
 impl<I> Encodable for List<I>
 where
-    I: IntoIterator,
-    I::Item: Encodable,
+    I: IntoIterator + Copy,
+    <I as IntoIterator>::Item: Encodable,
 {
     const MAX_DEPTH: usize = I::Item::MAX_DEPTH + 1;
 
-    fn encode(self, encoder: SingleItemEncoder) -> Result<(), Error> {
+    fn encode(&self, encoder: SingleItemEncoder) -> Result<(), Error> {
         encoder.emit_list(|e| {
-            for item in self.0 {
-                e.emit(item)?;
+            for item in self.0.into_iter() {
+                e.emit(&item)?;
             }
             Ok(())
         })
@@ -532,10 +542,10 @@ mod test {
     impl Encodable for Foo {
         const MAX_DEPTH: usize = 2;
 
-        fn encode(self, encoder: SingleItemEncoder) -> Result<(), Error> {
+        fn encode(&self, encoder: SingleItemEncoder) -> Result<(), Error> {
             encoder.emit_dict(|mut e| {
-                e.emit_pair(b"bar", self.bar)?;
-                e.emit_pair(b"baz", List(&self.baz))?;
+                e.emit_pair(b"bar", &self.bar)?;
+                e.emit_pair(b"baz", &List(&self.baz))?;
                 e.emit_pair(b"qux", self.qux.as_slice())?;
                 Ok(())
             })
