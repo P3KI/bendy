@@ -445,6 +445,14 @@ impl<'a> Encodable for &'a [u8] {
     }
 }
 
+impl<'a> Encodable for Vec<u8> {
+    const MAX_DEPTH: usize = 1;
+
+    fn encode(&self, encoder: SingleItemEncoder) -> Result<(), Error> {
+        encoder.emit_bytes(self)
+    }
+}
+
 impl<'a> Encodable for &'a str {
     const MAX_DEPTH: usize = 1;
 
@@ -488,7 +496,6 @@ impl<K: AsRef<[u8]>, V: Encodable> Encodable for BTreeMap<K, V> {
     }
 }
 
-#[cfg(feature = "compiler_bug_fixed")]
 impl<'a, K, V, S> Encodable for &'a HashMap<K, V, S>
 where
     K: AsRef<[u8]> + Eq + Hash,
@@ -526,7 +533,7 @@ where
 
     fn encode(&self, encoder: SingleItemEncoder) -> Result<(), Error> {
         encoder.emit_list(|e| {
-            for item in self.0.into_iter() {
+            for item in self.0 {
                 e.emit(&item)?;
             }
             Ok(())
