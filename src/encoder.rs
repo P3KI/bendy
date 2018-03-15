@@ -403,6 +403,7 @@ pub trait Encodable {
     }
 }
 
+// Forwarding impls
 impl<'a, E: 'a + Encodable + Sized> Encodable for &'a E {
     const MAX_DEPTH: usize = E::MAX_DEPTH;
 
@@ -411,6 +412,31 @@ impl<'a, E: 'a + Encodable + Sized> Encodable for &'a E {
     }
 }
 
+impl<E: Encodable> Encodable for Box<E> {
+    const MAX_DEPTH: usize = E::MAX_DEPTH;
+
+    fn encode(&self, encoder: SingleItemEncoder) -> Result<(), Error> {
+        E::encode(&*self, encoder)
+    }
+}
+
+impl<E: Encodable> Encodable for ::std::rc::Rc<E> {
+    const MAX_DEPTH: usize = E::MAX_DEPTH;
+
+    fn encode(&self, encoder: SingleItemEncoder) -> Result<(), Error> {
+        E::encode(&*self, encoder)
+    }
+}
+
+impl<E: Encodable> Encodable for ::std::sync::Arc<E> {
+    const MAX_DEPTH: usize = E::MAX_DEPTH;
+
+    fn encode(&self, encoder: SingleItemEncoder) -> Result<(), Error> {
+        E::encode(&*self, encoder)
+    }
+}
+
+// Base type impls
 impl<'a> Encodable for &'a [u8] {
     const MAX_DEPTH: usize = 1;
 
