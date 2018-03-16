@@ -496,7 +496,7 @@ impl<K: AsRef<[u8]>, V: Encodable> Encodable for BTreeMap<K, V> {
     }
 }
 
-impl<'a, K, V, S> Encodable for &'a HashMap<K, V, S>
+impl<K, V, S> Encodable for HashMap<K, V, S>
 where
     K: AsRef<[u8]> + Eq + Hash,
     V: Encodable,
