@@ -519,7 +519,7 @@ where
 }
 
 /// Wrapper to make anything iterable encode to a list
-pub struct List<I>(I)
+pub struct List<I>(pub I)
 where
     I: IntoIterator + Copy,
     <I as IntoIterator>::Item: Encodable;
