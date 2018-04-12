@@ -1,10 +1,12 @@
 //! An encoder for bencode. Guarantees that the output string is valid bencode
 
-use state_tracker::{StateTracker, Token};
-use std::io::{self, Write};
 use std::collections::BTreeMap;
 use std::collections::HashMap;
 use std::hash::Hash;
+use std::io::{self, Write};
+
+use state_tracker::{StateTracker, Token};
+
 use super::Error;
 
 /// A value that can be formatted as a decimal integer
@@ -389,7 +391,8 @@ impl UnsortedDictEncoder {
 
 /// An object that can be encoded into a single bencode object
 pub trait Encodable {
-    /// The maximum depth that this object could encode to
+    /// The maximum depth that this object could encode to. Leaves do not consume a level, so an
+    /// `i1e` has depth 0 and `li1ee` has depth 1.
     const MAX_DEPTH: usize;
 
     /// Encode this object into the bencode stream
@@ -438,7 +441,7 @@ impl<E: Encodable> Encodable for ::std::sync::Arc<E> {
 
 // Base type impls
 impl<'a> Encodable for &'a [u8] {
-    const MAX_DEPTH: usize = 1;
+    const MAX_DEPTH: usize = 0;
 
     fn encode(&self, encoder: SingleItemEncoder) -> Result<(), Error> {
         encoder.emit_bytes(self)
@@ -446,7 +449,7 @@ impl<'a> Encodable for &'a [u8] {
 }
 
 impl<'a> Encodable for Vec<u8> {
-    const MAX_DEPTH: usize = 1;
+    const MAX_DEPTH: usize = 0;
 
     fn encode(&self, encoder: SingleItemEncoder) -> Result<(), Error> {
         encoder.emit_bytes(self)
@@ -454,7 +457,7 @@ impl<'a> Encodable for Vec<u8> {
 }
 
 impl<'a> Encodable for &'a str {
-    const MAX_DEPTH: usize = 1;
+    const MAX_DEPTH: usize = 0;
 
     fn encode(&self, encoder: SingleItemEncoder) -> Result<(), Error> {
         encoder.emit_str(self)
@@ -462,7 +465,7 @@ impl<'a> Encodable for &'a str {
 }
 
 impl Encodable for String {
-    const MAX_DEPTH: usize = 1;
+    const MAX_DEPTH: usize = 0;
 
     fn encode(&self, encoder: SingleItemEncoder) -> Result<(), Error> {
         encoder.emit_str(self)

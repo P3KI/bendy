@@ -2,6 +2,7 @@
 
 use state_tracker::StateTracker;
 pub use state_tracker::Token;
+
 use super::Error;
 
 /// An object read from a decoder
