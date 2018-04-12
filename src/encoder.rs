@@ -1,10 +1,12 @@
 //! An encoder for bencode. Guarantees that the output string is valid bencode
 
-use state_tracker::{StateTracker, Token};
-use std::io::{self, Write};
 use std::collections::BTreeMap;
 use std::collections::HashMap;
 use std::hash::Hash;
+use std::io::{self, Write};
+
+use state_tracker::{StateTracker, Token};
+
 use super::Error;
 
 /// A value that can be formatted as a decimal integer

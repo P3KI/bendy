@@ -106,8 +106,8 @@ impl<S: AsRef<[u8]>> StateTracker<S> {
     where
         S: From<&'a [u8]>,
     {
-        use self::Token::*;
         use self::State::*;
+        use self::Token::*;
 
         match (self.state.pop(), *token) {
             (None, End) => {
