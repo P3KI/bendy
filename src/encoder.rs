@@ -519,10 +519,7 @@ where
 }
 
 /// Wrapper to make anything iterable encode to a list
-pub struct List<I>(pub I)
-where
-    I: IntoIterator + Copy,
-    <I as IntoIterator>::Item: Encodable;
+pub struct List<I>(pub I);
 
 impl<I> Encodable for List<I>
 where
@@ -534,7 +531,7 @@ where
     fn encode(&self, encoder: SingleItemEncoder) -> Result<(), Error> {
         encoder.emit_list(|e| {
             for item in self.0 {
-                e.emit(&item)?;
+                e.emit(item)?;
             }
             Ok(())
         })
