@@ -7,4 +7,7 @@ trap '{ rm -rf "${EXPORT_DIR}"; }' EXIT
 
 git checkout-index -a --prefix="${EXPORT_DIR}/"
 cd "${EXPORT_DIR}"
-cargo +nightly fmt -- --write-mode diff
+
+# Nightly version is pinned to avoid untracable version clashes.
+# Update from time to time manually or if any error is encounterd.
+cargo +nightly-2018-05-22 fmt -- --check

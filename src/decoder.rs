@@ -82,6 +82,43 @@ impl<'obj, 'ser: 'obj> Object<'obj, 'ser> {
             Object::Integer(num) => Token::Num(num),
         }
     }
+
+    /// Try to treat the object as a byte string. Returns None if the object wasn't a byte string
+    pub fn unpack_bytes(self) -> Option<&'ser [u8]> {
+        if let Object::Bytes(ret) = self {
+            Some(ret)
+        } else {
+            None
+        }
+    }
+
+    /// Try to treat the object as an integer. Returns None if the object wasn't an integer;
+    /// otherwise, returns the string representation of that integer
+    pub fn unpack_int_str(self) -> Option<&'ser str> {
+        if let Object::Integer(ret) = self {
+            Some(ret)
+        } else {
+            None
+        }
+    }
+
+    /// Try to treat the object as a list. Returns None if the object wasn't a list
+    pub fn unpack_list(self) -> Option<ListDecoder<'obj, 'ser>> {
+        if let Object::List(ret) = self {
+            Some(ret)
+        } else {
+            None
+        }
+    }
+
+    /// Try to treat the object as a dict. Returns None if the object wasn't a dict
+    pub fn unpack_dict(self) -> Option<DictDecoder<'obj, 'ser>> {
+        if let Object::Dict(ret) = self {
+            Some(ret)
+        } else {
+            None
+        }
+    }
 }
 
 /// A bencode decoder
@@ -574,5 +611,105 @@ mod test {
         let mut decoder = Decoder::new(b"li1ei2ei3eei1000e");
         drop(decoder.next_object());
         assert_eq!(decoder.tokens().next(), Some(Ok(Token::Num("1000"))));
+    }
+
+    #[test]
+    fn unpack_bytes_should_work_on_bytes() {
+        assert_eq!(Some(&b"foo"[..]), Object::Bytes(b"foo").unpack_bytes());
+    }
+    #[test]
+    fn unpack_bytes_should_not_work_on_other_types() {
+        assert_eq!(None, Object::Integer("123").unpack_bytes());
+        let mut list_decoder = Decoder::new(b"le");
+        assert_eq!(
+            None,
+            list_decoder.next_object().unwrap().unwrap().unpack_bytes()
+        );
+        let mut dict_decoder = Decoder::new(b"de");
+        assert_eq!(
+            None,
+            dict_decoder.next_object().unwrap().unwrap().unpack_bytes()
+        );
+    }
+
+    #[test]
+    fn unpack_int_should_work_on_int() {
+        assert_eq!(Some(&"123"[..]), Object::Integer("123").unpack_int_str());
+    }
+    #[test]
+    fn unpack_int_should_not_work_on_other_types() {
+        assert_eq!(None, Object::Bytes(b"foo").unpack_int_str());
+        let mut list_decoder = Decoder::new(b"le");
+        assert_eq!(
+            None,
+            list_decoder
+                .next_object()
+                .unwrap()
+                .unwrap()
+                .unpack_int_str()
+        );
+        let mut dict_decoder = Decoder::new(b"de");
+        assert_eq!(
+            None,
+            dict_decoder
+                .next_object()
+                .unwrap()
+                .unwrap()
+                .unpack_int_str()
+        );
+    }
+
+    #[test]
+    fn unpack_list_should_work_on_list() {
+        let mut list_decoder = Decoder::new(b"le");
+        assert!(
+            list_decoder
+                .next_object()
+                .unwrap()
+                .unwrap()
+                .unpack_list()
+                .is_some()
+        );
+    }
+    #[test]
+    fn unpack_list_should_not_work_on_other_types() {
+        assert!(Object::Bytes(b"foo").unpack_list().is_none());
+        assert!(Object::Integer("foo").unpack_list().is_none());
+        let mut dict_decoder = Decoder::new(b"de");
+        assert!(
+            dict_decoder
+                .next_object()
+                .unwrap()
+                .unwrap()
+                .unpack_list()
+                .is_none()
+        );
+    }
+
+    #[test]
+    fn unpack_dict_should_work_on_dict() {
+        let mut dict_decoder = Decoder::new(b"de");
+        assert!(
+            dict_decoder
+                .next_object()
+                .unwrap()
+                .unwrap()
+                .unpack_dict()
+                .is_some()
+        );
+    }
+    #[test]
+    fn unpack_dict_should_not_work_on_other_types() {
+        assert!(Object::Bytes(b"foo").unpack_dict().is_none());
+        assert!(Object::Integer("foo").unpack_dict().is_none());
+        let mut list_decoder = Decoder::new(b"le");
+        assert!(
+            list_decoder
+                .next_object()
+                .unwrap()
+                .unwrap()
+                .unpack_dict()
+                .is_none()
+        );
     }
 }
