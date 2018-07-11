@@ -808,8 +808,8 @@ mod test {
     fn recursion_should_be_limited() {
         use std::iter::repeat;
         let mut msg = Vec::new();
-        msg.extend(repeat('l' as u8).take(4096));
-        msg.extend(repeat('e' as u8).take(4096));
+        msg.extend(repeat(b'l').take(4096));
+        msg.extend(repeat(b'e').take(4096));
         decode_err(&msg, r"nesting depth");
     }
 
