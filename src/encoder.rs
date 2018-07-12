@@ -6,8 +6,8 @@
 //! this should be very simple:
 //!
 //! ```
-//! # use bencode_zero::encoder::{Encodable, SingleItemEncoder};
-//! # use bencode_zero::Error;
+//! # use bendy::encoder::{Encodable, SingleItemEncoder};
+//! # use bendy::Error;
 //!
 //! struct Message {
 //!    foo: i32,
@@ -29,10 +29,10 @@
 //! ```
 //!
 //! Then, messages can be serialized using [`Encodable::to_bytes`]:
-//! 
+//!
 //! ```
-//! # use bencode_zero::encoder::{Encodable, SingleItemEncoder};
-//! # use bencode_zero::Error;
+//! # use bendy::encoder::{Encodable, SingleItemEncoder};
+//! # use bendy::Error;
 //! #
 //! # struct Message {
 //! #    foo: i32,
@@ -75,8 +75,8 @@
 //! appropriate buffer for the depth:
 //!
 //! ```
-//! # use bencode_zero::encoder::{Encodable, Encoder};
-//! # use bencode_zero::Error;
+//! # use bendy::encoder::{Encodable, Encoder};
+//! # use bendy::Error;
 //! #
 //! # type ObjectType = u32;
 //! # static object: u32 = 0;
@@ -237,8 +237,8 @@ impl Encoder {
     /// Example:
     ///
     /// ```
-    /// # use bencode_zero::encoder::Encoder;
-    ///
+    /// # use bendy::encoder::Encoder;
+    /// #
     /// # let mut encoder = Encoder::new();
     /// encoder.emit_dict(|mut e| {
     ///     e.emit_pair(b"a", "foo")?;
@@ -260,8 +260,8 @@ impl Encoder {
     /// E.g., to emit the list `[1,2,3]`, you would write
     ///
     /// ```
-    /// # use bencode_zero::encoder::Encoder;
-    ///
+    /// # use bendy::encoder::Encoder;
+    /// #
     /// let mut encoder = Encoder::new();
     /// encoder.emit_list(|e| {
     ///    e.emit_int(1)?;
@@ -285,9 +285,9 @@ impl Encoder {
     /// Example.
     ///
     /// ```
-    /// # use bencode_zero::encoder::Encoder;
+    /// # use bendy::encoder::Encoder;
     /// #
-    /// # fn main() -> Result<(), bencode_zero::Error> {
+    /// # fn main() -> Result<(), bendy::Error> {
     /// # let mut encoder = Encoder::new();
     /// #
     /// encoder.emit_and_sort_dict(|mut e| {
