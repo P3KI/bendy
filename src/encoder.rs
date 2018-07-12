@@ -8,6 +8,7 @@
 //! ```
 //! # use bencode_zero::encoder::{Encodable, SingleItemEncoder};
 //! # use bencode_zero::Error;
+//!
 //! struct Message {
 //!    foo: i32,
 //!    bar: String,
@@ -15,7 +16,7 @@
 //!
 //! impl Encodable for Message {
 //!     // Atoms have depth one. The struct wrapper adds one level to that
-//!     const MAX_DEPTH: usize = 2;
+//!     const MAX_DEPTH: usize = 1;
 //!
 //!     fn encode(&self, encoder: SingleItemEncoder) -> Result<(), Error> {
 //!         encoder.emit_dict(|mut e| {
@@ -28,17 +29,19 @@
 //! ```
 //!
 //! Then, messages can be serialized using [`Encodable::to_bytes`]:
+//! 
 //! ```
 //! # use bencode_zero::encoder::{Encodable, SingleItemEncoder};
 //! # use bencode_zero::Error;
+//! #
 //! # struct Message {
 //! #    foo: i32,
 //! #    bar: String,
 //! # }
 //! #
 //! # impl Encodable for Message {
-//! #     // Atoms have depth one. The struct wrapper adds one level to that
-//! #     const MAX_DEPTH: usize = 2;
+//! #     // Atoms have depth zero. The struct wrapper adds one level to that
+//! #     const MAX_DEPTH: usize = 1;
 //! #
 //! #     fn encode(&self, encoder: SingleItemEncoder) -> Result<(), Error> {
 //! #         encoder.emit_dict(|mut e| {
@@ -53,9 +56,10 @@
 //! # let result: Result<Vec<u8>, Error> =
 //! Message{
 //!     foo: 1,
-//!     bar: "quux".to_owned(),
+//!     bar: "quux".to_string(),
 //! }.to_bytes()
 //! # ;
+//! # assert!(result.is_ok());
 //! ```
 //!
 //! Most primitive types already implement [`Encodable`].
@@ -63,8 +67,8 @@
 //! # Nesting depth limits
 //!
 //! To allow this to be used on limited platforms, all implementations of [`Encodable`] include a
-//! maximum nesting depth. Atoms (integers and byte strings) are considered to have depth 1. An
-//! object (a list or dict) containing only atoms has depth 2, and in general, an object has a depth
+//! maximum nesting depth. Atoms (integers and byte strings) are considered to have depth 0. An
+//! object (a list or dict) containing only atoms has depth 1, and in general, an object has a depth
 //! equal to the depth of its deepest member plus one. In some cases, an object doesn't have a
 //! statically known depth. For example, ASTs may be arbitrarily nested. Such objects should
 //! have their depth set to 0, and callers should construct the Encoder manually, adding an
@@ -73,9 +77,11 @@
 //! ```
 //! # use bencode_zero::encoder::{Encodable, Encoder};
 //! # use bencode_zero::Error;
-//! # fn main() -> Result<(), Error> {
+//! #
 //! # type ObjectType = u32;
-//! # let object: u32 = 0;
+//! # static object: u32 = 0;
+//! #
+//! # fn main() -> Result<(), Error> {
 //! let mut encoder = Encoder::new()
 //!     .with_max_depth(ObjectType::MAX_DEPTH + 10);
 //! encoder.emit(object)?;
@@ -232,6 +238,7 @@ impl Encoder {
     ///
     /// ```
     /// # use bencode_zero::encoder::Encoder;
+    ///
     /// # let mut encoder = Encoder::new();
     /// encoder.emit_dict(|mut e| {
     ///     e.emit_pair(b"a", "foo")?;
@@ -254,6 +261,7 @@ impl Encoder {
     ///
     /// ```
     /// # use bencode_zero::encoder::Encoder;
+    ///
     /// let mut encoder = Encoder::new();
     /// encoder.emit_list(|e| {
     ///    e.emit_int(1)?;
@@ -321,7 +329,7 @@ impl Encoder {
     }
 }
 
-/// An encoder that can only encode a single item.  See [`Encoder`]
+/// An encoder that can only encode a single item. See [`Encoder`]
 /// for usage examples; the only difference between these classes is
 /// that `SingleItemEncoder` can only be used once.
 pub struct SingleItemEncoder<'a> {

@@ -5,6 +5,7 @@
 //! ```
 //! # use bencode_zero::decoder::{Decoder,Object};
 //! # use bencode_zero::Error;
+//! #
 //! # let buf: &[u8] = b"d3:fooi1ee";
 //! let mut decoder = Decoder::new(buf);
 //! ```
@@ -17,22 +18,27 @@
 //! ```
 //! # use bencode_zero::decoder::{Decoder,Object};
 //! # use bencode_zero::Error;
+//! #
 //! # let buf: &[u8] = b"d3:fooi1ee";
 //! # let mut decoder = Decoder::new(buf);
+//! #
 //! decoder = decoder.with_max_depth(3);
 //! ```
 //!
-//! Atoms (integers and strings) have depth one, and lists and dicts have a depth equal to the
+//! Atoms (integers and strings) have depth zero, and lists and dicts have a depth equal to the
 //! depth of their deepest member plus one. As an special case, an empty list or dict has depth 1.
 //!
 //! Now, you can start reading objects:
 //! ```
 //! # use bencode_zero::decoder::{Decoder,Object};
 //! # use bencode_zero::Error;
+//! #
 //! # fn decode_list(_: bencode_zero::decoder::ListDecoder) {}
 //! # fn decode_dict(_: bencode_zero::decoder::DictDecoder) {}
+//! #
 //! # let buf: &[u8] = b"d3:fooi1ee";
 //! # let mut decoder = Decoder::new(buf);
+//! #
 //! match decoder.next_object().unwrap() {
 //!     None => (), // EOF
 //!     Some(Object::List(d)) => decode_list(d),
@@ -49,6 +55,7 @@
 //!
 //! ```
 //! # use bencode_zero::decoder::Decoder;
+//! #
 //! fn syntax_check(buf: &[u8]) -> bool {
 //!     let mut decoder = Decoder::new(buf);
 //!     decoder.next_object().ok(); // ignore the return value of this
