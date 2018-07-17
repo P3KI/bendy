@@ -86,14 +86,14 @@ impl<'obj, 'ser: 'obj> Object<'obj, 'ser> {
     /// Try to treat the object as a byte string, mapping [`Object::Bytes(v)`] into
     /// [`Ok(v)`] and any other variant to [`Err(error)`].
     ///
-    /// Arguments passed to `bytes_or` are eagerly evaluated; if you are passing the
-    /// result of a function call, it is recommended to use [`bytes_or_else`], which is
+    /// Arguments passed to `bytes_or_err` are eagerly evaluated; if you are passing the
+    /// result of a function call, it is recommended to use [`bytes_or_else_err`], which is
     /// lazily evaluated.
     ///
     /// [`Object::Bytes(v)`]: self::Object::Bytes
     /// [`Ok(v)`]: https://doc.rust-lang.org/std/result/enum.Result.html#variant.Ok
     /// [`Err(error)`]: https://doc.rust-lang.org/std/result/enum.Result.html#variant.Err
-    /// [`bytes_or_else`]: self::Object::bytes_or_else
+    /// [`bytes_or_else_err`]: self::Object::bytes_or_else_err
     ///
     /// # Examples
     ///
@@ -101,12 +101,12 @@ impl<'obj, 'ser: 'obj> Object<'obj, 'ser> {
     /// use bencode_zero::decoder::Object;
     ///
     /// let x = Object::Bytes(b"foo");
-    /// assert_eq!(Ok(&b"foo"[..]), x.bytes_or(0));
+    /// assert_eq!(Ok(&b"foo"[..]), x.bytes_or_err(0));
     ///
     /// let x = Object::Integer("foo");
-    /// assert_eq!(Err(0), x.bytes_or(0));
+    /// assert_eq!(Err(0), x.bytes_or_err(0));
     /// ```
-    pub fn bytes_or<ErrorT>(self, error: ErrorT) -> Result<&'ser [u8], ErrorT> {
+    pub fn bytes_or_err<ErrorT>(self, error: ErrorT) -> Result<&'ser [u8], ErrorT> {
         match self {
             Object::Bytes(content) => Ok(content),
             _ => Err(error),
@@ -126,12 +126,15 @@ impl<'obj, 'ser: 'obj> Object<'obj, 'ser> {
     /// use bencode_zero::decoder::Object;
     ///
     /// let x = Object::Bytes(b"foo");
-    /// assert_eq!(Ok(&b"foo"[..]), x.bytes_or_else(|| 0));
+    /// assert_eq!(Ok(&b"foo"[..]), x.bytes_or_else_err(|| 0));
     ///
     /// let x = Object::Integer("foo");
-    /// assert_eq!(Err(0), x.bytes_or_else(|| 0));
+    /// assert_eq!(Err(0), x.bytes_or_else_err(|| 0));
     /// ```
-    pub fn bytes_or_else<ErrorT, FunctionT>(self, error: FunctionT) -> Result<&'ser [u8], ErrorT>
+    pub fn bytes_or_else_err<ErrorT, FunctionT>(
+        self,
+        error: FunctionT,
+    ) -> Result<&'ser [u8], ErrorT>
     where
         FunctionT: FnOnce() -> ErrorT,
     {
@@ -144,14 +147,14 @@ impl<'obj, 'ser: 'obj> Object<'obj, 'ser> {
     /// Try to treat the object as an integer and return the internal string representation,
     /// mapping [`Object::Integer(v)`] into [`Ok(v)`] and any other variant to [`Err(error)`].
     ///
-    /// Arguments passed to `integer_str_or` are eagerly evaluated; if you are passing the
-    /// result of a function call, it is recommended to use [`integer_str_or_else`], which is
+    /// Arguments passed to `integer_str_or_err` are eagerly evaluated; if you are passing the
+    /// result of a function call, it is recommended to use [`integer_str_or_else_err`], which is
     /// lazily evaluated.
     ///
     /// [`Object::Integer(v)`]: self::Object::Integer
     /// [`Ok(v)`]: https://doc.rust-lang.org/std/result/enum.Result.html#variant.Ok
     /// [`Err(error)`]: https://doc.rust-lang.org/std/result/enum.Result.html#variant.Err
-    /// [`integer_str_or_else`]: self::Object::integer_str_or_else
+    /// [`integer_str_or_else_err`]: self::Object::integer_str_or_else_err
     ///
     /// # Examples
     ///
@@ -159,12 +162,12 @@ impl<'obj, 'ser: 'obj> Object<'obj, 'ser> {
     /// use bencode_zero::decoder::Object;
     ///
     /// let x = Object::Integer("123");
-    /// assert_eq!(Ok(&"123"[..]), x.integer_str_or(-1));
+    /// assert_eq!(Ok(&"123"[..]), x.integer_str_or_err(-1));
     ///
     /// let x = Object::Bytes(b"foo");
-    /// assert_eq!(Err(-1), x.integer_str_or(-1));
+    /// assert_eq!(Err(-1), x.integer_str_or_err(-1));
     /// ```
-    pub fn integer_str_or<ErrorT>(self, error: ErrorT) -> Result<&'ser str, ErrorT> {
+    pub fn integer_str_or_err<ErrorT>(self, error: ErrorT) -> Result<&'ser str, ErrorT> {
         match self {
             Object::Integer(content) => Ok(content),
             _ => Err(error),
@@ -184,12 +187,12 @@ impl<'obj, 'ser: 'obj> Object<'obj, 'ser> {
     /// use bencode_zero::decoder::Object;
     ///
     /// let x = Object::Integer("123");
-    /// assert_eq!(Ok(&"123"[..]), x.integer_str_or_else(|| -1));
+    /// assert_eq!(Ok(&"123"[..]), x.integer_str_or_else_err(|| -1));
     ///
     /// let x = Object::Bytes(b"foo");
-    /// assert_eq!(Err(-1), x.integer_str_or_else(|| -1));
+    /// assert_eq!(Err(-1), x.integer_str_or_else_err(|| -1));
     /// ```
-    pub fn integer_str_or_else<ErrorT, FunctionT>(
+    pub fn integer_str_or_else_err<ErrorT, FunctionT>(
         self,
         error: FunctionT,
     ) -> Result<&'ser str, ErrorT>
@@ -205,14 +208,14 @@ impl<'obj, 'ser: 'obj> Object<'obj, 'ser> {
     /// Try to treat the object as a list and return the internal list content decoder,
     /// mapping [`Object::List(v)`] into [`Ok(v)`] and any other variant to [`Err(error)`].
     ///
-    /// Arguments passed to `list_or` are eagerly evaluated; if you are passing the
-    /// result of a function call, it is recommended to use [`list_or_else`], which is
+    /// Arguments passed to `list_or_err` are eagerly evaluated; if you are passing the
+    /// result of a function call, it is recommended to use [`list_or_else_err`], which is
     /// lazily evaluated.
     ///
     /// [`Object::List(v)`]: self::Object::List
     /// [`Ok(v)`]: https://doc.rust-lang.org/std/result/enum.Result.html#variant.Ok
     /// [`Err(error())`]: https://doc.rust-lang.org/std/result/enum.Result.html#variant.Err
-    /// [`list_or_else`]: self::Object::list_or_else
+    /// [`list_or_else_err`]: self::Object::list_or_else_err
     ///
     /// # Examples
     ///
@@ -222,12 +225,12 @@ impl<'obj, 'ser: 'obj> Object<'obj, 'ser> {
     /// let mut list_decoder = Decoder::new(b"le");
     /// let x = list_decoder.next_object().unwrap().unwrap();
     ///
-    /// assert!(x.list_or(0).is_ok());
+    /// assert!(x.list_or_err(0).is_ok());
     ///
     /// let x = Object::Bytes(b"foo");
-    /// assert_eq!(0, x.list_or(0).unwrap_err());
+    /// assert_eq!(0, x.list_or_err(0).unwrap_err());
     /// ```
-    pub fn list_or<ErrorT>(self, error: ErrorT) -> Result<ListDecoder<'obj, 'ser>, ErrorT> {
+    pub fn list_or_err<ErrorT>(self, error: ErrorT) -> Result<ListDecoder<'obj, 'ser>, ErrorT> {
         match self {
             Object::List(content) => Ok(content),
             _ => Err(error),
@@ -249,12 +252,12 @@ impl<'obj, 'ser: 'obj> Object<'obj, 'ser> {
     /// let mut list_decoder = Decoder::new(b"le");
     /// let x = list_decoder.next_object().unwrap().unwrap();
     ///
-    /// assert!(x.list_or_else(|| 0).is_ok());
+    /// assert!(x.list_or_else_err(|| 0).is_ok());
     ///
     /// let x = Object::Bytes(b"foo");
-    /// assert_eq!(0, x.list_or_else(|| 0).unwrap_err());
+    /// assert_eq!(0, x.list_or_else_err(|| 0).unwrap_err());
     /// ```
-    pub fn list_or_else<ErrorT, FunctionT>(
+    pub fn list_or_else_err<ErrorT, FunctionT>(
         self,
         error: FunctionT,
     ) -> Result<ListDecoder<'obj, 'ser>, ErrorT>
@@ -271,14 +274,14 @@ impl<'obj, 'ser: 'obj> Object<'obj, 'ser> {
     /// decoder, mapping [`Object::Dict(v)`] into [`Ok(v)`] and any other variant to
     /// [`Err(error)`].
     ///
-    /// Arguments passed to `dictionary_or` are eagerly evaluated; if you are passing the
-    /// result of a function call, it is recommended to use [`dictionary_or_else`], which is
+    /// Arguments passed to `dictionary_or_err` are eagerly evaluated; if you are passing the
+    /// result of a function call, it is recommended to use [`dictionary_or_else_err`], which is
     /// lazily evaluated.
     ///
     /// [`Object::Dict(v)`]: self::Object::Dict
     /// [`Ok(v)`]: https://doc.rust-lang.org/std/result/enum.Result.html#variant.Ok
     /// [`Err(error)`]: https://doc.rust-lang.org/std/result/enum.Result.html#variant.Err
-    /// [`dictionary_or_else`]: self::Object::dictionary_or_else
+    /// [`dictionary_or_else_err`]: self::Object::dictionary_or_else_err
     ///
     /// # Examples
     ///
@@ -288,12 +291,15 @@ impl<'obj, 'ser: 'obj> Object<'obj, 'ser> {
     /// let mut dict_decoder = Decoder::new(b"de");
     /// let x = dict_decoder.next_object().unwrap().unwrap();
     ///
-    /// assert!(x.dictionary_or(0).is_ok());
+    /// assert!(x.dictionary_or_err(0).is_ok());
     ///
     /// let x = Object::Bytes(b"foo");
-    /// assert_eq!(0, x.dictionary_or(0).unwrap_err());
+    /// assert_eq!(0, x.dictionary_or_err(0).unwrap_err());
     /// ```
-    pub fn dictionary_or<ErrorT>(self, error: ErrorT) -> Result<DictDecoder<'obj, 'ser>, ErrorT> {
+    pub fn dictionary_or_err<ErrorT>(
+        self,
+        error: ErrorT,
+    ) -> Result<DictDecoder<'obj, 'ser>, ErrorT> {
         match self {
             Object::Dict(content) => Ok(content),
             _ => Err(error),
@@ -316,12 +322,12 @@ impl<'obj, 'ser: 'obj> Object<'obj, 'ser> {
     /// let mut dict_decoder = Decoder::new(b"de");
     /// let x = dict_decoder.next_object().unwrap().unwrap();
     ///
-    /// assert!(x.dictionary_or_else(|| 0).is_ok());
+    /// assert!(x.dictionary_or_else_err(|| 0).is_ok());
     ///
     /// let x = Object::Bytes(b"foo");
-    /// assert_eq!(0, x.dictionary_or_else(|| 0).unwrap_err());
+    /// assert_eq!(0, x.dictionary_or_else_err(|| 0).unwrap_err());
     /// ```
-    pub fn dictionary_or_else<ErrorT, FunctionT>(
+    pub fn dictionary_or_else_err<ErrorT, FunctionT>(
         self,
         error: FunctionT,
     ) -> Result<DictDecoder<'obj, 'ser>, ErrorT>
@@ -834,32 +840,35 @@ mod test {
 
     #[test]
     fn bytes_or_should_work_on_bytes() {
-        assert_eq!(Ok(&b"foo"[..]), Object::Bytes(b"foo").bytes_or(0));
+        assert_eq!(Ok(&b"foo"[..]), Object::Bytes(b"foo").bytes_or_err(0));
     }
 
     #[test]
     fn bytes_or_should_not_work_on_other_types() {
-        assert_eq!(Err(0), Object::Integer("123").bytes_or(0));
+        assert_eq!(Err(0), Object::Integer("123").bytes_or_err(0));
         let mut list_decoder = Decoder::new(b"le");
         assert_eq!(
             Err(0),
-            list_decoder.next_object().unwrap().unwrap().bytes_or(0)
+            list_decoder.next_object().unwrap().unwrap().bytes_or_err(0)
         );
         let mut dict_decoder = Decoder::new(b"de");
         assert_eq!(
             Err(0),
-            dict_decoder.next_object().unwrap().unwrap().bytes_or(0)
+            dict_decoder.next_object().unwrap().unwrap().bytes_or_err(0)
         );
     }
 
     #[test]
     fn bytes_or_else_should_work_on_bytes() {
-        assert_eq!(Ok(&b"foo"[..]), Object::Bytes(b"foo").bytes_or_else(|| 0));
+        assert_eq!(
+            Ok(&b"foo"[..]),
+            Object::Bytes(b"foo").bytes_or_else_err(|| 0)
+        );
     }
 
     #[test]
     fn bytes_or_else_should_not_work_on_other_types() {
-        assert_eq!(Err(0), Object::Integer("123").bytes_or_else(|| 0));
+        assert_eq!(Err(0), Object::Integer("123").bytes_or_else_err(|| 0));
         let mut list_decoder = Decoder::new(b"le");
         assert_eq!(
             Err(0),
@@ -867,7 +876,7 @@ mod test {
                 .next_object()
                 .unwrap()
                 .unwrap()
-                .bytes_or_else(|| 0)
+                .bytes_or_else_err(|| 0)
         );
         let mut dict_decoder = Decoder::new(b"de");
         assert_eq!(
@@ -876,18 +885,21 @@ mod test {
                 .next_object()
                 .unwrap()
                 .unwrap()
-                .bytes_or_else(|| 0)
+                .bytes_or_else_err(|| 0)
         );
     }
 
     #[test]
     fn integer_str_or_should_work_on_int() {
-        assert_eq!(Ok(&"123"[..]), Object::Integer("123").integer_str_or(-1));
+        assert_eq!(
+            Ok(&"123"[..]),
+            Object::Integer("123").integer_str_or_err(-1)
+        );
     }
 
     #[test]
     fn integer_str_or_should_not_work_on_other_types() {
-        assert_eq!(Err(-1), Object::Bytes(b"foo").integer_str_or(-1));
+        assert_eq!(Err(-1), Object::Bytes(b"foo").integer_str_or_err(-1));
         let mut list_decoder = Decoder::new(b"le");
         assert_eq!(
             Err(-1),
@@ -895,7 +907,7 @@ mod test {
                 .next_object()
                 .unwrap()
                 .unwrap()
-                .integer_str_or(-1)
+                .integer_str_or_err(-1)
         );
         let mut dict_decoder = Decoder::new(b"de");
         assert_eq!(
@@ -904,7 +916,7 @@ mod test {
                 .next_object()
                 .unwrap()
                 .unwrap()
-                .integer_str_or(-1)
+                .integer_str_or_err(-1)
         );
     }
 
@@ -912,13 +924,16 @@ mod test {
     fn integer_str_or_else_should_work_on_int() {
         assert_eq!(
             Ok(&"123"[..]),
-            Object::Integer("123").integer_str_or_else(|| -1)
+            Object::Integer("123").integer_str_or_else_err(|| -1)
         );
     }
 
     #[test]
     fn integer_str_or_else_should_not_work_on_other_types() {
-        assert_eq!(Err(-1), Object::Bytes(b"foo").integer_str_or_else(|| -1));
+        assert_eq!(
+            Err(-1),
+            Object::Bytes(b"foo").integer_str_or_else_err(|| -1)
+        );
         let mut list_decoder = Decoder::new(b"le");
         assert_eq!(
             Err(-1),
@@ -926,7 +941,7 @@ mod test {
                 .next_object()
                 .unwrap()
                 .unwrap()
-                .integer_str_or_else(|| -1)
+                .integer_str_or_else_err(|| -1)
         );
         let mut dict_decoder = Decoder::new(b"de");
         assert_eq!(
@@ -935,7 +950,7 @@ mod test {
                 .next_object()
                 .unwrap()
                 .unwrap()
-                .integer_str_or_else(|| -1)
+                .integer_str_or_else_err(|| -1)
         );
     }
 
@@ -947,14 +962,14 @@ mod test {
                 .next_object()
                 .unwrap()
                 .unwrap()
-                .list_or(0)
+                .list_or_err(0)
                 .is_ok()
         );
     }
     #[test]
     fn list_or_should_not_work_on_other_types() {
-        assert_eq!(0, Object::Bytes(b"foo").list_or(0).unwrap_err());
-        assert_eq!(0, Object::Integer("foo").list_or(0).unwrap_err());
+        assert_eq!(0, Object::Bytes(b"foo").list_or_err(0).unwrap_err());
+        assert_eq!(0, Object::Integer("foo").list_or_err(0).unwrap_err());
 
         let mut dict_decoder = Decoder::new(b"de");
         assert_eq!(
@@ -963,7 +978,7 @@ mod test {
                 .next_object()
                 .unwrap()
                 .unwrap()
-                .list_or(0)
+                .list_or_err(0)
                 .unwrap_err()
         );
     }
@@ -976,14 +991,17 @@ mod test {
                 .next_object()
                 .unwrap()
                 .unwrap()
-                .list_or_else(|| 0)
+                .list_or_else_err(|| 0)
                 .is_ok()
         );
     }
     #[test]
     fn list_or_else_should_not_work_on_other_types() {
-        assert_eq!(0, Object::Bytes(b"foo").list_or_else(|| 0).unwrap_err());
-        assert_eq!(0, Object::Integer("foo").list_or_else(|| 0).unwrap_err());
+        assert_eq!(0, Object::Bytes(b"foo").list_or_else_err(|| 0).unwrap_err());
+        assert_eq!(
+            0,
+            Object::Integer("foo").list_or_else_err(|| 0).unwrap_err()
+        );
 
         let mut dict_decoder = Decoder::new(b"de");
         assert_eq!(
@@ -992,7 +1010,7 @@ mod test {
                 .next_object()
                 .unwrap()
                 .unwrap()
-                .list_or_else(|| 0)
+                .list_or_else_err(|| 0)
                 .unwrap_err()
         );
     }
@@ -1005,15 +1023,15 @@ mod test {
                 .next_object()
                 .unwrap()
                 .unwrap()
-                .dictionary_or(0)
+                .dictionary_or_err(0)
                 .is_ok()
         );
     }
 
     #[test]
     fn dictionary_or_should_not_work_on_other_types() {
-        assert_eq!(0, Object::Bytes(b"foo").dictionary_or(0).unwrap_err());
-        assert_eq!(0, Object::Integer("foo").dictionary_or(0).unwrap_err());
+        assert_eq!(0, Object::Bytes(b"foo").dictionary_or_err(0).unwrap_err());
+        assert_eq!(0, Object::Integer("foo").dictionary_or_err(0).unwrap_err());
 
         let mut list_decoder = Decoder::new(b"le");
         assert_eq!(
@@ -1022,7 +1040,7 @@ mod test {
                 .next_object()
                 .unwrap()
                 .unwrap()
-                .dictionary_or(0)
+                .dictionary_or_err(0)
                 .unwrap_err()
         );
     }
@@ -1035,7 +1053,7 @@ mod test {
                 .next_object()
                 .unwrap()
                 .unwrap()
-                .dictionary_or_else(|| 0)
+                .dictionary_or_else_err(|| 0)
                 .is_ok()
         );
     }
@@ -1044,11 +1062,15 @@ mod test {
     fn dictionary_or_else_should_not_work_on_other_types() {
         assert_eq!(
             0,
-            Object::Bytes(b"foo").dictionary_or_else(|| 0).unwrap_err()
+            Object::Bytes(b"foo")
+                .dictionary_or_else_err(|| 0)
+                .unwrap_err()
         );
         assert_eq!(
             0,
-            Object::Integer("foo").dictionary_or_else(|| 0).unwrap_err()
+            Object::Integer("foo")
+                .dictionary_or_else_err(|| 0)
+                .unwrap_err()
         );
 
         let mut list_decoder = Decoder::new(b"le");
@@ -1058,7 +1080,7 @@ mod test {
                 .next_object()
                 .unwrap()
                 .unwrap()
-                .dictionary_or_else(|| 0)
+                .dictionary_or_else_err(|| 0)
                 .unwrap_err()
         );
     }
