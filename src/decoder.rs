@@ -141,13 +141,64 @@ impl<'obj, 'ser: 'obj> Object<'obj, 'ser> {
         }
     }
 
-    /// Try to treat the object as an integer. Returns None if the object wasn't an integer;
-    /// otherwise, returns the string representation of that integer
-    pub fn unpack_int_str(self) -> Option<&'ser str> {
-        if let Object::Integer(ret) = self {
-            Some(ret)
-        } else {
-            None
+    /// Try to treat the object as an integer and return the internal string representation,
+    /// mapping [`Object::Integer(v)`] into [`Ok(v)`] and any other variant to [`Err(error)`].
+    ///
+    /// Arguments passed to `integer_str_or` are eagerly evaluated; if you are passing the
+    /// result of a function call, it is recommended to use [`integer_str_or_else`], which is
+    /// lazily evaluated.
+    ///
+    /// [`Object::Integer(v)`]: self::Object::Integer
+    /// [`Ok(v)`]: std::result::Result#Ok
+    /// [`Err(error)`]: std::result::Result#Err
+    /// [`integer_str_or_else`]: self::Object::integer_str_or_else
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use bencode_zero::decoder::Object;
+    ///
+    /// let x = Object::Integer("123");
+    /// assert_eq!(Ok(&"123"[..]), x.integer_str_or(-1));
+    ///
+    /// let x = Object::Bytes(b"foo");
+    /// assert_eq!(Err(-1), x.integer_str_or(-1));
+    /// ```
+    pub fn integer_str_or<ErrorT>(self, error: ErrorT) -> Result<&'ser str, ErrorT> {
+        match self {
+            Object::Integer(content) => Ok(content),
+            _ => Err(error),
+        }
+    }
+
+    /// Try to treat the object as an integer and return the internal string representation,
+    /// mapping [`Object::Integer(v)`] into [`Ok(v)`] and any other variant to [`Err(error())`].
+    ///
+    /// [`Object::Integer(v)`]: self::Object::Integer
+    /// [`Ok(v)`]: std::result::Result#Ok
+    /// [`Err(error())`]: std::result::Result#Err
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use bencode_zero::decoder::Object;
+    ///
+    /// let x = Object::Integer("123");
+    /// assert_eq!(Ok(&"123"[..]), x.integer_str_or_else(|| -1));
+    ///
+    /// let x = Object::Bytes(b"foo");
+    /// assert_eq!(Err(-1), x.integer_str_or_else(|| -1));
+    /// ```
+    pub fn integer_str_or_else<ErrorT, FunctionT>(
+        self,
+        error: FunctionT,
+    ) -> Result<&'ser str, ErrorT>
+    where
+        FunctionT: FnOnce() -> ErrorT,
+    {
+        match self {
+            Object::Integer(content) => Ok(content),
+            _ => Err(error()),
         }
     }
 
@@ -711,52 +762,61 @@ mod test {
     }
 
     #[test]
-    fn unpack_bytes_should_not_work_on_other_types() {
-        assert_eq!(Err("missing"), Object::Integer("123").bytes_or("missing"));
+    fn integer_str_or_should_work_on_int() {
+        assert_eq!(Ok(&"123"[..]), Object::Integer("123").integer_str_or(-1));
+    }
+
+    #[test]
+    fn integer_str_or_should_not_work_on_other_types() {
+        assert_eq!(Err(-1), Object::Bytes(b"foo").integer_str_or(-1));
         let mut list_decoder = Decoder::new(b"le");
         assert_eq!(
-            Err("missing"),
+            Err(-1),
             list_decoder
                 .next_object()
                 .unwrap()
                 .unwrap()
-                .bytes_or("missing")
+                .integer_str_or(-1)
         );
         let mut dict_decoder = Decoder::new(b"de");
         assert_eq!(
-            Err("missing"),
+            Err(-1),
             dict_decoder
                 .next_object()
                 .unwrap()
                 .unwrap()
-                .bytes_or("missing")
+                .integer_str_or(-1)
         );
     }
 
     #[test]
-    fn unpack_int_should_work_on_int() {
-        assert_eq!(Some(&"123"[..]), Object::Integer("123").unpack_int_str());
+    fn integer_str_or_else_should_work_on_int() {
+        assert_eq!(
+            Ok(&"123"[..]),
+            Object::Integer("123").integer_str_or_else(|| -1)
+        );
     }
+
     #[test]
-    fn unpack_int_should_not_work_on_other_types() {
-        assert_eq!(None, Object::Bytes(b"foo").unpack_int_str());
+    fn integer_str_or_else_should_not_work_on_other_types() {
+        assert_eq!(Err(-1), Object::Bytes(b"foo").integer_str_or_else(|| -1));
         let mut list_decoder = Decoder::new(b"le");
         assert_eq!(
-            None,
+            Err(-1),
             list_decoder
                 .next_object()
                 .unwrap()
                 .unwrap()
-                .unpack_int_str()
+                .integer_str_or_else(|| -1)
         );
         let mut dict_decoder = Decoder::new(b"de");
         assert_eq!(
-            None,
+            Err(-1),
             dict_decoder
                 .next_object()
                 .unwrap()
                 .unwrap()
-                .unpack_int_str()
+                .integer_str_or_else(|| -1)
         );
     }
 
