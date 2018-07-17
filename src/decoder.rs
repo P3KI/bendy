@@ -83,12 +83,61 @@ impl<'obj, 'ser: 'obj> Object<'obj, 'ser> {
         }
     }
 
-    /// Try to treat the object as a byte string. Returns None if the object wasn't a byte string
-    pub fn unpack_bytes(self) -> Option<&'ser [u8]> {
-        if let Object::Bytes(ret) = self {
-            Some(ret)
-        } else {
-            None
+    /// Try to treat the object as a byte string, mapping [`Object::Bytes(v)`] into
+    /// [`Ok(v)`] and any other variant to [`Err(error)`].
+    ///
+    /// Arguments passed to `bytes_or` are eagerly evaluated; if you are passing the
+    /// result of a function call, it is recommended to use [`bytes_or_else`], which is
+    /// lazily evaluated.
+    ///
+    /// [`Object::Bytes(v)`]: self::Object::Bytes
+    /// [`Ok(v)`]: std::result::Result#Ok
+    /// [`Err(error)`]: std::result::Result#Err
+    /// [`bytes_or_else`]: self::Object::bytes_or_else
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use bencode_zero::decoder::Object;
+    ///
+    /// let x = Object::Bytes(b"foo");
+    /// assert_eq!(Ok(&b"foo"[..]), x.bytes_or(0));
+    ///
+    /// let x = Object::Integer("foo");
+    /// assert_eq!(Err(0), x.bytes_or(0));
+    /// ```
+    pub fn bytes_or<ErrorT>(self, error: ErrorT) -> Result<&'ser [u8], ErrorT> {
+        match self {
+            Object::Bytes(content) => Ok(content),
+            _ => Err(error),
+        }
+    }
+
+    /// Try to treat the object as a byte string, mapping [`Object::Bytes(v)`] into
+    /// [`Ok(v)`] and any other variant to [`Err(error())`].
+    ///
+    /// [`Object::Bytes(v)`]: self::Object::Bytes
+    /// [`Ok(v)`]: std::result::Result#Ok
+    /// [`Err(error())`]: std::result::Result#Err
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use bencode_zero::decoder::Object;
+    ///
+    /// let x = Object::Bytes(b"foo");
+    /// assert_eq!(Ok(&b"foo"[..]), x.bytes_or_else(|| 0));
+    ///
+    /// let x = Object::Integer("foo");
+    /// assert_eq!(Err(0), x.bytes_or_else(|| 0));
+    /// ```
+    pub fn bytes_or_else<ErrorT, FunctionT>(self, error: FunctionT) -> Result<&'ser [u8], ErrorT>
+    where
+        FunctionT: FnOnce() -> ErrorT,
+    {
+        match self {
+            Object::Bytes(content) => Ok(content),
+            _ => Err(error()),
         }
     }
 
@@ -614,21 +663,73 @@ mod test {
     }
 
     #[test]
-    fn unpack_bytes_should_work_on_bytes() {
-        assert_eq!(Some(&b"foo"[..]), Object::Bytes(b"foo").unpack_bytes());
+    fn bytes_or_should_work_on_bytes() {
+        assert_eq!(Ok(&b"foo"[..]), Object::Bytes(b"foo").bytes_or(0));
     }
+
     #[test]
-    fn unpack_bytes_should_not_work_on_other_types() {
-        assert_eq!(None, Object::Integer("123").unpack_bytes());
+    fn bytes_or_should_not_work_on_other_types() {
+        assert_eq!(Err(0), Object::Integer("123").bytes_or(0));
         let mut list_decoder = Decoder::new(b"le");
         assert_eq!(
-            None,
-            list_decoder.next_object().unwrap().unwrap().unpack_bytes()
+            Err(0),
+            list_decoder.next_object().unwrap().unwrap().bytes_or(0)
         );
         let mut dict_decoder = Decoder::new(b"de");
         assert_eq!(
-            None,
-            dict_decoder.next_object().unwrap().unwrap().unpack_bytes()
+            Err(0),
+            dict_decoder.next_object().unwrap().unwrap().bytes_or(0)
+        );
+    }
+
+    #[test]
+    fn bytes_or_else_should_work_on_bytes() {
+        assert_eq!(Ok(&b"foo"[..]), Object::Bytes(b"foo").bytes_or_else(|| 0));
+    }
+
+    #[test]
+    fn bytes_or_else_should_not_work_on_other_types() {
+        assert_eq!(Err(0), Object::Integer("123").bytes_or_else(|| 0));
+        let mut list_decoder = Decoder::new(b"le");
+        assert_eq!(
+            Err(0),
+            list_decoder
+                .next_object()
+                .unwrap()
+                .unwrap()
+                .bytes_or_else(|| 0)
+        );
+        let mut dict_decoder = Decoder::new(b"de");
+        assert_eq!(
+            Err(0),
+            dict_decoder
+                .next_object()
+                .unwrap()
+                .unwrap()
+                .bytes_or_else(|| 0)
+        );
+    }
+
+    #[test]
+    fn unpack_bytes_should_not_work_on_other_types() {
+        assert_eq!(Err("missing"), Object::Integer("123").bytes_or("missing"));
+        let mut list_decoder = Decoder::new(b"le");
+        assert_eq!(
+            Err("missing"),
+            list_decoder
+                .next_object()
+                .unwrap()
+                .unwrap()
+                .bytes_or("missing")
+        );
+        let mut dict_decoder = Decoder::new(b"de");
+        assert_eq!(
+            Err("missing"),
+            dict_decoder
+                .next_object()
+                .unwrap()
+                .unwrap()
+                .bytes_or("missing")
         );
     }
 
