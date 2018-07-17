@@ -202,12 +202,68 @@ impl<'obj, 'ser: 'obj> Object<'obj, 'ser> {
         }
     }
 
-    /// Try to treat the object as a list. Returns None if the object wasn't a list
-    pub fn unpack_list(self) -> Option<ListDecoder<'obj, 'ser>> {
-        if let Object::List(ret) = self {
-            Some(ret)
-        } else {
-            None
+    /// Try to treat the object as a list and return the internal list content decoder,
+    /// mapping [`Object::List(v)`] into [`Ok(v)`] and any other variant to [`Err(error)`].
+    ///
+    /// Arguments passed to `list_or` are eagerly evaluated; if you are passing the
+    /// result of a function call, it is recommended to use [`list_or_else`], which is
+    /// lazily evaluated.
+    ///
+    /// [`Object::List(v)`]: self::Object::List
+    /// [`Ok(v)`]: std::result::Result#Ok
+    /// [`Err(error)`]: std::result::Result#Err
+    /// [`list_or_else`]: self::Object::list_or_else
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use bencode_zero::decoder::{Decoder, Object};
+    ///
+    /// let mut list_decoder = Decoder::new(b"le");
+    /// let x = list_decoder.next_object().unwrap().unwrap();
+    ///
+    /// assert!(x.list_or(0).is_ok());
+    ///
+    /// let x = Object::Bytes(b"foo");
+    /// assert_eq!(0, x.list_or(0).unwrap_err());
+    /// ```
+    pub fn list_or<ErrorT>(self, error: ErrorT) -> Result<ListDecoder<'obj, 'ser>, ErrorT> {
+        match self {
+            Object::List(content) => Ok(content),
+            _ => Err(error),
+        }
+    }
+
+    /// Try to treat the object as a list and return the internal list content decoder,
+    /// mapping [`Object::List(v)`] into [`Ok(v)`] and any other variant to [`Err(error())`].
+    ///
+    /// [`Object::List(v)`]: self::Object::List
+    /// [`Ok(v)`]: std::result::Result#Ok
+    /// [`Err(error())`]: std::result::Result#Err
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use bencode_zero::decoder::{Decoder, Object};
+    ///
+    /// let mut list_decoder = Decoder::new(b"le");
+    /// let x = list_decoder.next_object().unwrap().unwrap();
+    ///
+    /// assert!(x.list_or_else(|| 0).is_ok());
+    ///
+    /// let x = Object::Bytes(b"foo");
+    /// assert_eq!(0, x.list_or_else(|| 0).unwrap_err());
+    /// ```
+    pub fn list_or_else<ErrorT, FunctionT>(
+        self,
+        error: FunctionT,
+    ) -> Result<ListDecoder<'obj, 'ser>, ErrorT>
+    where
+        FunctionT: FnOnce() -> ErrorT,
+    {
+        match self {
+            Object::List(content) => Ok(content),
+            _ => Err(error()),
         }
     }
 
@@ -225,6 +281,7 @@ impl<'obj, 'ser: 'obj> Object<'obj, 'ser> {
 ///
 /// This can be used to either get a stream of tokens (using the [`Decoder::tokens()`] method) or to
 /// read a complete object at a time (using the [`Decoder::next_object()`]) method.
+#[derive(Debug)]
 pub struct Decoder<'a> {
     source: &'a [u8],
     offset: usize,
@@ -442,6 +499,7 @@ pub struct DictDecoder<'obj, 'ser: 'obj> {
 }
 
 /// A list read from the input stream
+#[derive(Debug)]
 pub struct ListDecoder<'obj, 'ser: 'obj> {
     decoder: &'obj mut Decoder<'ser>,
     finished: bool,
@@ -821,32 +879,62 @@ mod test {
     }
 
     #[test]
-    fn unpack_list_should_work_on_list() {
+    fn list_or_should_work_on_list() {
         let mut list_decoder = Decoder::new(b"le");
         assert!(
             list_decoder
                 .next_object()
                 .unwrap()
                 .unwrap()
-                .unpack_list()
-                .is_some()
+                .list_or(0)
+                .is_ok()
         );
     }
     #[test]
-    fn unpack_list_should_not_work_on_other_types() {
-        assert!(Object::Bytes(b"foo").unpack_list().is_none());
-        assert!(Object::Integer("foo").unpack_list().is_none());
+    fn list_or_should_not_work_on_other_types() {
+        assert_eq!(0, Object::Bytes(b"foo").list_or(0).unwrap_err());
+        assert_eq!(0, Object::Integer("foo").list_or(0).unwrap_err());
+
         let mut dict_decoder = Decoder::new(b"de");
-        assert!(
+        assert_eq!(
+            0,
             dict_decoder
                 .next_object()
                 .unwrap()
                 .unwrap()
-                .unpack_list()
-                .is_none()
+                .list_or(0)
+                .unwrap_err()
         );
     }
 
+    #[test]
+    fn list_or_else_should_work_on_list() {
+        let mut list_decoder = Decoder::new(b"le");
+        assert!(
+            list_decoder
+                .next_object()
+                .unwrap()
+                .unwrap()
+                .list_or_else(|| 0)
+                .is_ok()
+        );
+    }
+    #[test]
+    fn list_or_else_should_not_work_on_other_types() {
+        assert_eq!(0, Object::Bytes(b"foo").list_or_else(|| 0).unwrap_err());
+        assert_eq!(0, Object::Integer("foo").list_or_else(|| 0).unwrap_err());
+
+        let mut dict_decoder = Decoder::new(b"de");
+        assert_eq!(
+            0,
+            dict_decoder
+                .next_object()
+                .unwrap()
+                .unwrap()
+                .list_or_else(|| 0)
+                .unwrap_err()
+        );
+    }
     #[test]
     fn unpack_dict_should_work_on_dict() {
         let mut dict_decoder = Decoder::new(b"de");
