@@ -91,8 +91,8 @@ impl<'obj, 'ser: 'obj> Object<'obj, 'ser> {
     /// lazily evaluated.
     ///
     /// [`Object::Bytes(v)`]: self::Object::Bytes
-    /// [`Ok(v)`]: std::result::Result#Ok
-    /// [`Err(error)`]: std::result::Result#Err
+    /// [`Ok(v)`]: https://doc.rust-lang.org/std/result/enum.Result.html#variant.Ok
+    /// [`Err(error)`]: https://doc.rust-lang.org/std/result/enum.Result.html#variant.Err
     /// [`bytes_or_else`]: self::Object::bytes_or_else
     ///
     /// # Examples
@@ -117,8 +117,8 @@ impl<'obj, 'ser: 'obj> Object<'obj, 'ser> {
     /// [`Ok(v)`] and any other variant to [`Err(error())`].
     ///
     /// [`Object::Bytes(v)`]: self::Object::Bytes
-    /// [`Ok(v)`]: std::result::Result#Ok
-    /// [`Err(error())`]: std::result::Result#Err
+    /// [`Ok(v)`]: https://doc.rust-lang.org/std/result/enum.Result.html#variant.Ok
+    /// [`Err(error())`]: https://doc.rust-lang.org/std/result/enum.Result.html#variant.Err
     ///
     /// # Examples
     ///
@@ -149,8 +149,8 @@ impl<'obj, 'ser: 'obj> Object<'obj, 'ser> {
     /// lazily evaluated.
     ///
     /// [`Object::Integer(v)`]: self::Object::Integer
-    /// [`Ok(v)`]: std::result::Result#Ok
-    /// [`Err(error)`]: std::result::Result#Err
+    /// [`Ok(v)`]: https://doc.rust-lang.org/std/result/enum.Result.html#variant.Ok
+    /// [`Err(error)`]: https://doc.rust-lang.org/std/result/enum.Result.html#variant.Err
     /// [`integer_str_or_else`]: self::Object::integer_str_or_else
     ///
     /// # Examples
@@ -175,8 +175,8 @@ impl<'obj, 'ser: 'obj> Object<'obj, 'ser> {
     /// mapping [`Object::Integer(v)`] into [`Ok(v)`] and any other variant to [`Err(error())`].
     ///
     /// [`Object::Integer(v)`]: self::Object::Integer
-    /// [`Ok(v)`]: std::result::Result#Ok
-    /// [`Err(error())`]: std::result::Result#Err
+    /// [`Ok(v)`]: https://doc.rust-lang.org/std/result/enum.Result.html#variant.Ok
+    /// [`Err(error())`]: https://doc.rust-lang.org/std/result/enum.Result.html#variant.Err
     ///
     /// # Examples
     ///
@@ -210,8 +210,8 @@ impl<'obj, 'ser: 'obj> Object<'obj, 'ser> {
     /// lazily evaluated.
     ///
     /// [`Object::List(v)`]: self::Object::List
-    /// [`Ok(v)`]: std::result::Result#Ok
-    /// [`Err(error)`]: std::result::Result#Err
+    /// [`Ok(v)`]: https://doc.rust-lang.org/std/result/enum.Result.html#variant.Ok
+    /// [`Err(error())`]: https://doc.rust-lang.org/std/result/enum.Result.html#variant.Err
     /// [`list_or_else`]: self::Object::list_or_else
     ///
     /// # Examples
@@ -238,8 +238,8 @@ impl<'obj, 'ser: 'obj> Object<'obj, 'ser> {
     /// mapping [`Object::List(v)`] into [`Ok(v)`] and any other variant to [`Err(error())`].
     ///
     /// [`Object::List(v)`]: self::Object::List
-    /// [`Ok(v)`]: std::result::Result#Ok
-    /// [`Err(error())`]: std::result::Result#Err
+    /// [`Ok(v)`]: https://doc.rust-lang.org/std/result/enum.Result.html#variant.Ok
+    /// [`Err(error())`]: https://doc.rust-lang.org/std/result/enum.Result.html#variant.Err
     ///
     /// # Examples
     ///
@@ -276,8 +276,8 @@ impl<'obj, 'ser: 'obj> Object<'obj, 'ser> {
     /// lazily evaluated.
     ///
     /// [`Object::Dict(v)`]: self::Object::Dict
-    /// [`Ok(v)`]: std::result::Result#Ok
-    /// [`Err(error)`]: std::result::Result#Err
+    /// [`Ok(v)`]: https://doc.rust-lang.org/std/result/enum.Result.html#variant.Ok
+    /// [`Err(error)`]: https://doc.rust-lang.org/std/result/enum.Result.html#variant.Err
     /// [`dictionary_or_else`]: self::Object::dictionary_or_else
     ///
     /// # Examples
@@ -305,8 +305,8 @@ impl<'obj, 'ser: 'obj> Object<'obj, 'ser> {
     /// [`Err(error())`].
     ///
     /// [`Object::Dict(v)`]: self::Object::Dict
-    /// [`Ok(v)`]: std::result::Result#Ok
-    /// [`Err(error())`]: std::result::Result#Err
+    /// [`Ok(v)`]: https://doc.rust-lang.org/std/result/enum.Result.html#variant.Ok
+    /// [`Err(error())`]: https://doc.rust-lang.org/std/result/enum.Result.html#variant.Err
     ///
     /// # Examples
     ///
@@ -601,7 +601,7 @@ impl<'obj, 'ser: 'obj> DictDecoder<'obj, 'ser> {
 
     /// Consume (and validate the structure of) the rest of the items from the
     /// dictionary. This method should be used to check for encoding errors if
-    /// [DictDecoder::next_pair] is not called until it returns `Ok(None)`.
+    /// [`DictDecoder::next_pair`] is not called until it returns `Ok(None)`.
     pub fn consume_all(&mut self) -> Result<(), Error> {
         while let Some(_) = self.next_pair()? {
             // just drop the items
@@ -649,7 +649,9 @@ impl<'obj, 'ser: 'obj> ListDecoder<'obj, 'ser> {
 
     /// Consume (and validate the structure of) the rest of the items from the
     /// list. This method should be used to check for encoding errors if
-    /// [ListDecoder::next_pair] is not called until it returns `Ok(None)`.
+    /// [`ListDecoder::next_object`] is not called until it returns [`Ok(())`].
+    ///
+    /// [`Ok(())`]: https://doc.rust-lang.org/std/result/enum.Result.html#variant.Ok
     pub fn consume_all(&mut self) -> Result<(), Error> {
         while let Some(_) = self.next_object()? {
             // just drop the items

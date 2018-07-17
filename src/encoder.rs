@@ -91,9 +91,11 @@
 //! [`Encodable::encode`] is called before returning an error; such callbacks should respond to
 //! failure by bailing out as quickly as possible.
 //!
-//! Not all values in [[`Error`]] can be caused by an encoding operation. Specifically, you only need
-//! to worry about [`UnsortedKeys`](bencode_zero::Error::UnsortedKeys) and
-//! [`NestingTooDeep`](::Error::NestingTooDeep)
+//! Not all values in [`Error`] can be caused by an encoding operation. Specifically, you only need
+//! to worry about [`UnsortedKeys`] and [`NestingTooDeep`].
+//!
+//! [`UnsortedKeys`]: self::Error#UnsortedKeys
+//! [`NestingTooDeep`]: self::Error#NestingTooDeep
 
 use std::collections::BTreeMap;
 use std::collections::HashMap;
@@ -222,8 +224,9 @@ impl Encoder {
     /// Emit a dictionary where you know that the keys are already
     /// sorted.  The callback must emit key/value pairs to the given
     /// encoder in sorted order.  If the key/value pairs may not be
-    /// sorted, [`Encoder::emit_unsorted_dict()`] should be used
-    /// instead.
+    /// sorted, [`emit_unsorted_dict`] should be used instead.
+    ///
+    /// [`emit_unsorted_dict`]: SingleItemEncoder::emit_unsorted_dict
     ///
     /// Example:
     ///
