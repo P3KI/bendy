@@ -267,12 +267,70 @@ impl<'obj, 'ser: 'obj> Object<'obj, 'ser> {
         }
     }
 
-    /// Try to treat the object as a dict. Returns None if the object wasn't a dict
-    pub fn unpack_dict(self) -> Option<DictDecoder<'obj, 'ser>> {
-        if let Object::Dict(ret) = self {
-            Some(ret)
-        } else {
-            None
+    /// Try to treat the object as a dictionary and return the internal dictionary content
+    /// decoder, mapping [`Object::Dict(v)`] into [`Ok(v)`] and any other variant to
+    /// [`Err(error)`].
+    ///
+    /// Arguments passed to `dictionary_or` are eagerly evaluated; if you are passing the
+    /// result of a function call, it is recommended to use [`dictionary_or_else`], which is
+    /// lazily evaluated.
+    ///
+    /// [`Object::Dict(v)`]: self::Object::Dict
+    /// [`Ok(v)`]: std::result::Result#Ok
+    /// [`Err(error)`]: std::result::Result#Err
+    /// [`dictionary_or_else`]: self::Object::dictionary_or_else
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use bencode_zero::decoder::{Decoder, Object};
+    ///
+    /// let mut dict_decoder = Decoder::new(b"de");
+    /// let x = dict_decoder.next_object().unwrap().unwrap();
+    ///
+    /// assert!(x.dictionary_or(0).is_ok());
+    ///
+    /// let x = Object::Bytes(b"foo");
+    /// assert_eq!(0, x.dictionary_or(0).unwrap_err());
+    /// ```
+    pub fn dictionary_or<ErrorT>(self, error: ErrorT) -> Result<DictDecoder<'obj, 'ser>, ErrorT> {
+        match self {
+            Object::Dict(content) => Ok(content),
+            _ => Err(error),
+        }
+    }
+
+    /// Try to treat the object as a dictionary and return the internal dictionary content
+    /// decoder, mapping [`Object::Dict(v)`] into [`Ok(v)`] and any other variant to
+    /// [`Err(error())`].
+    ///
+    /// [`Object::Dict(v)`]: self::Object::Dict
+    /// [`Ok(v)`]: std::result::Result#Ok
+    /// [`Err(error())`]: std::result::Result#Err
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use bencode_zero::decoder::{Decoder, Object};
+    ///
+    /// let mut dict_decoder = Decoder::new(b"de");
+    /// let x = dict_decoder.next_object().unwrap().unwrap();
+    ///
+    /// assert!(x.dictionary_or_else(|| 0).is_ok());
+    ///
+    /// let x = Object::Bytes(b"foo");
+    /// assert_eq!(0, x.dictionary_or_else(|| 0).unwrap_err());
+    /// ```
+    pub fn dictionary_or_else<ErrorT, FunctionT>(
+        self,
+        error: FunctionT,
+    ) -> Result<DictDecoder<'obj, 'ser>, ErrorT>
+    where
+        FunctionT: FnOnce() -> ErrorT,
+    {
+        match self {
+            Object::Dict(content) => Ok(content),
+            _ => Err(error()),
         }
     }
 }
@@ -492,6 +550,7 @@ impl<'ser> Decoder<'ser> {
 }
 
 /// A dictionary read from the input stream
+#[derive(Debug)]
 pub struct DictDecoder<'obj, 'ser: 'obj> {
     decoder: &'obj mut Decoder<'ser>,
     finished: bool,
@@ -935,30 +994,70 @@ mod test {
                 .unwrap_err()
         );
     }
+
     #[test]
-    fn unpack_dict_should_work_on_dict() {
+    fn dictionary_or_should_work_on_dict() {
         let mut dict_decoder = Decoder::new(b"de");
         assert!(
             dict_decoder
                 .next_object()
                 .unwrap()
                 .unwrap()
-                .unpack_dict()
-                .is_some()
+                .dictionary_or(0)
+                .is_ok()
         );
     }
+
     #[test]
-    fn unpack_dict_should_not_work_on_other_types() {
-        assert!(Object::Bytes(b"foo").unpack_dict().is_none());
-        assert!(Object::Integer("foo").unpack_dict().is_none());
+    fn dictionary_or_should_not_work_on_other_types() {
+        assert_eq!(0, Object::Bytes(b"foo").dictionary_or(0).unwrap_err());
+        assert_eq!(0, Object::Integer("foo").dictionary_or(0).unwrap_err());
+
         let mut list_decoder = Decoder::new(b"le");
-        assert!(
+        assert_eq!(
+            0,
             list_decoder
                 .next_object()
                 .unwrap()
                 .unwrap()
-                .unpack_dict()
-                .is_none()
+                .dictionary_or(0)
+                .unwrap_err()
+        );
+    }
+
+    #[test]
+    fn dictionary_or_else_should_work_on_dict() {
+        let mut dict_decoder = Decoder::new(b"de");
+        assert!(
+            dict_decoder
+                .next_object()
+                .unwrap()
+                .unwrap()
+                .dictionary_or_else(|| 0)
+                .is_ok()
+        );
+    }
+
+    #[test]
+    fn dictionary_or_else_should_not_work_on_other_types() {
+        assert_eq!(
+            0,
+            Object::Bytes(b"foo").dictionary_or_else(|| 0).unwrap_err()
+        );
+        assert_eq!(
+            0,
+            Object::Integer("foo").dictionary_or_else(|| 0).unwrap_err()
+        );
+
+        let mut list_decoder = Decoder::new(b"le");
+        assert_eq!(
+            0,
+            list_decoder
+                .next_object()
+                .unwrap()
+                .unwrap()
+                .dictionary_or_else(|| 0)
+                .unwrap_err()
         );
     }
 }
