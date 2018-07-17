@@ -42,7 +42,9 @@
 //! #
 //! #     fn encode(&self, encoder: SingleItemEncoder) -> Result<(), Error> {
 //! #         encoder.emit_dict(|mut e| {
-//! #             // Use e to emit the values
+//! #             // Use e to emit the values. They must be in sorted order here.
+//! #             // If sorting the dict first is annoying, you can also use
+//! #             // encoder.emit_and_sort_dict
 //! #             e.emit_pair(b"bar", &self.bar)?;
 //! #             e.emit_pair(b"foo", &self.foo)
 //! #         })
@@ -71,13 +73,14 @@
 //! ```
 //! # use bencode_zero::encoder::{Encodable, Encoder};
 //! # use bencode_zero::Error;
-//! # fn test() -> Result<Vec<u8>, Error> {
+//! # fn main() -> Result<(), Error> {
 //! # type ObjectType = u32;
 //! # let object: u32 = 0;
 //! let mut encoder = Encoder::new()
 //!     .with_max_depth(ObjectType::MAX_DEPTH + 10);
 //! encoder.emit(object)?;
 //! encoder.get_output()
+//! #   .map(|_| ()) // ignore a success return value
 //! # }
 //! ```
 //!
@@ -88,9 +91,11 @@
 //! [`Encodable::encode`] is called before returning an error; such callbacks should respond to
 //! failure by bailing out as quickly as possible.
 //!
-//! Not all values in [[`Error`]] can be caused by an encoding operation. Specifically, you only need
-//! to worry about [`UnsortedKeys`](bencode_zero::Error::UnsortedKeys) and
-//! [`NestingTooDeep`](::Error::NestingTooDeep)
+//! Not all values in [`Error`] can be caused by an encoding operation. Specifically, you only need
+//! to worry about [`UnsortedKeys`] and [`NestingTooDeep`].
+//!
+//! [`UnsortedKeys`]: self::Error#UnsortedKeys
+//! [`NestingTooDeep`]: self::Error#NestingTooDeep
 
 use std::collections::BTreeMap;
 use std::collections::HashMap;
@@ -219,8 +224,9 @@ impl Encoder {
     /// Emit a dictionary where you know that the keys are already
     /// sorted.  The callback must emit key/value pairs to the given
     /// encoder in sorted order.  If the key/value pairs may not be
-    /// sorted, [`Encoder::emit_unsorted_dict()`] should be used
-    /// instead.
+    /// sorted, [`emit_unsorted_dict`] should be used instead.
+    ///
+    /// [`emit_unsorted_dict`]: SingleItemEncoder::emit_unsorted_dict
     ///
     /// Example:
     ///
@@ -272,14 +278,18 @@ impl Encoder {
     ///
     /// ```
     /// # use bencode_zero::encoder::Encoder;
+    /// #
+    /// # fn main() -> Result<(), bencode_zero::Error> {
     /// # let mut encoder = Encoder::new();
-    /// encoder.emit_dict(|mut e| {
+    /// #
+    /// encoder.emit_and_sort_dict(|mut e| {
     ///     // Unlike in the example for Encoder::emit_dict(), these keys aren't sorted
     ///     e.emit_pair(b"b", 2)?;
     ///     e.emit_pair(b"a", "foo")
-    /// });
+    /// })
+    /// # }
     /// ```
-    pub fn emit_unsorted_dict<F>(&mut self, content_cb: F) -> Result<(), Error>
+    pub fn emit_and_sort_dict<F>(&mut self, content_cb: F) -> Result<(), Error>
     where
         F: FnOnce(&mut UnsortedDictEncoder) -> Result<(), Error>,
     {
@@ -380,7 +390,7 @@ impl<'a> SingleItemEncoder<'a> {
         F: FnOnce(&mut UnsortedDictEncoder) -> Result<(), Error>,
     {
         *self.value_written = true;
-        self.encoder.emit_unsorted_dict(content_cb)
+        self.encoder.emit_and_sort_dict(content_cb)
     }
 }
 
@@ -421,9 +431,9 @@ pub struct UnsortedDictEncoder {
 
 impl UnsortedDictEncoder {
     /// Emit a key/value pair
-    pub fn emit_pair<E>(&mut self, key: &[u8], value: &E) -> Result<(), Error>
+    pub fn emit_pair<E>(&mut self, key: &[u8], value: E) -> Result<(), Error>
     where
-        E: Encodable + ?Sized,
+        E: Encodable,
     {
         self.emit_pair_with(key, |e| value.encode(e))
     }
