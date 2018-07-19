@@ -195,7 +195,7 @@ impl Encoder {
         if !value_written {
             return self
                 .state
-                .latch_err(Err(Error::InvalidState("No value was emitted".to_owned())));
+                .latch_err(Err(Error::invalid_state("No value was emitted")));
         }
 
         Ok(())

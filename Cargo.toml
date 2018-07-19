@@ -4,7 +4,8 @@ version = "0.1.0"
 authors = ["TQ Hirsch <tq@p3ki.com>"]
 
 [dependencies]
-derive-error = "0.0.4"
+failure = "^0.1"
+failure_derive = "^0.1"
 
 [dev-dependencies]
-regex = "0.2.6"
+regex = "^0.2"
