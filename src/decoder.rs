@@ -2,9 +2,10 @@
 //!
 //! # Basic decoding
 //! For any decoding process, first we need to create a decoder:
+//!
 //! ```
-//! # use bencode_zero::decoder::{Decoder,Object};
-//! # use bencode_zero::Error;
+//! # use bendy::decoder::{Decoder,Object};
+//! # use bendy::Error;
 //! #
 //! # let buf: &[u8] = b"d3:fooi1ee";
 //! let mut decoder = Decoder::new(buf);
@@ -16,8 +17,8 @@
 //! attacker can cause your program to use, so we recommend setting the bounds tightly:
 //!
 //! ```
-//! # use bencode_zero::decoder::{Decoder,Object};
-//! # use bencode_zero::Error;
+//! # use bendy::decoder::{Decoder,Object};
+//! # use bendy::Error;
 //! #
 //! # let buf: &[u8] = b"d3:fooi1ee";
 //! # let mut decoder = Decoder::new(buf);
@@ -29,12 +30,13 @@
 //! depth of their deepest member plus one. As an special case, an empty list or dict has depth 1.
 //!
 //! Now, you can start reading objects:
+//!
 //! ```
-//! # use bencode_zero::decoder::{Decoder,Object};
-//! # use bencode_zero::Error;
+//! # use bendy::decoder::{Decoder,Object};
+//! # use bendy::Error;
 //! #
-//! # fn decode_list(_: bencode_zero::decoder::ListDecoder) {}
-//! # fn decode_dict(_: bencode_zero::decoder::DictDecoder) {}
+//! # fn decode_list(_: bendy::decoder::ListDecoder) {}
+//! # fn decode_dict(_: bendy::decoder::DictDecoder) {}
 //! #
 //! # let buf: &[u8] = b"d3:fooi1ee";
 //! # let mut decoder = Decoder::new(buf);
@@ -47,6 +49,7 @@
 //!     Some(Object::Bytes(b)) => (), // A raw bytestring
 //! };
 //! ```
+//!
 //! # Error handling
 //!
 //! Once an error is encountered, the decoder won't try to muddle through it; instead, every future
@@ -54,7 +57,7 @@
 //! of an input object without fully decoding it:
 //!
 //! ```
-//! # use bencode_zero::decoder::Decoder;
+//! # use bendy::decoder::Decoder;
 //! #
 //! fn syntax_check(buf: &[u8]) -> bool {
 //!     let mut decoder = Decoder::new(buf);
@@ -105,7 +108,7 @@ impl<'obj, 'ser: 'obj> Object<'obj, 'ser> {
     /// # Examples
     ///
     /// ```
-    /// use bencode_zero::decoder::Object;
+    /// use bendy::decoder::Object;
     ///
     /// let x = Object::Bytes(b"foo");
     /// assert_eq!(Ok(&b"foo"[..]), x.bytes_or_err(0));
@@ -130,7 +133,7 @@ impl<'obj, 'ser: 'obj> Object<'obj, 'ser> {
     /// # Examples
     ///
     /// ```
-    /// use bencode_zero::decoder::Object;
+    /// use bendy::decoder::Object;
     ///
     /// let x = Object::Bytes(b"foo");
     /// assert_eq!(Ok(&b"foo"[..]), x.bytes_or_else_err(|| 0));
@@ -166,7 +169,7 @@ impl<'obj, 'ser: 'obj> Object<'obj, 'ser> {
     /// # Examples
     ///
     /// ```
-    /// use bencode_zero::decoder::Object;
+    /// use bendy::decoder::Object;
     ///
     /// let x = Object::Integer("123");
     /// assert_eq!(Ok(&"123"[..]), x.integer_str_or_err(-1));
@@ -191,7 +194,7 @@ impl<'obj, 'ser: 'obj> Object<'obj, 'ser> {
     /// # Examples
     ///
     /// ```
-    /// use bencode_zero::decoder::Object;
+    /// use bendy::decoder::Object;
     ///
     /// let x = Object::Integer("123");
     /// assert_eq!(Ok(&"123"[..]), x.integer_str_or_else_err(|| -1));
@@ -227,7 +230,7 @@ impl<'obj, 'ser: 'obj> Object<'obj, 'ser> {
     /// # Examples
     ///
     /// ```
-    /// use bencode_zero::decoder::{Decoder, Object};
+    /// use bendy::decoder::{Decoder, Object};
     ///
     /// let mut list_decoder = Decoder::new(b"le");
     /// let x = list_decoder.next_object().unwrap().unwrap();
@@ -254,7 +257,7 @@ impl<'obj, 'ser: 'obj> Object<'obj, 'ser> {
     /// # Examples
     ///
     /// ```
-    /// use bencode_zero::decoder::{Decoder, Object};
+    /// use bendy::decoder::{Decoder, Object};
     ///
     /// let mut list_decoder = Decoder::new(b"le");
     /// let x = list_decoder.next_object().unwrap().unwrap();
@@ -293,7 +296,7 @@ impl<'obj, 'ser: 'obj> Object<'obj, 'ser> {
     /// # Examples
     ///
     /// ```
-    /// use bencode_zero::decoder::{Decoder, Object};
+    /// use bendy::decoder::{Decoder, Object};
     ///
     /// let mut dict_decoder = Decoder::new(b"de");
     /// let x = dict_decoder.next_object().unwrap().unwrap();
@@ -324,7 +327,7 @@ impl<'obj, 'ser: 'obj> Object<'obj, 'ser> {
     /// # Examples
     ///
     /// ```
-    /// use bencode_zero::decoder::{Decoder, Object};
+    /// use bendy::decoder::{Decoder, Object};
     ///
     /// let mut dict_decoder = Decoder::new(b"de");
     /// let x = dict_decoder.next_object().unwrap().unwrap();

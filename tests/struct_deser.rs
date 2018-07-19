@@ -1,6 +1,6 @@
-extern crate bencode_zero;
+extern crate bendy;
 
-use bencode_zero::decoder::*;
+use bendy::decoder::*;
 
 static SIMPLE_MSG: &'static [u8] = b"d3:bari1e3:fooli2ei3eee";
 
