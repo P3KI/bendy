@@ -776,7 +776,7 @@ mod test {
 
     #[test]
     fn map_keys_must_be_strings() {
-        decode_err(b"d3:fooi1ei2ei3ee", r"^Map keys must be strings$");
+        decode_err(b"d3:fooi1ei2ei3ee", r"Map keys must be strings");
     }
 
     #[test]
@@ -791,7 +791,7 @@ mod test {
 
     #[test]
     fn map_keys_must_have_values() {
-        decode_err(b"d3:fooe", r"^Missing map value$");
+        decode_err(b"d3:fooe", r"Missing map value");
     }
 
     #[test]

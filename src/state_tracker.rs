@@ -111,9 +111,7 @@ impl<S: AsRef<[u8]>> StateTracker<S> {
 
         match (self.state.pop(), *token) {
             (None, End) => {
-                return self.latch_err(Err(Error::InvalidState(
-                    "End not allowed at top level".to_owned(),
-                )));
+                return self.latch_err(Err(Error::invalid_state("End not allowed at top level")));
             }
             (Some(Seq), End) => {}
             (Some(MapKey(_)), End) => {}
@@ -128,9 +126,7 @@ impl<S: AsRef<[u8]>> StateTracker<S> {
             }
             (Some(oldstate @ MapKey(_)), _tok) => {
                 self.state.push(oldstate);
-                return self.latch_err(Err(Error::InvalidState(
-                    "Map keys must be strings".to_owned(),
-                )));
+                return self.latch_err(Err(Error::invalid_state("Map keys must be strings")));
             }
             (Some(MapValue(label)), List) => {
                 self.state.push(MapKey(Some(label)));
@@ -148,7 +144,7 @@ impl<S: AsRef<[u8]>> StateTracker<S> {
             }
             (Some(oldstate @ MapValue(_)), End) => {
                 self.state.push(oldstate);
-                return self.latch_err(Err(Error::InvalidState("Missing map value".to_owned())));
+                return self.latch_err(Err(Error::invalid_state("Missing map value")));
             }
             (Some(MapValue(label)), _) => {
                 self.state.push(MapKey(Some(label)));

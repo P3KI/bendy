@@ -1,46 +1,50 @@
 extern crate bendy;
+#[macro_use]
+extern crate failure;
 
 use bendy::decoder::*;
+use failure::Error;
 
 static SIMPLE_MSG: &'static [u8] = b"d3:bari1e3:fooli2ei3eee";
 
 // test of high-level interface
 // Normally, a trait like this would have a better error type
-use std::error::Error as StdError;
 trait DecodeFrom<'ser>: Sized {
-    fn decode<'obj>(object: Object<'obj, 'ser>) -> Result<Self, Box<StdError>>;
+    fn decode<'obj>(object: Object<'obj, 'ser>) -> Result<Self, Error>;
 }
 
 impl<'ser, T: DecodeFrom<'ser>> DecodeFrom<'ser> for Vec<T> {
-    fn decode<'obj>(object: Object<'obj, 'ser>) -> Result<Self, Box<StdError>> {
-        match object {
-            Object::List(mut list) => {
-                let mut result = Vec::new();
-                while let Some(item) = list.next_object()? {
-                    result.push(T::decode(item)?);
-                }
-                Ok(result)
+    fn decode<'obj>(object: Object<'obj, 'ser>) -> Result<Self, Error> {
+        if let Object::List(mut list) = object {
+            let mut result = Vec::new();
+
+            while let Some(item) = list.next_object()? {
+                result.push(T::decode(item)?);
             }
-            _ => Err("Unexpected object type")?,
+
+            Ok(result)
+        } else {
+            Err(format_err!("Unexpected object type"))
         }
     }
 }
 
 impl<'ser> DecodeFrom<'ser> for i64 {
-    fn decode<'obj>(object: Object<'obj, 'ser>) -> Result<Self, Box<StdError>> {
-        match object {
-            Object::Integer(int) => Ok(i64::from_str_radix(int, 10)?),
-            _ => Err("Unexpected object type")?,
+    fn decode<'obj>(object: Object<'obj, 'ser>) -> Result<Self, Error> {
+        if let Object::Integer(int) = object {
+            Ok(i64::from_str_radix(int, 10)?)
+        } else {
+            Err(format_err!("Unexpected object type"))
         }
     }
 }
 
 impl<'ser> DecodeFrom<'ser> for String {
-    fn decode<'obj>(object: Object<'obj, 'ser>) -> Result<Self, Box<StdError>> {
+    fn decode<'obj>(object: Object<'obj, 'ser>) -> Result<Self, Error> {
         if let Object::Bytes(bytes) = object {
             Ok(::std::str::from_utf8(bytes)?.to_owned())
         } else {
-            Err("Unexpected object type")?
+            Err(format_err!("Unexpected object type"))
         }
     }
 }
@@ -53,7 +57,7 @@ struct TestStruct {
 
 impl<'ser> DecodeFrom<'ser> for TestStruct {
     #[cfg_attr(feature = "cargo-clippy", allow(blacklisted_name))]
-    fn decode<'obj>(object: Object<'obj, 'ser>) -> Result<Self, Box<StdError>> {
+    fn decode<'obj>(object: Object<'obj, 'ser>) -> Result<Self, Error> {
         let mut foo = None;
         let mut bar = None;
 
@@ -71,11 +75,11 @@ impl<'ser> DecodeFrom<'ser> for TestStruct {
             }
 
             Ok(TestStruct {
-                foo: foo.ok_or("Missing foo field")?,
-                bar: bar.ok_or("Missing bar field")?,
+                foo: foo.ok_or_else(|| format_err!("Missing foo field"))?,
+                bar: bar.ok_or_else(|| format_err!("Missing bar field"))?,
             })
         } else {
-            Err("Expected a dict")?
+            Err(format_err!("Expected a dict"))?
         }
     }
 }
@@ -84,8 +88,9 @@ impl<'ser> DecodeFrom<'ser> for TestStruct {
 #[test]
 fn should_decode_struct() {
     let mut decoder = Decoder::new(SIMPLE_MSG);
-    let result = TestStruct::decode(decoder.next_object().unwrap().unwrap())
-        .expect("Decoding shouldn't fail");
+    let bencode_object = decoder.next_object().unwrap().unwrap();
+    let result = TestStruct::decode(bencode_object).expect("Decoding shouldn't fail");
+
     assert_eq!(
         result,
         TestStruct {
