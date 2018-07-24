@@ -103,7 +103,7 @@
 //! [`UnsortedKeys`]: self::Error#UnsortedKeys
 //! [`NestingTooDeep`]: self::Error#NestingTooDeep
 
-use std::collections::{BTreeMap, BTreeSet, HashMap, LinkedList, VecDeque};
+use std::collections::{BTreeMap, HashMap, LinkedList, VecDeque};
 use std::hash::Hash;
 use std::io::{self, Write};
 
@@ -566,14 +566,6 @@ impl<E: Encodable> Encodable for ::std::sync::Arc<E> {
 }
 
 // Base type impls
-impl<'a> Encodable for &'a [u8] {
-    const MAX_DEPTH: usize = 0;
-
-    fn encode(&self, encoder: SingleItemEncoder) -> Result<(), Error> {
-        encoder.emit_bytes(self)
-    }
-}
-
 impl<'a> Encodable for &'a str {
     const MAX_DEPTH: usize = 0;
 
@@ -624,7 +616,23 @@ macro_rules! impl_encodable_iterable {
     )*}
 }
 
-impl_encodable_iterable!(Vec VecDeque BTreeSet LinkedList);
+impl_encodable_iterable!(Vec VecDeque LinkedList);
+
+impl<'a, ContentT> Encodable for &'a [ContentT]
+where
+    ContentT: Encodable,
+{
+    const MAX_DEPTH: usize = ContentT::MAX_DEPTH + 1;
+
+    fn encode(&self, encoder: SingleItemEncoder) -> Result<(), Error> {
+        encoder.emit_list(|e| {
+            for item in *self {
+                e.emit(item)?;
+            }
+            Ok(())
+        })
+    }
+}
 
 impl<K: AsRef<[u8]>, V: Encodable> Encodable for BTreeMap<K, V> {
     const MAX_DEPTH: usize = V::MAX_DEPTH + 1;
