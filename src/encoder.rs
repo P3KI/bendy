@@ -399,6 +399,22 @@ impl<'a> SingleItemEncoder<'a> {
         *self.value_written = true;
         self.encoder.emit_and_sort_dict(content_cb)
     }
+
+    /// Emit an arbitrary list.
+    ///
+    /// Attention: If this method is used while canonical output is required
+    /// the caller needs to ensure that the iterator has a defined order.
+    pub fn emit_unchecked_list(
+        self,
+        iterable: impl Iterator<Item = impl Encodable>,
+    ) -> Result<(), Error> {
+        self.emit_list(|e| {
+            for item in iterable {
+                e.emit(item)?;
+            }
+            Ok(())
+        })
+    }
 }
 
 /// Encodes a map with pre-sorted keys
