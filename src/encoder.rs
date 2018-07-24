@@ -103,8 +103,7 @@
 //! [`UnsortedKeys`]: self::Error#UnsortedKeys
 //! [`NestingTooDeep`]: self::Error#NestingTooDeep
 
-use std::collections::BTreeMap;
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap, LinkedList, VecDeque};
 use std::hash::Hash;
 use std::io::{self, Write};
 
@@ -400,6 +399,22 @@ impl<'a> SingleItemEncoder<'a> {
         *self.value_written = true;
         self.encoder.emit_and_sort_dict(content_cb)
     }
+
+    /// Emit an arbitrary list.
+    ///
+    /// Attention: If this method is used while canonical output is required
+    /// the caller needs to ensure that the iterator has a defined order.
+    pub fn emit_unchecked_list(
+        self,
+        iterable: impl Iterator<Item = impl Encodable>,
+    ) -> Result<(), Error> {
+        self.emit_list(|e| {
+            for item in iterable {
+                e.emit(item)?;
+            }
+            Ok(())
+        })
+    }
 }
 
 /// Encodes a map with pre-sorted keys
@@ -551,22 +566,6 @@ impl<E: Encodable> Encodable for ::std::sync::Arc<E> {
 }
 
 // Base type impls
-impl<'a> Encodable for &'a [u8] {
-    const MAX_DEPTH: usize = 0;
-
-    fn encode(&self, encoder: SingleItemEncoder) -> Result<(), Error> {
-        encoder.emit_bytes(self)
-    }
-}
-
-impl<'a> Encodable for Vec<u8> {
-    const MAX_DEPTH: usize = 0;
-
-    fn encode(&self, encoder: SingleItemEncoder) -> Result<(), Error> {
-        encoder.emit_bytes(self)
-    }
-}
-
 impl<'a> Encodable for &'a str {
     const MAX_DEPTH: usize = 0;
 
@@ -596,6 +595,44 @@ macro_rules! impl_encodable_integer {
 }
 
 impl_encodable_integer!(u8 u16 u32 u64 usize i8 i16 i32 i64 isize);
+
+macro_rules! impl_encodable_iterable {
+    ($($type:ident)*) => {$(
+        impl <ContentT> Encodable for $type<ContentT>
+        where
+            ContentT: Encodable
+        {
+            const MAX_DEPTH: usize = ContentT::MAX_DEPTH + 1;
+
+            fn encode(&self, encoder: SingleItemEncoder) -> Result<(), Error> {
+                encoder.emit_list(|e| {
+                    for item in self {
+                        e.emit(item)?;
+                    }
+                    Ok(())
+                })
+            }
+        }
+    )*}
+}
+
+impl_encodable_iterable!(Vec VecDeque LinkedList);
+
+impl<'a, ContentT> Encodable for &'a [ContentT]
+where
+    ContentT: Encodable,
+{
+    const MAX_DEPTH: usize = ContentT::MAX_DEPTH + 1;
+
+    fn encode(&self, encoder: SingleItemEncoder) -> Result<(), Error> {
+        encoder.emit_list(|e| {
+            for item in *self {
+                e.emit(item)?;
+            }
+            Ok(())
+        })
+    }
+}
 
 impl<K: AsRef<[u8]>, V: Encodable> Encodable for BTreeMap<K, V> {
     const MAX_DEPTH: usize = V::MAX_DEPTH + 1;
@@ -633,23 +670,17 @@ where
     }
 }
 
-/// Wrapper to make anything iterable encode to a list
-pub struct List<I>(pub I);
+/// Wrapper to allow `Vec<u8>` encoding as bencode string element.
+pub struct AsString<I>(pub I);
 
-impl<I> Encodable for List<I>
+impl<I> Encodable for AsString<I>
 where
-    I: IntoIterator + Copy,
-    <I as IntoIterator>::Item: Encodable,
+    I: AsRef<[u8]>,
 {
-    const MAX_DEPTH: usize = I::Item::MAX_DEPTH + 1;
+    const MAX_DEPTH: usize = 1;
 
     fn encode(&self, encoder: SingleItemEncoder) -> Result<(), Error> {
-        encoder.emit_list(|e| {
-            for item in self.0 {
-                e.emit(item)?;
-            }
-            Ok(())
-        })
+        encoder.emit_bytes(self.0.as_ref())
     }
 }
 
@@ -690,8 +721,8 @@ mod test {
         fn encode(&self, encoder: SingleItemEncoder) -> Result<(), Error> {
             encoder.emit_dict(|mut e| {
                 e.emit_pair(b"bar", &self.bar)?;
-                e.emit_pair(b"baz", &List(&self.baz))?;
-                e.emit_pair(b"qux", self.qux.as_slice())?;
+                e.emit_pair(b"baz", &self.baz)?;
+                e.emit_pair(b"qux", AsString(&self.qux))?;
                 Ok(())
             })
         }
