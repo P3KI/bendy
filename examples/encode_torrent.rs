@@ -21,7 +21,7 @@ use std::io::Write;
 use failure::Error;
 
 use bendy::{
-    encoder::{Encodable, List, SingleItemEncoder},
+    encoder::{AsString, Encodable, SingleItemEncoder},
     Error as BencodeError,
 };
 
@@ -72,7 +72,7 @@ impl Encodable for MetaInfo {
             if let Some(seeds) = &self.http_seeds {
                 // List is a simple iterable wrapper that allows to encode
                 // any list like container as bencode list object.
-                e.emit_pair(b"httpseeds", List(seeds))?;
+                e.emit_pair(b"httpseeds", seeds)?;
             }
 
             e.emit_pair(b"info", &self.info)
@@ -90,7 +90,7 @@ impl Encodable for Info {
             e.emit_pair(b"length", &self.file_length)?;
             e.emit_pair(b"name", &self.name)?;
             e.emit_pair(b"piece length", &self.piece_length)?;
-            e.emit_pair(b"pieces", &self.pieces)
+            e.emit_pair(b"pieces", AsString(&self.pieces))
         })
     }
 }
