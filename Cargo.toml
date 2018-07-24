@@ -1,7 +1,25 @@
 [package]
 name = "bendy"
 version = "0.1.0"
-authors = ["TQ Hirsch <tq@p3ki.com>"]
+authors = [
+    "P3KI <contact@p3ki.com>",
+    "TQ Hirsch <tq@p3ki.com>",
+    "Bruno Kirschner <bruno@p3ki.com>",
+]
+repository = "https://github.com/P3KI/bendy"
+readme = "README.md"
+license = "BSD-3-Clause"
+keywords = ["bencode", "serialization", "bittorent"]
+categories = ["encoding"]
+description = """
+A rust library for encoding and decoding bencode with enforced cannonicalization rules.
+"""
+
+[badges]
+maintenance = {status = "actively-developed"}
+
+[profile.release]
+lto = true
 
 [dependencies]
 failure = "^0.1"
