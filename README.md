@@ -7,10 +7,10 @@ scheme, originating with the BitTorrent peer-to-peer system.
 This is not the first library to implement Bencode. In fact there's several implementations
 already:
 
-    - Toby Padilla [serde-bencode](https://github.com/toby/serde-bencode)
-    - Arjan Topolovec's [rust-bencode](https://github.com/arjantop/rust-bencode),
-    - Murarth's [bencode](https://github.com/murarth/bencode),
-    - and Jonas Hermsmeier's [rust-bencode](https://github.com/jhermsmeier/rust-bencode)
+- Toby Padilla [serde-bencode](https://github.com/toby/serde-bencode)
+- Arjan Topolovec's [rust-bencode](https://github.com/arjantop/rust-bencode),
+- Murarth's [bencode](https://github.com/murarth/bencode),
+- and Jonas Hermsmeier's [rust-bencode](https://github.com/jhermsmeier/rust-bencode)
 
 ## Why should I use it?
 So why the extra work adding yet-another-version of a thing that already exists, you
