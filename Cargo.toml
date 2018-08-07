@@ -9,7 +9,7 @@ authors = [
 repository = "https://github.com/P3KI/bendy"
 readme = "README.md"
 license = "BSD-3-Clause"
-keywords = ["bencode", "serialization", "bittorent"]
+keywords = ["bencode", "serialization", "deserialization", "bittorent"]
 categories = ["encoding"]
 description = """
 A rust library for encoding and decoding bencode with enforced cannonicalization rules.
