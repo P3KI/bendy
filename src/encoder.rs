@@ -671,6 +671,7 @@ where
 }
 
 /// Wrapper to allow `Vec<u8>` encoding as bencode string element.
+#[derive(Clone, Copy, Debug, Default, Hash, Eq, PartialEq, PartialOrd, Ord)]
 pub struct AsString<I>(pub I);
 
 impl<I> Encodable for AsString<I>
