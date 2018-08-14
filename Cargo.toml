@@ -1,6 +1,6 @@
 [package]
 name = "bendy"
-version = "0.1.1"
+version = "0.1.2"
 authors = [
     "P3KI <contact@p3ki.com>",
     "TQ Hirsch <tq@p3ki.com>",
