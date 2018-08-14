@@ -685,6 +685,24 @@ where
     }
 }
 
+impl<I> AsRef<[u8]> for AsString<I>
+where
+    I: AsRef<[u8]>,
+{
+    fn as_ref(&self) -> &'_ [u8] {
+        self.0.as_ref()
+    }
+}
+
+impl<'a, I> From<&'a [u8]> for AsString<I>
+where
+    I: From<&'a [u8]>,
+{
+    fn from(content: &'a [u8]) -> Self {
+        AsString(I::from(content))
+    }
+}
+
 #[cfg(test)]
 mod test {
     use super::*;
@@ -700,8 +718,7 @@ mod test {
                         e.emit_str("qux")
                     })
                 })
-            })
-            .expect("Encoding shouldn't fail");
+            }).expect("Encoding shouldn't fail");
         assert_eq!(
             &encoder
                 .get_output()
@@ -737,8 +754,7 @@ mod test {
                 bar: 5,
                 baz: vec!["foo".to_owned(), "bar".to_owned()],
                 qux: b"qux".to_vec(),
-            })
-            .unwrap();
+            }).unwrap();
         assert_eq!(
             &encoder.get_output().unwrap()[..],
             &b"d3:bari5e3:bazl3:foo3:bare3:qux3:quxe"[..]
