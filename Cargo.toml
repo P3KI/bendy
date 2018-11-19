@@ -22,8 +22,7 @@ maintenance = {status = "actively-developed"}
 lto = true
 
 [dependencies]
-failure = "^0.1"
-failure_derive = "^0.1"
+failure = "^0.1.3"
 
 [dev-dependencies]
 regex = "^1.0"
