@@ -26,4 +26,4 @@ failure = "^0.1"
 failure_derive = "^0.1"
 
 [dev-dependencies]
-regex = "^0.2"
+regex = "^1.0"
