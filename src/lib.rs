@@ -7,9 +7,8 @@
 #![cfg_attr(feature = "cargo-clippy", allow(needless_return))]
 #![cfg_attr(not(test), warn(missing_docs))]
 
-extern crate failure;
 #[macro_use]
-extern crate failure_derive;
+extern crate failure;
 
 #[cfg(test)]
 extern crate regex;
