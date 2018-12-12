@@ -1,4 +1,9 @@
 # Bendy
+
+[![Build Status](https://travis-ci.org/P3KI/bendy.svg?branch=master)](https://travis-ci.org/P3KI/bendy)
+[![Current Version](https://meritbadge.herokuapp.com/bendy)](https://crates.io/crates/bendy)
+[![License: MIT/Apache-2.0](https://img.shields.io/github/license/P3KI/bendy.svg)](#license)
+
 A Rust library for encoding and decoding bencode with enforced canonicalization rules.
 [Bencode](https://en.wikipedia.org/wiki/Bencode) is a simple but very effective encoding
 scheme, originating with the BitTorrent peer-to-peer system.
