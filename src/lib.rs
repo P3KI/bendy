@@ -5,8 +5,11 @@
 //!
 //! The encoder is likewise designed to ensure that it only produces valid structures.
 pub mod decoder;
-pub mod encoder;
+pub mod encoder {
+    pub use super::encoding::*;
+}
 
+mod encoding;
 mod state_tracker;
 mod token;
 
