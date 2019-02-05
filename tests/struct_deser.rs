@@ -1,4 +1,3 @@
-
 #[macro_use]
 extern crate failure;
 
@@ -66,10 +65,10 @@ impl<'ser> DecodeFrom<'ser> for TestStruct {
                 match key {
                     b"foo" => {
                         foo = Some(DecodeFrom::decode(value)?);
-                    }
+                    },
                     b"bar" => {
                         bar = Some(DecodeFrom::decode(value)?);
-                    }
+                    },
                     _ => (), // ignore unknown keys
                 }
             }

@@ -155,22 +155,22 @@ fn decode_info(field_name: &str, data: Object) -> Result<Info, Error> {
         match pair {
             (b"length", value) => {
                 file_length = Some(decode_integer_as_string("torrent.info.file_length", value)?);
-            }
+            },
             (b"name", value) => {
                 name = Some(decode_bytes_as_string("torrent.info.name", value)?);
-            }
+            },
             (b"piece length", value) => {
                 piece_length = Some(decode_integer_as_string("torrent.info.length", value)?);
-            }
+            },
             (b"pieces", value) => {
                 pieces = Some(decode_bytes_as_vec("torrent.info.pieces", value)?);
-            }
+            },
             (unknown_field, _) => {
                 return match str::from_utf8(unknown_field) {
                     Ok(field) => Err(Error::unknown_field(field)),
                     Err(_) => Err(Error::TorrentStructureError),
-                }
-            }
+                };
+            },
         }
     }
 
@@ -201,25 +201,25 @@ fn decode_torrent(mut dict_dec: DictDecoder) -> Result<MetaInfo, Error> {
         match pair {
             (b"announce", value) => {
                 announce = Some(decode_bytes_as_string("torrent.announce", value)?);
-            }
+            },
             (b"comment", value) => {
                 comment = Some(decode_bytes_as_string("torrent.comment", value)?);
-            }
+            },
             (b"creation date", value) => {
                 creation_date = Some(decode_integer_as_string("torrent.creation_date", value)?);
-            }
+            },
             (b"httpseeds", value) => {
                 http_seeds = Some(decode_list_of_strings("torrent.http_seeds", value)?);
-            }
+            },
             (b"info", value) => {
                 info = Some(decode_info("torrent.info", value)?);
-            }
+            },
             (unknown_field, _) => {
                 return match str::from_utf8(unknown_field) {
                     Ok(field) => Err(Error::unknown_field(field)),
                     Err(_) => Err(Error::TorrentStructureError),
                 };
-            }
+            },
         }
     }
 
@@ -265,7 +265,7 @@ fn main() -> Result<(), failure::Error> {
         _ => {
             eprint!("Non-parsable file: Expected bencode dictionary.");
             return Err(Error::TorrentStructureError)?;
-        }
+        },
     };
 
     println!("{:#?}", torrent);

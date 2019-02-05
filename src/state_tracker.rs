@@ -106,49 +106,48 @@ impl<S: AsRef<[u8]>> StateTracker<S> {
     where
         S: From<&'a [u8]>,
     {
-        use self::State::*;
-        use self::Token::*;
+        use self::{State::*, Token::*};
 
         match (self.state.pop(), *token) {
             (None, End) => {
                 return self.latch_err(Err(Error::invalid_state("End not allowed at top level")));
-            }
-            (Some(Seq), End) => {}
-            (Some(MapKey(_)), End) => {}
+            },
+            (Some(Seq), End) => {},
+            (Some(MapKey(_)), End) => {},
             (Some(MapKey(None)), String(label)) => {
                 self.state.push(MapValue(S::from(label)));
-            }
+            },
             (Some(MapKey(Some(oldlabel))), String(label)) => {
                 if oldlabel.as_ref() >= label {
                     return self.latch_err(Err(Error::UnsortedKeys));
                 }
                 self.state.push(MapValue(S::from(label)));
-            }
+            },
             (Some(oldstate @ MapKey(_)), _tok) => {
                 self.state.push(oldstate);
                 return self.latch_err(Err(Error::invalid_state("Map keys must be strings")));
-            }
+            },
             (Some(MapValue(label)), List) => {
                 self.state.push(MapKey(Some(label)));
                 if self.state.len() >= self.max_depth {
                     return self.latch_err(Err(Error::NestingTooDeep));
                 }
                 self.state.push(Seq);
-            }
+            },
             (Some(MapValue(label)), Dict) => {
                 self.state.push(MapKey(Some(label)));
                 if self.state.len() >= self.max_depth {
                     return self.latch_err(Err(Error::NestingTooDeep));
                 }
                 self.state.push(MapKey(None));
-            }
+            },
             (Some(oldstate @ MapValue(_)), End) => {
                 self.state.push(oldstate);
                 return self.latch_err(Err(Error::invalid_state("Missing map value")));
-            }
+            },
             (Some(MapValue(label)), _) => {
                 self.state.push(MapKey(Some(label)));
-            }
+            },
             (oldstate, List) => {
                 if let Some(oldstate) = oldstate {
                     self.state.push(oldstate);
@@ -157,7 +156,7 @@ impl<S: AsRef<[u8]>> StateTracker<S> {
                     return self.latch_err(Err(Error::NestingTooDeep));
                 }
                 self.state.push(Seq);
-            }
+            },
             (oldstate, Dict) => {
                 if let Some(oldstate) = oldstate {
                     self.state.push(oldstate);
@@ -167,12 +166,12 @@ impl<S: AsRef<[u8]>> StateTracker<S> {
                     return self.latch_err(Err(Error::NestingTooDeep));
                 }
                 self.state.push(MapKey(None));
-            }
+            },
             (oldstate, _) => {
                 if let Some(oldstate) = oldstate {
                     self.state.push(oldstate);
                 }
-            }
+            },
         }
         Ok(())
     }

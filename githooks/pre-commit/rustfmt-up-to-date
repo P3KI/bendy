@@ -10,4 +10,4 @@ cd "${EXPORT_DIR}"
 
 # Nightly version is pinned to avoid untracable version clashes.
 # Update from time to time manually or if any error is encounterd.
-cargo +nightly-2018-08-04 fmt -- --check
+cargo +nightly fmt -- --check
