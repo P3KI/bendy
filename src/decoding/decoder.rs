@@ -514,21 +514,36 @@ mod test {
 
     #[test]
     fn bytes_or_should_work_on_bytes() {
-        assert_eq!(Ok(&b"foo"[..]), Object::Bytes(b"foo").bytes_or_err(0));
+        assert_eq!(
+            Ok(&b"foo"[..]),
+            Object::Bytes(b"foo").bytes_or(Err("failure"))
+        );
     }
 
     #[test]
     fn bytes_or_should_not_work_on_other_types() {
-        assert_eq!(Err(0), Object::Integer("123").bytes_or_err(0));
+        assert_eq!(
+            Err("failure"),
+            Object::Integer("123").bytes_or(Err("failure"))
+        );
+
         let mut list_decoder = Decoder::new(b"le");
         assert_eq!(
-            Err(0),
-            list_decoder.next_object().unwrap().unwrap().bytes_or_err(0)
+            Err("failure"),
+            list_decoder
+                .next_object()
+                .unwrap()
+                .unwrap()
+                .bytes_or(Err("failure"))
         );
         let mut dict_decoder = Decoder::new(b"de");
         assert_eq!(
-            Err(0),
-            dict_decoder.next_object().unwrap().unwrap().bytes_or_err(0)
+            Err("failure"),
+            dict_decoder
+                .next_object()
+                .unwrap()
+                .unwrap()
+                .bytes_or(Err("failure"))
         );
     }
 
@@ -536,30 +551,33 @@ mod test {
     fn bytes_or_else_should_work_on_bytes() {
         assert_eq!(
             Ok(&b"foo"[..]),
-            Object::Bytes(b"foo").bytes_or_else_err(|| 0)
+            Object::Bytes(b"foo").bytes_or_else(|_| Err("failure"))
         );
     }
 
     #[test]
     fn bytes_or_else_should_not_work_on_other_types() {
-        assert_eq!(Err(0), Object::Integer("123").bytes_or_else_err(|| 0));
+        assert_eq!(
+            Err("failure"),
+            Object::Integer("123").bytes_or_else(|_| Err("failure"))
+        );
         let mut list_decoder = Decoder::new(b"le");
         assert_eq!(
-            Err(0),
+            Err("failure"),
             list_decoder
                 .next_object()
                 .unwrap()
                 .unwrap()
-                .bytes_or_else_err(|| 0)
+                .bytes_or_else(|_| Err("failure"))
         );
         let mut dict_decoder = Decoder::new(b"de");
         assert_eq!(
-            Err(0),
+            Err("failure"),
             dict_decoder
                 .next_object()
                 .unwrap()
                 .unwrap()
-                .bytes_or_else_err(|| 0)
+                .bytes_or_else(|_| Err("failure"))
         );
     }
 
@@ -567,30 +585,33 @@ mod test {
     fn integer_str_or_should_work_on_int() {
         assert_eq!(
             Ok(&"123"[..]),
-            Object::Integer("123").integer_str_or_err(-1)
+            Object::Integer("123").integer_or(Err("failure"))
         );
     }
 
     #[test]
     fn integer_str_or_should_not_work_on_other_types() {
-        assert_eq!(Err(-1), Object::Bytes(b"foo").integer_str_or_err(-1));
+        assert_eq!(
+            Err("failure"),
+            Object::Bytes(b"foo").integer_or(Err("failure"))
+        );
         let mut list_decoder = Decoder::new(b"le");
         assert_eq!(
-            Err(-1),
+            Err("failure"),
             list_decoder
                 .next_object()
                 .unwrap()
                 .unwrap()
-                .integer_str_or_err(-1)
+                .integer_or(Err("failure"))
         );
         let mut dict_decoder = Decoder::new(b"de");
         assert_eq!(
-            Err(-1),
+            Err("failure"),
             dict_decoder
                 .next_object()
                 .unwrap()
                 .unwrap()
-                .integer_str_or_err(-1)
+                .integer_or(Err("failure"))
         );
     }
 
@@ -598,33 +619,33 @@ mod test {
     fn integer_str_or_else_should_work_on_int() {
         assert_eq!(
             Ok(&"123"[..]),
-            Object::Integer("123").integer_str_or_else_err(|| -1)
+            Object::Integer("123").integer_or_else(|_| Err("failure"))
         );
     }
 
     #[test]
     fn integer_str_or_else_should_not_work_on_other_types() {
         assert_eq!(
-            Err(-1),
-            Object::Bytes(b"foo").integer_str_or_else_err(|| -1)
+            Err("failure"),
+            Object::Bytes(b"foo").integer_or_else(|_| Err("failure"))
         );
         let mut list_decoder = Decoder::new(b"le");
         assert_eq!(
-            Err(-1),
+            Err("failure"),
             list_decoder
                 .next_object()
                 .unwrap()
                 .unwrap()
-                .integer_str_or_else_err(|| -1)
+                .integer_or_else(|_| Err("failure"))
         );
         let mut dict_decoder = Decoder::new(b"de");
         assert_eq!(
-            Err(-1),
+            Err("failure"),
             dict_decoder
                 .next_object()
                 .unwrap()
                 .unwrap()
-                .integer_str_or_else_err(|| -1)
+                .integer_or_else(|_| Err("failure"))
         );
     }
 
@@ -635,22 +656,28 @@ mod test {
             .next_object()
             .unwrap()
             .unwrap()
-            .list_or_err(0)
+            .list_or(Err("failure"))
             .is_ok());
     }
     #[test]
     fn list_or_should_not_work_on_other_types() {
-        assert_eq!(0, Object::Bytes(b"foo").list_or_err(0).unwrap_err());
-        assert_eq!(0, Object::Integer("foo").list_or_err(0).unwrap_err());
+        assert_eq!(
+            "failure",
+            Object::Bytes(b"foo").list_or(Err("failure")).unwrap_err()
+        );
+        assert_eq!(
+            "failure",
+            Object::Integer("foo").list_or(Err("failure")).unwrap_err()
+        );
 
         let mut dict_decoder = Decoder::new(b"de");
         assert_eq!(
-            0,
+            "failure",
             dict_decoder
                 .next_object()
                 .unwrap()
                 .unwrap()
-                .list_or_err(0)
+                .list_or(Err("failure"))
                 .unwrap_err()
         );
     }
@@ -662,25 +689,32 @@ mod test {
             .next_object()
             .unwrap()
             .unwrap()
-            .list_or_else_err(|| 0)
+            .list_or_else(|_| Err("failure"))
             .is_ok());
     }
     #[test]
     fn list_or_else_should_not_work_on_other_types() {
-        assert_eq!(0, Object::Bytes(b"foo").list_or_else_err(|| 0).unwrap_err());
         assert_eq!(
-            0,
-            Object::Integer("foo").list_or_else_err(|| 0).unwrap_err()
+            "failure",
+            Object::Bytes(b"foo")
+                .list_or_else(|_| Err("failure"))
+                .unwrap_err()
+        );
+        assert_eq!(
+            "failure",
+            Object::Integer("foo")
+                .list_or_else(|_| Err("failure"))
+                .unwrap_err()
         );
 
         let mut dict_decoder = Decoder::new(b"de");
         assert_eq!(
-            0,
+            "failure",
             dict_decoder
                 .next_object()
                 .unwrap()
                 .unwrap()
-                .list_or_else_err(|| 0)
+                .list_or_else(|_| Err("failure"))
                 .unwrap_err()
         );
     }
@@ -692,23 +726,33 @@ mod test {
             .next_object()
             .unwrap()
             .unwrap()
-            .dictionary_or_err(0)
+            .dictionary_or(Err("failure"))
             .is_ok());
     }
 
     #[test]
     fn dictionary_or_should_not_work_on_other_types() {
-        assert_eq!(0, Object::Bytes(b"foo").dictionary_or_err(0).unwrap_err());
-        assert_eq!(0, Object::Integer("foo").dictionary_or_err(0).unwrap_err());
+        assert_eq!(
+            "failure",
+            Object::Bytes(b"foo")
+                .dictionary_or(Err("failure"))
+                .unwrap_err()
+        );
+        assert_eq!(
+            "failure",
+            Object::Integer("foo")
+                .dictionary_or(Err("failure"))
+                .unwrap_err()
+        );
 
         let mut list_decoder = Decoder::new(b"le");
         assert_eq!(
-            0,
+            "failure",
             list_decoder
                 .next_object()
                 .unwrap()
                 .unwrap()
-                .dictionary_or_err(0)
+                .dictionary_or(Err("failure"))
                 .unwrap_err()
         );
     }
@@ -720,33 +764,33 @@ mod test {
             .next_object()
             .unwrap()
             .unwrap()
-            .dictionary_or_else_err(|| 0)
+            .dictionary_or_else(|_| Err("failure"))
             .is_ok());
     }
 
     #[test]
     fn dictionary_or_else_should_not_work_on_other_types() {
         assert_eq!(
-            0,
+            "failure",
             Object::Bytes(b"foo")
-                .dictionary_or_else_err(|| 0)
+                .dictionary_or_else(|_| Err("failure"))
                 .unwrap_err()
         );
         assert_eq!(
-            0,
+            "failure",
             Object::Integer("foo")
-                .dictionary_or_else_err(|| 0)
+                .dictionary_or_else(|_| Err("failure"))
                 .unwrap_err()
         );
 
         let mut list_decoder = Decoder::new(b"le");
         assert_eq!(
-            0,
+            "failure",
             list_decoder
                 .next_object()
                 .unwrap()
                 .unwrap()
-                .dictionary_or_else_err(|| 0)
+                .dictionary_or_else(|_| Err("failure"))
                 .unwrap_err()
         );
     }

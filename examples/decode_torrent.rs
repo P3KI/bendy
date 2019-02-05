@@ -103,31 +103,35 @@ struct Info {
 
 /// Treats object as bencode integer.
 fn decode_integer_as_string(field_name: &str, data: Object) -> Result<String, Error> {
-    let error = || Error::malformed_field("Integer", field_name);
+    let error = |_| Err(Error::malformed_field("Integer", field_name));
 
-    let number_string = data.integer_str_or_else_err(error)?;
+    let number_string = data.integer_or_else(error)?;
     Ok(number_string.to_owned())
 }
 
 /// Treats object as byte string.
 fn decode_bytes_as_string(field_name: &str, data: Object) -> Result<String, Error> {
-    let error = || Error::malformed_field("String", field_name);
+    let error = |_| Err(Error::malformed_field("String", field_name));
 
-    let bytes = data.bytes_or_else_err(error)?;
-    let text = str::from_utf8(bytes).map_err(|_| error())?;
+    let bytes = data.bytes_or_else(error)?;
+    let text = str::from_utf8(bytes).map_err(|_| Error::malformed_field("String", field_name))?;
 
     Ok(text.to_owned())
 }
 
 /// Treats object as byte string.
 fn decode_bytes_as_vec(field_name: &str, data: Object) -> Result<Vec<u8>, Error> {
-    let result = data.bytes_or_err(Error::malformed_field("String", field_name))?;
-    Ok(result.to_vec())
+    let error = |_| Err(Error::malformed_field("String", field_name));
+
+    let bytes = data.bytes_or_else(error)?;
+    Ok(bytes.to_vec())
 }
 
 /// Treats object as list of strings.
 fn decode_list_of_strings(field_name: &str, data: Object) -> Result<Vec<String>, Error> {
-    let mut list_dec = data.list_or_err(Error::malformed_field("List", field_name))?;
+    let error = |_| Err(Error::malformed_field("List", field_name));
+
+    let mut list_dec = data.list_or_else(error)?;
     let mut list = Vec::new();
 
     while let Some(object) = list_dec.next_object()? {
@@ -149,7 +153,7 @@ fn decode_info(field_name: &str, data: Object) -> Result<Info, Error> {
     let mut pieces = None;
 
     let mut dict_dec =
-        data.dictionary_or_err(Error::malformed_field("Info Dictionary", field_name))?;
+        data.dictionary_or_else(|_| Err(Error::malformed_field("Info Dictionary", field_name)))?;
 
     while let Some(pair) = dict_dec.next_pair()? {
         match pair {
