@@ -66,8 +66,7 @@
 //! }
 //! ```
 
-use crate::state_tracker::StateTracker;
-pub use crate::state_tracker::Token;
+use crate::{state_tracker::StateTracker, token::Token};
 
 use super::Error;
 

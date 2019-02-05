@@ -109,7 +109,7 @@ use std::{
     io::{self, Write},
 };
 
-use crate::state_tracker::{StateTracker, Token};
+use crate::{state_tracker::StateTracker, token::Token};
 
 use super::Error;
 
