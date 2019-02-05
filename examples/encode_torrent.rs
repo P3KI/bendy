@@ -13,9 +13,6 @@
 //! cargo run --example encode_torrent > example.torrent
 //! ```
 
-extern crate bendy;
-extern crate failure;
-
 use std::io::Write;
 
 use failure::Error;

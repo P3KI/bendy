@@ -107,7 +107,7 @@ use std::collections::{BTreeMap, HashMap, LinkedList, VecDeque};
 use std::hash::Hash;
 use std::io::{self, Write};
 
-use state_tracker::{StateTracker, Token};
+use crate::state_tracker::{StateTracker, Token};
 
 use super::Error;
 

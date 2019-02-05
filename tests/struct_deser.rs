@@ -1,4 +1,4 @@
-extern crate bendy;
+
 #[macro_use]
 extern crate failure;
 

@@ -14,16 +14,13 @@
 //! cargo run --example decode_torrent > parsing_output.txt
 //! ```
 
-extern crate bendy;
-#[macro_use]
-extern crate failure;
-
 use std::str;
 
 use bendy::{
     decoder::{Decoder, DictDecoder, Object},
     Error as BencodeError,
 };
+use failure::Fail;
 
 static EXAMPLE_TORRENT: &[u8] =
     include_bytes!("torrent_files/debian-9.4.0-amd64-netinst.iso.torrent");
