@@ -1,355 +1,8 @@
-//! Decodes a bencoded struct
-//!
-//! # Basic decoding
-//! For any decoding process, first we need to create a decoder:
-//!
-//! ```
-//! # use bendy::decoder::{Decoder,Object};
-//! # use bendy::Error;
-//! #
-//! # let buf: &[u8] = b"d3:fooi1ee";
-//! let mut decoder = Decoder::new(buf);
-//! ```
-//!
-//! Decoders have a depth limit to prevent resource exhaustion from hostile inputs. By default, it's
-//! set high enough for most structures that you'd encounter when prototyping, but for production
-//! use, not only may it not be enough, but the higher the depth limit, the more stack space an
-//! attacker can cause your program to use, so we recommend setting the bounds tightly:
-//!
-//! ```
-//! # use bendy::decoder::{Decoder,Object};
-//! # use bendy::Error;
-//! #
-//! # let buf: &[u8] = b"d3:fooi1ee";
-//! # let mut decoder = Decoder::new(buf);
-//! #
-//! decoder = decoder.with_max_depth(3);
-//! ```
-//!
-//! Atoms (integers and strings) have depth zero, and lists and dicts have a depth equal to the
-//! depth of their deepest member plus one. As an special case, an empty list or dict has depth 1.
-//!
-//! Now, you can start reading objects:
-//!
-//! ```
-//! # use bendy::decoder::{Decoder,Object};
-//! # use bendy::Error;
-//! #
-//! # fn decode_list(_: bendy::decoder::ListDecoder) {}
-//! # fn decode_dict(_: bendy::decoder::DictDecoder) {}
-//! #
-//! # let buf: &[u8] = b"d3:fooi1ee";
-//! # let mut decoder = Decoder::new(buf);
-//! #
-//! match decoder.next_object().unwrap() {
-//!     None => (), // EOF
-//!     Some(Object::List(d)) => decode_list(d),
-//!     Some(Object::Dict(d)) => decode_dict(d),
-//!     Some(Object::Integer(s)) => (), // integer, as a string
-//!     Some(Object::Bytes(b)) => (), // A raw bytestring
-//! };
-//! ```
-//!
-//! # Error handling
-//!
-//! Once an error is encountered, the decoder won't try to muddle through it; instead, every future
-//! call to the decoder will return the same error. This behaviour can be used to check the syntax
-//! of an input object without fully decoding it:
-//!
-//! ```
-//! # use bendy::decoder::Decoder;
-//! #
-//! fn syntax_check(buf: &[u8]) -> bool {
-//!     let mut decoder = Decoder::new(buf);
-//!     decoder.next_object().ok(); // ignore the return value of this
-//!     return decoder.next_object().is_ok();
-//! }
-//! ```
-
 use crate::{
+    decoding::Object,
     state_tracker::StateTracker,
     token::{Error, Token},
 };
-
-/// An object read from a decoder
-pub enum Object<'obj, 'ser: 'obj> {
-    /// A list of arbitrary objects
-    List(ListDecoder<'obj, 'ser>),
-    /// A map of string-valued keys to arbitrary objects
-    Dict(DictDecoder<'obj, 'ser>),
-    /// An unparsed integer
-    Integer(&'ser str),
-    /// A byte string
-    Bytes(&'ser [u8]),
-}
-
-impl<'obj, 'ser: 'obj> Object<'obj, 'ser> {
-    fn into_token(self) -> Token<'ser> {
-        match self {
-            Object::List(_) => Token::List,
-            Object::Dict(_) => Token::Dict,
-            Object::Bytes(bytes) => Token::String(bytes),
-            Object::Integer(num) => Token::Num(num),
-        }
-    }
-
-    /// Try to treat the object as a byte string, mapping [`Object::Bytes(v)`] into
-    /// [`Ok(v)`] and any other variant to [`Err(error)`].
-    ///
-    /// Arguments passed to `bytes_or_err` are eagerly evaluated; if you are passing the
-    /// result of a function call, it is recommended to use [`bytes_or_else_err`], which is
-    /// lazily evaluated.
-    ///
-    /// [`Object::Bytes(v)`]: self::Object::Bytes
-    /// [`Ok(v)`]: https://doc.rust-lang.org/std/result/enum.Result.html#variant.Ok
-    /// [`Err(error)`]: https://doc.rust-lang.org/std/result/enum.Result.html#variant.Err
-    /// [`bytes_or_else_err`]: self::Object::bytes_or_else_err
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use bendy::decoder::Object;
-    ///
-    /// let x = Object::Bytes(b"foo");
-    /// assert_eq!(Ok(&b"foo"[..]), x.bytes_or_err(0));
-    ///
-    /// let x = Object::Integer("foo");
-    /// assert_eq!(Err(0), x.bytes_or_err(0));
-    /// ```
-    pub fn bytes_or_err<ErrorT>(self, error: ErrorT) -> Result<&'ser [u8], ErrorT> {
-        match self {
-            Object::Bytes(content) => Ok(content),
-            _ => Err(error),
-        }
-    }
-
-    /// Try to treat the object as a byte string, mapping [`Object::Bytes(v)`] into
-    /// [`Ok(v)`] and any other variant to [`Err(error())`].
-    ///
-    /// [`Object::Bytes(v)`]: self::Object::Bytes
-    /// [`Ok(v)`]: https://doc.rust-lang.org/std/result/enum.Result.html#variant.Ok
-    /// [`Err(error())`]: https://doc.rust-lang.org/std/result/enum.Result.html#variant.Err
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use bendy::decoder::Object;
-    ///
-    /// let x = Object::Bytes(b"foo");
-    /// assert_eq!(Ok(&b"foo"[..]), x.bytes_or_else_err(|| 0));
-    ///
-    /// let x = Object::Integer("foo");
-    /// assert_eq!(Err(0), x.bytes_or_else_err(|| 0));
-    /// ```
-    pub fn bytes_or_else_err<ErrorT, FunctionT>(
-        self,
-        error: FunctionT,
-    ) -> Result<&'ser [u8], ErrorT>
-    where
-        FunctionT: FnOnce() -> ErrorT,
-    {
-        match self {
-            Object::Bytes(content) => Ok(content),
-            _ => Err(error()),
-        }
-    }
-
-    /// Try to treat the object as an integer and return the internal string representation,
-    /// mapping [`Object::Integer(v)`] into [`Ok(v)`] and any other variant to [`Err(error)`].
-    ///
-    /// Arguments passed to `integer_str_or_err` are eagerly evaluated; if you are passing the
-    /// result of a function call, it is recommended to use [`integer_str_or_else_err`], which is
-    /// lazily evaluated.
-    ///
-    /// [`Object::Integer(v)`]: self::Object::Integer
-    /// [`Ok(v)`]: https://doc.rust-lang.org/std/result/enum.Result.html#variant.Ok
-    /// [`Err(error)`]: https://doc.rust-lang.org/std/result/enum.Result.html#variant.Err
-    /// [`integer_str_or_else_err`]: self::Object::integer_str_or_else_err
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use bendy::decoder::Object;
-    ///
-    /// let x = Object::Integer("123");
-    /// assert_eq!(Ok(&"123"[..]), x.integer_str_or_err(-1));
-    ///
-    /// let x = Object::Bytes(b"foo");
-    /// assert_eq!(Err(-1), x.integer_str_or_err(-1));
-    /// ```
-    pub fn integer_str_or_err<ErrorT>(self, error: ErrorT) -> Result<&'ser str, ErrorT> {
-        match self {
-            Object::Integer(content) => Ok(content),
-            _ => Err(error),
-        }
-    }
-
-    /// Try to treat the object as an integer and return the internal string representation,
-    /// mapping [`Object::Integer(v)`] into [`Ok(v)`] and any other variant to [`Err(error())`].
-    ///
-    /// [`Object::Integer(v)`]: self::Object::Integer
-    /// [`Ok(v)`]: https://doc.rust-lang.org/std/result/enum.Result.html#variant.Ok
-    /// [`Err(error())`]: https://doc.rust-lang.org/std/result/enum.Result.html#variant.Err
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use bendy::decoder::Object;
-    ///
-    /// let x = Object::Integer("123");
-    /// assert_eq!(Ok(&"123"[..]), x.integer_str_or_else_err(|| -1));
-    ///
-    /// let x = Object::Bytes(b"foo");
-    /// assert_eq!(Err(-1), x.integer_str_or_else_err(|| -1));
-    /// ```
-    pub fn integer_str_or_else_err<ErrorT, FunctionT>(
-        self,
-        error: FunctionT,
-    ) -> Result<&'ser str, ErrorT>
-    where
-        FunctionT: FnOnce() -> ErrorT,
-    {
-        match self {
-            Object::Integer(content) => Ok(content),
-            _ => Err(error()),
-        }
-    }
-
-    /// Try to treat the object as a list and return the internal list content decoder,
-    /// mapping [`Object::List(v)`] into [`Ok(v)`] and any other variant to [`Err(error)`].
-    ///
-    /// Arguments passed to `list_or_err` are eagerly evaluated; if you are passing the
-    /// result of a function call, it is recommended to use [`list_or_else_err`], which is
-    /// lazily evaluated.
-    ///
-    /// [`Object::List(v)`]: self::Object::List
-    /// [`Ok(v)`]: https://doc.rust-lang.org/std/result/enum.Result.html#variant.Ok
-    /// [`Err(error())`]: https://doc.rust-lang.org/std/result/enum.Result.html#variant.Err
-    /// [`list_or_else_err`]: self::Object::list_or_else_err
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use bendy::decoder::{Decoder, Object};
-    ///
-    /// let mut list_decoder = Decoder::new(b"le");
-    /// let x = list_decoder.next_object().unwrap().unwrap();
-    ///
-    /// assert!(x.list_or_err(0).is_ok());
-    ///
-    /// let x = Object::Bytes(b"foo");
-    /// assert_eq!(0, x.list_or_err(0).unwrap_err());
-    /// ```
-    pub fn list_or_err<ErrorT>(self, error: ErrorT) -> Result<ListDecoder<'obj, 'ser>, ErrorT> {
-        match self {
-            Object::List(content) => Ok(content),
-            _ => Err(error),
-        }
-    }
-
-    /// Try to treat the object as a list and return the internal list content decoder,
-    /// mapping [`Object::List(v)`] into [`Ok(v)`] and any other variant to [`Err(error())`].
-    ///
-    /// [`Object::List(v)`]: self::Object::List
-    /// [`Ok(v)`]: https://doc.rust-lang.org/std/result/enum.Result.html#variant.Ok
-    /// [`Err(error())`]: https://doc.rust-lang.org/std/result/enum.Result.html#variant.Err
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use bendy::decoder::{Decoder, Object};
-    ///
-    /// let mut list_decoder = Decoder::new(b"le");
-    /// let x = list_decoder.next_object().unwrap().unwrap();
-    ///
-    /// assert!(x.list_or_else_err(|| 0).is_ok());
-    ///
-    /// let x = Object::Bytes(b"foo");
-    /// assert_eq!(0, x.list_or_else_err(|| 0).unwrap_err());
-    /// ```
-    pub fn list_or_else_err<ErrorT, FunctionT>(
-        self,
-        error: FunctionT,
-    ) -> Result<ListDecoder<'obj, 'ser>, ErrorT>
-    where
-        FunctionT: FnOnce() -> ErrorT,
-    {
-        match self {
-            Object::List(content) => Ok(content),
-            _ => Err(error()),
-        }
-    }
-
-    /// Try to treat the object as a dictionary and return the internal dictionary content
-    /// decoder, mapping [`Object::Dict(v)`] into [`Ok(v)`] and any other variant to
-    /// [`Err(error)`].
-    ///
-    /// Arguments passed to `dictionary_or_err` are eagerly evaluated; if you are passing the
-    /// result of a function call, it is recommended to use [`dictionary_or_else_err`], which is
-    /// lazily evaluated.
-    ///
-    /// [`Object::Dict(v)`]: self::Object::Dict
-    /// [`Ok(v)`]: https://doc.rust-lang.org/std/result/enum.Result.html#variant.Ok
-    /// [`Err(error)`]: https://doc.rust-lang.org/std/result/enum.Result.html#variant.Err
-    /// [`dictionary_or_else_err`]: self::Object::dictionary_or_else_err
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use bendy::decoder::{Decoder, Object};
-    ///
-    /// let mut dict_decoder = Decoder::new(b"de");
-    /// let x = dict_decoder.next_object().unwrap().unwrap();
-    ///
-    /// assert!(x.dictionary_or_err(0).is_ok());
-    ///
-    /// let x = Object::Bytes(b"foo");
-    /// assert_eq!(0, x.dictionary_or_err(0).unwrap_err());
-    /// ```
-    pub fn dictionary_or_err<ErrorT>(
-        self,
-        error: ErrorT,
-    ) -> Result<DictDecoder<'obj, 'ser>, ErrorT> {
-        match self {
-            Object::Dict(content) => Ok(content),
-            _ => Err(error),
-        }
-    }
-
-    /// Try to treat the object as a dictionary and return the internal dictionary content
-    /// decoder, mapping [`Object::Dict(v)`] into [`Ok(v)`] and any other variant to
-    /// [`Err(error())`].
-    ///
-    /// [`Object::Dict(v)`]: self::Object::Dict
-    /// [`Ok(v)`]: https://doc.rust-lang.org/std/result/enum.Result.html#variant.Ok
-    /// [`Err(error())`]: https://doc.rust-lang.org/std/result/enum.Result.html#variant.Err
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use bendy::decoder::{Decoder, Object};
-    ///
-    /// let mut dict_decoder = Decoder::new(b"de");
-    /// let x = dict_decoder.next_object().unwrap().unwrap();
-    ///
-    /// assert!(x.dictionary_or_else_err(|| 0).is_ok());
-    ///
-    /// let x = Object::Bytes(b"foo");
-    /// assert_eq!(0, x.dictionary_or_else_err(|| 0).unwrap_err());
-    /// ```
-    pub fn dictionary_or_else_err<ErrorT, FunctionT>(
-        self,
-        error: FunctionT,
-    ) -> Result<DictDecoder<'obj, 'ser>, ErrorT>
-    where
-        FunctionT: FnOnce() -> ErrorT,
-    {
-        match self {
-            Object::Dict(content) => Ok(content),
-            _ => Err(error()),
-        }
-    }
-}
 
 /// A bencode decoder
 ///
@@ -702,8 +355,13 @@ impl<'obj, 'ser: 'obj> Drop for ListDecoder<'obj, 'ser> {
 
 #[cfg(test)]
 mod test {
-    use super::*;
+    use std::iter;
+
     use regex;
+
+    use crate::token::{Error, Token};
+
+    use super::*;
 
     static SIMPLE_MSG: &'static [u8] = b"d3:bari1e3:fooli2ei3eee";
 
@@ -734,7 +392,7 @@ mod test {
 
     #[test]
     fn simple_bdecode_tokenization() {
-        use super::Token::*;
+        use self::Token::*;
         let tokens: Vec<_> = decode_tokens(SIMPLE_MSG);
         assert_eq!(
             tokens,
@@ -769,7 +427,7 @@ mod test {
 
     #[test]
     fn negative_numbers_and_zero_should_parse() {
-        use super::Token::*;
+        use self::Token::*;
         let tokens: Vec<_> = decode_tokens(b"i0ei-1e");
         assert_eq!(tokens, vec![Num(&"0"), Num(&"-1")],);
     }
@@ -817,10 +475,9 @@ mod test {
 
     #[test]
     fn recursion_should_be_limited() {
-        use std::iter::repeat;
         let mut msg = Vec::new();
-        msg.extend(repeat(b'l').take(4096));
-        msg.extend(repeat(b'e').take(4096));
+        msg.extend(iter::repeat(b'l').take(4096));
+        msg.extend(iter::repeat(b'e').take(4096));
         decode_err(&msg, r"nesting depth");
     }
 
