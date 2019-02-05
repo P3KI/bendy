@@ -1,4 +1,7 @@
-use crate::{state_tracker::Stack, token::Token, Error};
+use crate::{
+    state_tracker::Stack,
+    token::{Error, Token},
+};
 
 /// The state of current level of the decoder
 #[derive(Clone, Ord, PartialOrd, Eq, PartialEq, Debug)]

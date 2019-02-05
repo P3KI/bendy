@@ -66,9 +66,10 @@
 //! }
 //! ```
 
-use crate::{state_tracker::StateTracker, token::Token};
-
-use super::Error;
+use crate::{
+    state_tracker::StateTracker,
+    token::{Error, Token},
+};
 
 /// An object read from a decoder
 pub enum Object<'obj, 'ser: 'obj> {

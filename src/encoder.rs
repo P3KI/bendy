@@ -109,9 +109,10 @@ use std::{
     io::{self, Write},
 };
 
-use crate::{state_tracker::StateTracker, token::Token};
-
-use super::Error;
+use crate::{
+    state_tracker::StateTracker,
+    token::{Error, Token},
+};
 
 /// A value that can be formatted as a decimal integer
 pub trait PrintableInteger {
