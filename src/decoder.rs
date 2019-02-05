@@ -66,8 +66,8 @@
 //! }
 //! ```
 
-use state_tracker::StateTracker;
-pub use state_tracker::Token;
+use crate::state_tracker::StateTracker;
+pub use crate::state_tracker::Token;
 
 use super::Error;
 
@@ -396,7 +396,7 @@ impl<'ser> Decoder<'ser> {
                 let ret = &self.source[self.offset..end_pos];
                 self.offset = end_pos;
                 Some(ret)
-            }
+            },
             _ => None,
         }
     }
@@ -417,58 +417,68 @@ impl<'ser> Decoder<'ser> {
         while curpos < self.source.len() {
             let c = self.source[curpos] as char;
             match state {
-                State::Start => if c == '-' {
-                    state = State::Sign;
-                } else if c == '0' {
-                    state = State::Zero;
-                } else if c >= '1' && c <= '9' {
-                    state = State::Digits;
-                } else {
-                    return Err(Error::unexpected("'-' or '0'..'9'", c, curpos));
+                State::Start => {
+                    if c == '-' {
+                        state = State::Sign;
+                    } else if c == '0' {
+                        state = State::Zero;
+                    } else if c >= '1' && c <= '9' {
+                        state = State::Digits;
+                    } else {
+                        return Err(Error::unexpected("'-' or '0'..'9'", c, curpos));
+                    }
                 },
-                State::Zero => if c == expected_terminator {
-                    success = true;
-                    break;
-                } else {
-                    return Err(Error::unexpected(
-                        &format!("{:?}", expected_terminator),
-                        c,
-                        curpos,
-                    ));
+                State::Zero => {
+                    if c == expected_terminator {
+                        success = true;
+                        break;
+                    } else {
+                        return Err(Error::unexpected(
+                            &format!("{:?}", expected_terminator),
+                            c,
+                            curpos,
+                        ));
+                    }
                 },
-                State::Sign => if c >= '1' && c <= '9' {
-                    state = State::Digits;
-                } else {
-                    return Err(Error::unexpected("'1'..'9'", c, curpos));
+                State::Sign => {
+                    if c >= '1' && c <= '9' {
+                        state = State::Digits;
+                    } else {
+                        return Err(Error::unexpected("'1'..'9'", c, curpos));
+                    }
                 },
-                State::Digits => if c >= '0' && c <= '9' {
-                    // do nothing, this is ok
-                } else if c == expected_terminator {
-                    success = true;
-                    break;
-                } else {
-                    return Err(Error::unexpected(
-                        &format!("{:?} or '0'..'9'", expected_terminator),
-                        c,
-                        curpos,
-                    ));
+                State::Digits => {
+                    if c >= '0' && c <= '9' {
+                        // do nothing, this is ok
+                    } else if c == expected_terminator {
+                        success = true;
+                        break;
+                    } else {
+                        return Err(Error::unexpected(
+                            &format!("{:?} or '0'..'9'", expected_terminator),
+                            c,
+                            curpos,
+                        ));
+                    }
                 },
             }
             curpos += 1;
         }
-        if success {
-            let slice = &self.source[self.offset..curpos];
-            self.offset = curpos + 1;
-            let ival = if cfg!(debug) {
-                str::from_utf8(slice).expect("We've already examined every byte in the string")
-            } else {
-                // Avoid a second UTF-8 check here
-                unsafe { str::from_utf8_unchecked(slice) }
-            };
-            return Ok(ival);
-        } else {
+
+        if !success {
             return Err(Error::UnexpectedEof);
         }
+
+        let slice = &self.source[self.offset..curpos];
+        self.offset = curpos + 1;
+        let ival = if cfg!(debug) {
+            str::from_utf8(slice).expect("We've already examined every byte in the string")
+        } else {
+            // Avoid a second UTF-8 check here
+            unsafe { str::from_utf8_unchecked(slice) }
+        };
+
+        Ok(ival)
     }
 
     fn raw_next_token(&mut self) -> Result<Token<'ser>, Error> {
@@ -486,16 +496,17 @@ impl<'ser> Decoder<'ser> {
                     Error::SyntaxError(format!("Invalid integer at offset {}", curpos))
                 })?;
                 Token::String(self.take_chunk(len).ok_or(Error::UnexpectedEof)?)
-            }
+            },
             tok => {
                 return Err(Error::SyntaxError(format!(
                     "Invalid token starting with {:?} at offset {}",
                     tok,
                     self.offset - 1
-                )))
-            }
+                )));
+            },
         };
-        return Ok(token);
+
+        Ok(token)
     }
 
     /// Read the next token. Returns Ok(Some(token)) if a token was successfully read,
@@ -816,22 +827,18 @@ mod test {
     #[test]
     fn recursion_bounds_should_be_tight() {
         let test_msg = b"lllleeee";
-        assert!(
-            Decoder::new(test_msg)
-                .with_max_depth(4)
-                .tokens()
-                .last()
-                .unwrap()
-                .is_ok()
-        );
-        assert!(
-            Decoder::new(test_msg)
-                .with_max_depth(3)
-                .tokens()
-                .last()
-                .unwrap()
-                .is_err()
-        );
+        assert!(Decoder::new(test_msg)
+            .with_max_depth(4)
+            .tokens()
+            .last()
+            .unwrap()
+            .is_ok());
+        assert!(Decoder::new(test_msg)
+            .with_max_depth(3)
+            .tokens()
+            .last()
+            .unwrap()
+            .is_err());
     }
 
     #[test]
@@ -967,14 +974,12 @@ mod test {
     #[test]
     fn list_or_should_work_on_list() {
         let mut list_decoder = Decoder::new(b"le");
-        assert!(
-            list_decoder
-                .next_object()
-                .unwrap()
-                .unwrap()
-                .list_or_err(0)
-                .is_ok()
-        );
+        assert!(list_decoder
+            .next_object()
+            .unwrap()
+            .unwrap()
+            .list_or_err(0)
+            .is_ok());
     }
     #[test]
     fn list_or_should_not_work_on_other_types() {
@@ -996,14 +1001,12 @@ mod test {
     #[test]
     fn list_or_else_should_work_on_list() {
         let mut list_decoder = Decoder::new(b"le");
-        assert!(
-            list_decoder
-                .next_object()
-                .unwrap()
-                .unwrap()
-                .list_or_else_err(|| 0)
-                .is_ok()
-        );
+        assert!(list_decoder
+            .next_object()
+            .unwrap()
+            .unwrap()
+            .list_or_else_err(|| 0)
+            .is_ok());
     }
     #[test]
     fn list_or_else_should_not_work_on_other_types() {
@@ -1028,14 +1031,12 @@ mod test {
     #[test]
     fn dictionary_or_should_work_on_dict() {
         let mut dict_decoder = Decoder::new(b"de");
-        assert!(
-            dict_decoder
-                .next_object()
-                .unwrap()
-                .unwrap()
-                .dictionary_or_err(0)
-                .is_ok()
-        );
+        assert!(dict_decoder
+            .next_object()
+            .unwrap()
+            .unwrap()
+            .dictionary_or_err(0)
+            .is_ok());
     }
 
     #[test]
@@ -1058,14 +1059,12 @@ mod test {
     #[test]
     fn dictionary_or_else_should_work_on_dict() {
         let mut dict_decoder = Decoder::new(b"de");
-        assert!(
-            dict_decoder
-                .next_object()
-                .unwrap()
-                .unwrap()
-                .dictionary_or_else_err(|| 0)
-                .is_ok()
-        );
+        assert!(dict_decoder
+            .next_object()
+            .unwrap()
+            .unwrap()
+            .dictionary_or_else_err(|| 0)
+            .is_ok());
     }
 
     #[test]

@@ -10,8 +10,8 @@
 //! # use bendy::Error;
 //!
 //! struct Message {
-//!    foo: i32,
-//!    bar: String,
+//!     foo: i32,
+//!     bar: String,
 //! }
 //!
 //! impl Encodable for Message {
@@ -103,11 +103,13 @@
 //! [`UnsortedKeys`]: self::Error#UnsortedKeys
 //! [`NestingTooDeep`]: self::Error#NestingTooDeep
 
-use std::collections::{BTreeMap, HashMap, LinkedList, VecDeque};
-use std::hash::Hash;
-use std::io::{self, Write};
+use std::{
+    collections::{BTreeMap, HashMap, LinkedList, VecDeque},
+    hash::Hash,
+    io::{self, Write},
+};
 
-use state_tracker::{StateTracker, Token};
+use crate::state_tracker::{StateTracker, Token};
 
 use super::Error;
 
@@ -160,13 +162,13 @@ impl Encoder {
                 // Writing to a vec can't fail
                 write!(&mut self.output, "{}:", s.len()).unwrap();
                 self.output.extend_from_slice(s);
-            }
+            },
             Token::Num(num) => {
                 // Alas, this doesn't verify that the given number is valid
                 self.output.push(b'i');
                 self.output.extend_from_slice(num.as_bytes());
                 self.output.push(b'e');
-            }
+            },
             Token::End => self.output.push(b'e'),
         }
 
@@ -479,7 +481,7 @@ impl UnsortedDictEncoder {
                     String::from_utf8_lossy(occupation.key())
                 )));
                 return self.error.clone();
-            }
+            },
         };
 
         let mut value_written = false;
@@ -718,7 +720,8 @@ mod test {
                         e.emit_str("qux")
                     })
                 })
-            }).expect("Encoding shouldn't fail");
+            })
+            .expect("Encoding shouldn't fail");
         assert_eq!(
             &encoder
                 .get_output()
@@ -754,7 +757,8 @@ mod test {
                 bar: 5,
                 baz: vec!["foo".to_owned(), "bar".to_owned()],
                 qux: b"qux".to_vec(),
-            }).unwrap();
+            })
+            .unwrap();
         assert_eq!(
             &encoder.get_output().unwrap()[..],
             &b"d3:bari5e3:bazl3:foo3:bare3:qux3:quxe"[..]
