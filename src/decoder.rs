@@ -464,19 +464,21 @@ impl<'ser> Decoder<'ser> {
             }
             curpos += 1;
         }
-        if success {
-            let slice = &self.source[self.offset..curpos];
-            self.offset = curpos + 1;
-            let ival = if cfg!(debug) {
-                str::from_utf8(slice).expect("We've already examined every byte in the string")
-            } else {
-                // Avoid a second UTF-8 check here
-                unsafe { str::from_utf8_unchecked(slice) }
-            };
-            return Ok(ival);
-        } else {
+
+        if !success {
             return Err(Error::UnexpectedEof);
         }
+
+        let slice = &self.source[self.offset..curpos];
+        self.offset = curpos + 1;
+        let ival = if cfg!(debug) {
+            str::from_utf8(slice).expect("We've already examined every byte in the string")
+        } else {
+            // Avoid a second UTF-8 check here
+            unsafe { str::from_utf8_unchecked(slice) }
+        };
+
+        Ok(ival)
     }
 
     fn raw_next_token(&mut self) -> Result<Token<'ser>, Error> {
@@ -503,7 +505,8 @@ impl<'ser> Decoder<'ser> {
                 )));
             },
         };
-        return Ok(token);
+
+        Ok(token)
     }
 
     /// Read the next token. Returns Ok(Some(token)) if a token was successfully read,

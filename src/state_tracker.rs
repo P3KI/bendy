@@ -94,14 +94,15 @@ impl<S: AsRef<[u8]>> StateTracker<S> {
     /// Observe that an EOF was seen. This function is idempotent.
     pub fn observe_eof(&mut self) -> Result<(), Error> {
         self.check_error()?;
+
         if self.state.is_empty() {
-            return Ok(());
+            Ok(())
         } else {
-            return self.latch_err(Err(Error::UnexpectedEof));
+            self.latch_err(Err(Error::UnexpectedEof))
         }
     }
 
-    #[cfg_attr(feature = "cargo-clippy", allow(match_same_arms))]
+    #[allow(clippy::match_same_arms)]
     pub fn observe_token<'a>(&mut self, token: &Token<'a>) -> Result<(), Error>
     where
         S: From<&'a [u8]>,

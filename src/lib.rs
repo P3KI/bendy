@@ -4,9 +4,6 @@
 //! accept any sort of invalid encoding in any mode (including non-canonical encodings)
 //!
 //! The encoder is likewise designed to ensure that it only produces valid structures.
-#![cfg_attr(feature = "cargo-clippy", allow(needless_return))]
-#![cfg_attr(not(test), warn(missing_docs))]
-
 pub mod decoder;
 pub mod encoder;
 mod state_tracker;
