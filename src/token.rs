@@ -15,6 +15,18 @@ pub enum Token<'a> {
     End,
 }
 
+impl<'a> Token<'a> {
+    pub fn name(&self) -> &'static str {
+        match *self {
+            Token::Dict => "Dict",
+            Token::End => "End",
+            Token::List => "List",
+            Token::Num(_) => "Num",
+            Token::String(_) => "String",
+        }
+    }
+}
+
 /// An encoding or decoding error
 #[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Debug, Fail)]
 pub enum Error {
