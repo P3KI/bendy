@@ -1,7 +1,7 @@
 use std::{collections::BTreeMap, io::Write};
 
 use crate::{
-    encoding::{Encodable, PrintableInteger},
+    encoding::{Encodable, Error, PrintableInteger},
     state_tracker::{StateTracker, StructureError, Token},
 };
 
@@ -51,7 +51,7 @@ impl Encoder {
 
     /// Emit an arbitrary encodable object
     pub fn emit<E: Encodable>(&mut self, value: E) -> Result<(), StructureError> {
-        self.emit_with(|e| value.encode(e))
+        self.emit_with(|e| value.encode(e).map_err(Error::into))
     }
 
     /// Emit a single object using an encoder
@@ -160,16 +160,17 @@ impl Encoder {
     /// Example.
     ///
     /// ```
-    /// # use bendy::encoding::Encoder;
+    /// # use bendy::encoding::{Encoder, Error};
     /// #
-    /// # fn main() -> Result<(), bendy::Error> {
+    /// # fn main() -> Result<(), Error> {
     /// # let mut encoder = Encoder::new();
     /// #
     /// encoder.emit_and_sort_dict(|mut e| {
     ///     // Unlike in the example for Encoder::emit_dict(), these keys aren't sorted
     ///     e.emit_pair(b"b", 2)?;
     ///     e.emit_pair(b"a", "foo")
-    /// })
+    /// })?;
+    /// Ok(())
     /// # }
     /// ```
     pub fn emit_and_sort_dict<F>(&mut self, content_cb: F) -> Result<(), StructureError>
@@ -218,7 +219,7 @@ pub struct SingleItemEncoder<'a> {
 impl<'a> SingleItemEncoder<'a> {
     /// Emit an arbitrary encodable object
     pub fn emit<E: Encodable + ?Sized>(self, value: &E) -> Result<(), StructureError> {
-        value.encode(self)
+        value.encode(self).map_err(Error::into)
     }
 
     /// Emit a single object using an encoder
@@ -334,7 +335,7 @@ impl UnsortedDictEncoder {
     where
         E: Encodable,
     {
-        self.emit_pair_with(key, |e| value.encode(e))
+        self.emit_pair_with(key, |e| value.encode(e).map_err(Error::into))
     }
 
     /// Emit a key/value pair where the value is produced by a callback

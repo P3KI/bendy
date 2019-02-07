@@ -15,12 +15,8 @@
 
 use std::io::Write;
 
+use bendy::encoding::{AsString, Encodable, Error as EncodingError, SingleItemEncoder};
 use failure::Error;
-
-use bendy::{
-    encoding::{AsString, Encodable, SingleItemEncoder},
-    Error as BencodeError,
-};
 
 /// Main struct containing all required information.
 ///
@@ -54,7 +50,7 @@ impl Encodable for MetaInfo {
     // around the info struct.
     const MAX_DEPTH: usize = Info::MAX_DEPTH + 1;
 
-    fn encode(&self, encoder: SingleItemEncoder) -> Result<(), BencodeError> {
+    fn encode(&self, encoder: SingleItemEncoder) -> Result<(), EncodingError> {
         encoder.emit_dict(|mut e| {
             e.emit_pair(b"announce", &self.announce)?;
 
@@ -73,7 +69,9 @@ impl Encodable for MetaInfo {
             }
 
             e.emit_pair(b"info", &self.info)
-        })
+        })?;
+
+        Ok(())
     }
 }
 
@@ -82,13 +80,14 @@ impl Encodable for Info {
     // as flat values, i.e. strings or integers.
     const MAX_DEPTH: usize = 1;
 
-    fn encode(&self, encoder: SingleItemEncoder) -> Result<(), BencodeError> {
+    fn encode(&self, encoder: SingleItemEncoder) -> Result<(), EncodingError> {
         encoder.emit_dict(|mut e| {
             e.emit_pair(b"length", &self.file_length)?;
             e.emit_pair(b"name", &self.name)?;
             e.emit_pair(b"piece length", &self.piece_length)?;
             e.emit_pair(b"pieces", AsString(&self.pieces))
-        })
+        })?;
+        Ok(())
     }
 }
 
