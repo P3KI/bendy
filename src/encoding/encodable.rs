@@ -5,7 +5,7 @@ use std::{
 
 use crate::{
     encoding::{Encoder, SingleItemEncoder},
-    token::Error,
+    state_tracker::StructureError,
 };
 
 /// An object that can be encoded into a single bencode object
@@ -15,10 +15,10 @@ pub trait Encodable {
     const MAX_DEPTH: usize;
 
     /// Encode this object into the bencode stream
-    fn encode(&self, encoder: SingleItemEncoder) -> Result<(), Error>;
+    fn encode(&self, encoder: SingleItemEncoder) -> Result<(), StructureError>;
 
     /// Encode this object to a byte string
-    fn to_bytes(&self) -> Result<Vec<u8>, Error> {
+    fn to_bytes(&self) -> Result<Vec<u8>, StructureError> {
         let mut encoder = Encoder::new().with_max_depth(Self::MAX_DEPTH);
         encoder.emit_with(|e| self.encode(e))?;
         encoder.get_output()
@@ -29,7 +29,7 @@ pub trait Encodable {
 impl<'a, E: 'a + Encodable + Sized> Encodable for &'a E {
     const MAX_DEPTH: usize = E::MAX_DEPTH;
 
-    fn encode(&self, encoder: SingleItemEncoder) -> Result<(), Error> {
+    fn encode(&self, encoder: SingleItemEncoder) -> Result<(), StructureError> {
         E::encode(self, encoder)
     }
 }
@@ -37,7 +37,7 @@ impl<'a, E: 'a + Encodable + Sized> Encodable for &'a E {
 impl<E: Encodable> Encodable for Box<E> {
     const MAX_DEPTH: usize = E::MAX_DEPTH;
 
-    fn encode(&self, encoder: SingleItemEncoder) -> Result<(), Error> {
+    fn encode(&self, encoder: SingleItemEncoder) -> Result<(), StructureError> {
         E::encode(&*self, encoder)
     }
 }
@@ -45,7 +45,7 @@ impl<E: Encodable> Encodable for Box<E> {
 impl<E: Encodable> Encodable for ::std::rc::Rc<E> {
     const MAX_DEPTH: usize = E::MAX_DEPTH;
 
-    fn encode(&self, encoder: SingleItemEncoder) -> Result<(), Error> {
+    fn encode(&self, encoder: SingleItemEncoder) -> Result<(), StructureError> {
         E::encode(&*self, encoder)
     }
 }
@@ -53,7 +53,7 @@ impl<E: Encodable> Encodable for ::std::rc::Rc<E> {
 impl<E: Encodable> Encodable for ::std::sync::Arc<E> {
     const MAX_DEPTH: usize = E::MAX_DEPTH;
 
-    fn encode(&self, encoder: SingleItemEncoder) -> Result<(), Error> {
+    fn encode(&self, encoder: SingleItemEncoder) -> Result<(), StructureError> {
         E::encode(&*self, encoder)
     }
 }
@@ -62,7 +62,7 @@ impl<E: Encodable> Encodable for ::std::sync::Arc<E> {
 impl<'a> Encodable for &'a str {
     const MAX_DEPTH: usize = 0;
 
-    fn encode(&self, encoder: SingleItemEncoder) -> Result<(), Error> {
+    fn encode(&self, encoder: SingleItemEncoder) -> Result<(), StructureError> {
         encoder.emit_str(self)
     }
 }
@@ -70,7 +70,7 @@ impl<'a> Encodable for &'a str {
 impl Encodable for String {
     const MAX_DEPTH: usize = 0;
 
-    fn encode(&self, encoder: SingleItemEncoder) -> Result<(), Error> {
+    fn encode(&self, encoder: SingleItemEncoder) -> Result<(), StructureError> {
         encoder.emit_str(self)
     }
 }
@@ -80,7 +80,7 @@ macro_rules! impl_encodable_integer {
         impl Encodable for $type {
             const MAX_DEPTH: usize = 1;
 
-            fn encode(&self, encoder: SingleItemEncoder) -> Result<(), Error> {
+            fn encode(&self, encoder: SingleItemEncoder) -> Result<(), StructureError> {
                 encoder.emit_int(*self)
             }
         }
@@ -97,7 +97,7 @@ macro_rules! impl_encodable_iterable {
         {
             const MAX_DEPTH: usize = ContentT::MAX_DEPTH + 1;
 
-            fn encode(&self, encoder: SingleItemEncoder) -> Result<(), Error> {
+            fn encode(&self, encoder: SingleItemEncoder) -> Result<(), StructureError> {
                 encoder.emit_list(|e| {
                     for item in self {
                         e.emit(item)?;
@@ -117,7 +117,7 @@ where
 {
     const MAX_DEPTH: usize = ContentT::MAX_DEPTH + 1;
 
-    fn encode(&self, encoder: SingleItemEncoder) -> Result<(), Error> {
+    fn encode(&self, encoder: SingleItemEncoder) -> Result<(), StructureError> {
         encoder.emit_list(|e| {
             for item in *self {
                 e.emit(item)?;
@@ -130,7 +130,7 @@ where
 impl<K: AsRef<[u8]>, V: Encodable> Encodable for BTreeMap<K, V> {
     const MAX_DEPTH: usize = V::MAX_DEPTH + 1;
 
-    fn encode(&self, encoder: SingleItemEncoder) -> Result<(), Error> {
+    fn encode(&self, encoder: SingleItemEncoder) -> Result<(), StructureError> {
         encoder.emit_dict(|mut e| {
             for (k, v) in self {
                 e.emit_pair(k.as_ref(), v)?;
@@ -148,7 +148,7 @@ where
 {
     const MAX_DEPTH: usize = V::MAX_DEPTH + 1;
 
-    fn encode(&self, encoder: SingleItemEncoder) -> Result<(), Error> {
+    fn encode(&self, encoder: SingleItemEncoder) -> Result<(), StructureError> {
         encoder.emit_dict(|mut e| {
             let mut pairs = self
                 .iter()
@@ -173,7 +173,7 @@ where
 {
     const MAX_DEPTH: usize = 1;
 
-    fn encode(&self, encoder: SingleItemEncoder) -> Result<(), Error> {
+    fn encode(&self, encoder: SingleItemEncoder) -> Result<(), StructureError> {
         encoder.emit_bytes(self.0.as_ref())
     }
 }
@@ -200,7 +200,6 @@ where
 mod test {
 
     use super::*;
-    use crate::token::Error;
 
     struct Foo {
         bar: u32,
@@ -211,7 +210,7 @@ mod test {
     impl Encodable for Foo {
         const MAX_DEPTH: usize = 2;
 
-        fn encode(&self, encoder: SingleItemEncoder) -> Result<(), Error> {
+        fn encode(&self, encoder: SingleItemEncoder) -> Result<(), StructureError> {
             encoder.emit_dict(|mut e| {
                 e.emit_pair(b"bar", &self.bar)?;
                 e.emit_pair(b"baz", &self.baz)?;

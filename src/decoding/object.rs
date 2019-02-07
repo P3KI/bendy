@@ -1,6 +1,6 @@
 use crate::{
     decoding::{DictDecoder, ListDecoder},
-    token::Token,
+    state_tracker::Token,
 };
 
 /// An object read from a decoder

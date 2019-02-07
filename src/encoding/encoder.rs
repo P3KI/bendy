@@ -2,8 +2,7 @@ use std::{collections::BTreeMap, io::Write};
 
 use crate::{
     encoding::{Encodable, PrintableInteger},
-    state_tracker::StateTracker,
-    token::{Error, Token},
+    state_tracker::{StateTracker, StructureError, Token},
 };
 
 /// The actual encoder. Unlike the decoder, this is not zero-copy, as that would
@@ -27,7 +26,7 @@ impl Encoder {
     }
 
     /// Emit a single token to the encoder
-    fn emit_token(&mut self, token: Token) -> Result<(), Error> {
+    fn emit_token(&mut self, token: Token) -> Result<(), StructureError> {
         self.state.check_error()?;
         self.state.observe_token(&token)?;
         match token {
@@ -51,14 +50,14 @@ impl Encoder {
     }
 
     /// Emit an arbitrary encodable object
-    pub fn emit<E: Encodable>(&mut self, value: E) -> Result<(), Error> {
+    pub fn emit<E: Encodable>(&mut self, value: E) -> Result<(), StructureError> {
         self.emit_with(|e| value.encode(e))
     }
 
     /// Emit a single object using an encoder
-    pub fn emit_with<F>(&mut self, value_cb: F) -> Result<(), Error>
+    pub fn emit_with<F>(&mut self, value_cb: F) -> Result<(), StructureError>
     where
-        F: FnOnce(SingleItemEncoder) -> Result<(), Error>,
+        F: FnOnce(SingleItemEncoder) -> Result<(), StructureError>,
     {
         let mut value_written = false;
         let ret = value_cb(SingleItemEncoder {
@@ -71,14 +70,14 @@ impl Encoder {
         if !value_written {
             return self
                 .state
-                .latch_err(Err(Error::invalid_state("No value was emitted")));
+                .latch_err(Err(StructureError::invalid_state("No value was emitted")));
         }
 
         Ok(())
     }
 
     /// Emit an integer
-    pub fn emit_int<T: PrintableInteger>(&mut self, value: T) -> Result<(), Error> {
+    pub fn emit_int<T: PrintableInteger>(&mut self, value: T) -> Result<(), StructureError> {
         // This doesn't use emit_token, as that would require that I write the integer to a
         // temporary buffer and then copy it to the output; writing it directly saves at
         // least one memory allocation
@@ -94,12 +93,12 @@ impl Encoder {
     }
 
     /// Emit a string
-    pub fn emit_str(&mut self, value: &str) -> Result<(), Error> {
+    pub fn emit_str(&mut self, value: &str) -> Result<(), StructureError> {
         self.emit_token(Token::String(value.as_bytes()))
     }
 
     /// Emit a byte array
-    pub fn emit_bytes(&mut self, value: &[u8]) -> Result<(), Error> {
+    pub fn emit_bytes(&mut self, value: &[u8]) -> Result<(), StructureError> {
         self.emit_token(Token::String(value))
     }
 
@@ -121,9 +120,9 @@ impl Encoder {
     ///     e.emit_pair(b"b", 2)
     /// });
     /// ```
-    pub fn emit_dict<F>(&mut self, content_cb: F) -> Result<(), Error>
+    pub fn emit_dict<F>(&mut self, content_cb: F) -> Result<(), StructureError>
     where
-        F: FnOnce(SortedDictEncoder) -> Result<(), Error>,
+        F: FnOnce(SortedDictEncoder) -> Result<(), StructureError>,
     {
         self.emit_token(Token::Dict)?;
         content_cb(SortedDictEncoder { encoder: self })?;
@@ -145,9 +144,9 @@ impl Encoder {
     ///    e.emit_int(3)
     /// });
     /// ```
-    pub fn emit_list<F>(&mut self, list_cb: F) -> Result<(), Error>
+    pub fn emit_list<F>(&mut self, list_cb: F) -> Result<(), StructureError>
     where
-        F: FnOnce(&mut Encoder) -> Result<(), Error>,
+        F: FnOnce(&mut Encoder) -> Result<(), StructureError>,
     {
         self.emit_token(Token::List)?;
         list_cb(self)?;
@@ -173,9 +172,9 @@ impl Encoder {
     /// })
     /// # }
     /// ```
-    pub fn emit_and_sort_dict<F>(&mut self, content_cb: F) -> Result<(), Error>
+    pub fn emit_and_sort_dict<F>(&mut self, content_cb: F) -> Result<(), StructureError>
     where
-        F: FnOnce(&mut UnsortedDictEncoder) -> Result<(), Error>,
+        F: FnOnce(&mut UnsortedDictEncoder) -> Result<(), StructureError>,
     {
         // emit the dict token so that a pre-existing state error is reported early
         self.emit_token(Token::Dict)?;
@@ -199,7 +198,7 @@ impl Encoder {
     }
 
     /// Return the encoded string, if all objects written are complete
-    pub fn get_output(mut self) -> Result<Vec<u8>, Error> {
+    pub fn get_output(mut self) -> Result<Vec<u8>, StructureError> {
         self.state.observe_eof()?;
         Ok(self.output)
     }
@@ -218,49 +217,49 @@ pub struct SingleItemEncoder<'a> {
 
 impl<'a> SingleItemEncoder<'a> {
     /// Emit an arbitrary encodable object
-    pub fn emit<E: Encodable + ?Sized>(self, value: &E) -> Result<(), Error> {
+    pub fn emit<E: Encodable + ?Sized>(self, value: &E) -> Result<(), StructureError> {
         value.encode(self)
     }
 
     /// Emit a single object using an encoder
-    pub fn emit_with<F>(self, value_cb: F) -> Result<(), Error>
+    pub fn emit_with<F>(self, value_cb: F) -> Result<(), StructureError>
     where
-        F: FnOnce(SingleItemEncoder) -> Result<(), Error>,
+        F: FnOnce(SingleItemEncoder) -> Result<(), StructureError>,
     {
         value_cb(self)
     }
 
     /// Emit an integer
-    pub fn emit_int<T: PrintableInteger>(self, value: T) -> Result<(), Error> {
+    pub fn emit_int<T: PrintableInteger>(self, value: T) -> Result<(), StructureError> {
         *self.value_written = true;
         self.encoder.emit_int(value)
     }
 
     /// Emit a string
-    pub fn emit_str(self, value: &str) -> Result<(), Error> {
+    pub fn emit_str(self, value: &str) -> Result<(), StructureError> {
         *self.value_written = true;
         self.encoder.emit_str(value)
     }
 
     /// Emit a byte array
-    pub fn emit_bytes(self, value: &[u8]) -> Result<(), Error> {
+    pub fn emit_bytes(self, value: &[u8]) -> Result<(), StructureError> {
         *self.value_written = true;
         self.encoder.emit_bytes(value)
     }
 
     /// Emit an arbitrary list
-    pub fn emit_list<F>(self, list_cb: F) -> Result<(), Error>
+    pub fn emit_list<F>(self, list_cb: F) -> Result<(), StructureError>
     where
-        F: FnOnce(&mut Encoder) -> Result<(), Error>,
+        F: FnOnce(&mut Encoder) -> Result<(), StructureError>,
     {
         *self.value_written = true;
         self.encoder.emit_list(list_cb)
     }
 
     /// Emit a sorted dictionary. If the input dictionary is unsorted, this will return an error.
-    pub fn emit_dict<F>(self, content_cb: F) -> Result<(), Error>
+    pub fn emit_dict<F>(self, content_cb: F) -> Result<(), StructureError>
     where
-        F: FnOnce(SortedDictEncoder) -> Result<(), Error>,
+        F: FnOnce(SortedDictEncoder) -> Result<(), StructureError>,
     {
         *self.value_written = true;
         self.encoder.emit_dict(content_cb)
@@ -269,9 +268,9 @@ impl<'a> SingleItemEncoder<'a> {
     /// Emit a dictionary that may have keys out of order. This will write the dict
     /// values to temporary memory, then sort them before adding them to the serialized
     /// stream
-    pub fn emit_unsorted_dict<F>(self, content_cb: F) -> Result<(), Error>
+    pub fn emit_unsorted_dict<F>(self, content_cb: F) -> Result<(), StructureError>
     where
-        F: FnOnce(&mut UnsortedDictEncoder) -> Result<(), Error>,
+        F: FnOnce(&mut UnsortedDictEncoder) -> Result<(), StructureError>,
     {
         *self.value_written = true;
         self.encoder.emit_and_sort_dict(content_cb)
@@ -284,7 +283,7 @@ impl<'a> SingleItemEncoder<'a> {
     pub fn emit_unchecked_list(
         self,
         iterable: impl Iterator<Item = impl Encodable>,
-    ) -> Result<(), Error> {
+    ) -> Result<(), StructureError> {
         self.emit_list(|e| {
             for item in iterable {
                 e.emit(item)?;
@@ -301,7 +300,7 @@ pub struct SortedDictEncoder<'a> {
 
 impl<'a> SortedDictEncoder<'a> {
     /// Emit a key/value pair
-    pub fn emit_pair<E>(&mut self, key: &[u8], value: E) -> Result<(), Error>
+    pub fn emit_pair<E>(&mut self, key: &[u8], value: E) -> Result<(), StructureError>
     where
         E: Encodable,
     {
@@ -311,9 +310,9 @@ impl<'a> SortedDictEncoder<'a> {
 
     /// Equivalent to [`SortedDictEncoder::emit_pair()`], but forces the type of the value
     /// to be a callback
-    pub fn emit_pair_with<F>(&mut self, key: &[u8], value_cb: F) -> Result<(), Error>
+    pub fn emit_pair_with<F>(&mut self, key: &[u8], value_cb: F) -> Result<(), StructureError>
     where
-        F: FnOnce(SingleItemEncoder) -> Result<(), Error>,
+        F: FnOnce(SingleItemEncoder) -> Result<(), StructureError>,
     {
         self.encoder.emit_token(Token::String(key))?;
         self.encoder.emit_with(value_cb)
@@ -325,13 +324,13 @@ impl<'a> SortedDictEncoder<'a> {
 /// stream
 pub struct UnsortedDictEncoder {
     content: BTreeMap<Vec<u8>, Vec<u8>>,
-    error: Result<(), Error>,
+    error: Result<(), StructureError>,
     remaining_depth: usize,
 }
 
 impl UnsortedDictEncoder {
     /// Emit a key/value pair
-    pub fn emit_pair<E>(&mut self, key: &[u8], value: E) -> Result<(), Error>
+    pub fn emit_pair<E>(&mut self, key: &[u8], value: E) -> Result<(), StructureError>
     where
         E: Encodable,
     {
@@ -339,9 +338,9 @@ impl UnsortedDictEncoder {
     }
 
     /// Emit a key/value pair where the value is produced by a callback
-    pub fn emit_pair_with<F>(&mut self, key: &[u8], value_cb: F) -> Result<(), Error>
+    pub fn emit_pair_with<F>(&mut self, key: &[u8], value_cb: F) -> Result<(), StructureError>
     where
-        F: FnOnce(SingleItemEncoder) -> Result<(), Error>,
+        F: FnOnce(SingleItemEncoder) -> Result<(), StructureError>,
     {
         use std::collections::btree_map::Entry;
         if self.error.is_err() {
@@ -351,7 +350,7 @@ impl UnsortedDictEncoder {
         let vacancy = match self.content.entry(key.to_owned()) {
             Entry::Vacant(vacancy) => vacancy,
             Entry::Occupied(occupation) => {
-                self.error = Err(Error::InvalidState(format!(
+                self.error = Err(StructureError::InvalidState(format!(
                     "Duplicate key {}",
                     String::from_utf8_lossy(occupation.key())
                 )));
@@ -374,7 +373,9 @@ impl UnsortedDictEncoder {
         }
 
         if !value_written {
-            self.error = Err(Error::InvalidState("No value was emitted".to_owned()));
+            self.error = Err(StructureError::InvalidState(
+                "No value was emitted".to_owned(),
+            ));
         } else {
             self.error = encoder.state.observe_eof();
         }
