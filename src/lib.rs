@@ -4,15 +4,9 @@
 //! accept any sort of invalid encoding in any mode (including non-canonical encodings)
 //!
 //! The encoder is likewise designed to ensure that it only produces valid structures.
-pub mod decoder {
-    pub use super::{decoding::*, token::Token};
-}
-pub mod encoder {
-    pub use super::encoding::*;
-}
+pub mod decoding;
+pub mod encoding;
 
-mod decoding;
-mod encoding;
 mod state_tracker;
 mod token;
 

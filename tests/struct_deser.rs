@@ -1,7 +1,7 @@
 #[macro_use]
 extern crate failure;
 
-use bendy::decoder::*;
+use bendy::decoding::{Decoder, Object};
 use failure::Error;
 
 static SIMPLE_MSG: &'static [u8] = b"d3:bari1e3:fooli2ei3eee";

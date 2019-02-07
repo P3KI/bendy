@@ -4,7 +4,7 @@
 //! For any decoding process, first we need to create a decoder:
 //!
 //! ```
-//! # use bendy::decoder::{Decoder,Object};
+//! # use bendy::decoding::{Decoder,Object};
 //! # use bendy::Error;
 //! #
 //! # let buf: &[u8] = b"d3:fooi1ee";
@@ -17,7 +17,7 @@
 //! attacker can cause your program to use, so we recommend setting the bounds tightly:
 //!
 //! ```
-//! # use bendy::decoder::{Decoder,Object};
+//! # use bendy::decoding::{Decoder,Object};
 //! # use bendy::Error;
 //! #
 //! # let buf: &[u8] = b"d3:fooi1ee";
@@ -32,11 +32,11 @@
 //! Now, you can start reading objects:
 //!
 //! ```
-//! # use bendy::decoder::{Decoder,Object};
+//! # use bendy::decoding::{Decoder,Object};
 //! # use bendy::Error;
 //! #
-//! # fn decode_list(_: bendy::decoder::ListDecoder) {}
-//! # fn decode_dict(_: bendy::decoder::DictDecoder) {}
+//! # fn decode_list(_: bendy::decoding::ListDecoder) {}
+//! # fn decode_dict(_: bendy::decoding::DictDecoder) {}
 //! #
 //! # let buf: &[u8] = b"d3:fooi1ee";
 //! # let mut decoder = Decoder::new(buf);
@@ -57,7 +57,7 @@
 //! of an input object without fully decoding it:
 //!
 //! ```
-//! # use bendy::decoder::Decoder;
+//! # use bendy::decoding::Decoder;
 //! #
 //! fn syntax_check(buf: &[u8]) -> bool {
 //!     let mut decoder = Decoder::new(buf);

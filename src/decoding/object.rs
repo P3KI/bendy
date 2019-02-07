@@ -39,7 +39,7 @@ impl<'obj, 'ser: 'obj> Object<'obj, 'ser> {
     /// # Examples
     ///
     /// ```
-    /// use bendy::decoder::Object;
+    /// use bendy::decoding::Object;
     ///
     /// let x = Object::Bytes(b"foo");
     /// assert_eq!(Ok(&b"foo"[..]), x.bytes_or(Err("failure")));
@@ -66,7 +66,7 @@ impl<'obj, 'ser: 'obj> Object<'obj, 'ser> {
     /// # Examples
     ///
     /// ```
-    /// use bendy::decoder::Object;
+    /// use bendy::decoding::Object;
     ///
     /// let x = Object::Bytes(b"foo");
     /// assert_eq!(
@@ -105,7 +105,7 @@ impl<'obj, 'ser: 'obj> Object<'obj, 'ser> {
     /// # Examples
     ///
     /// ```
-    /// use bendy::decoder::Object;
+    /// use bendy::decoding::Object;
     ///
     /// let x = Object::Integer("123");
     /// assert_eq!(Ok(&"123"[..]), x.integer_or(Err("failure")));
@@ -133,7 +133,7 @@ impl<'obj, 'ser: 'obj> Object<'obj, 'ser> {
     /// # Examples
     ///
     /// ```
-    /// use bendy::decoder::Object;
+    /// use bendy::decoding::Object;
     ///
     /// let x = Object::Integer("123");
     /// assert_eq!(
@@ -172,7 +172,7 @@ impl<'obj, 'ser: 'obj> Object<'obj, 'ser> {
     /// # Examples
     ///
     /// ```
-    /// use bendy::decoder::{Decoder, Object};
+    /// use bendy::decoding::{Decoder, Object};
     ///
     /// let mut list_decoder = Decoder::new(b"le");
     /// let x = list_decoder.next_object().unwrap().unwrap();
@@ -202,7 +202,7 @@ impl<'obj, 'ser: 'obj> Object<'obj, 'ser> {
     /// # Examples
     ///
     /// ```
-    /// use bendy::decoder::{Decoder, Object};
+    /// use bendy::decoding::{Decoder, Object};
     ///
     /// let mut list_decoder = Decoder::new(b"le");
     /// let x = list_decoder.next_object().unwrap().unwrap();
@@ -241,7 +241,7 @@ impl<'obj, 'ser: 'obj> Object<'obj, 'ser> {
     /// # Examples
     ///
     /// ```
-    /// use bendy::decoder::{Decoder, Object};
+    /// use bendy::decoding::{Decoder, Object};
     ///
     /// let mut dict_decoder = Decoder::new(b"de");
     /// let x = dict_decoder.next_object().unwrap().unwrap();
@@ -271,7 +271,7 @@ impl<'obj, 'ser: 'obj> Object<'obj, 'ser> {
     /// # Examples
     ///
     /// ```
-    /// use bendy::decoder::{Decoder, Object};
+    /// use bendy::decoding::{Decoder, Object};
     ///
     /// let mut dict_decoder = Decoder::new(b"de");
     /// let x = dict_decoder.next_object().unwrap().unwrap();

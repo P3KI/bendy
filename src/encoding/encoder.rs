@@ -113,7 +113,7 @@ impl Encoder {
     /// Example:
     ///
     /// ```
-    /// # use bendy::encoder::Encoder;
+    /// # use bendy::encoding::Encoder;
     /// #
     /// # let mut encoder = Encoder::new();
     /// encoder.emit_dict(|mut e| {
@@ -136,7 +136,7 @@ impl Encoder {
     /// E.g., to emit the list `[1,2,3]`, you would write
     ///
     /// ```
-    /// # use bendy::encoder::Encoder;
+    /// # use bendy::encoding::Encoder;
     /// #
     /// let mut encoder = Encoder::new();
     /// encoder.emit_list(|e| {
@@ -161,7 +161,7 @@ impl Encoder {
     /// Example.
     ///
     /// ```
-    /// # use bendy::encoder::Encoder;
+    /// # use bendy::encoding::Encoder;
     /// #
     /// # fn main() -> Result<(), bendy::Error> {
     /// # let mut encoder = Encoder::new();

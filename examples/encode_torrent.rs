@@ -18,7 +18,7 @@ use std::io::Write;
 use failure::Error;
 
 use bendy::{
-    encoder::{AsString, Encodable, SingleItemEncoder},
+    encoding::{AsString, Encodable, SingleItemEncoder},
     Error as BencodeError,
 };
 

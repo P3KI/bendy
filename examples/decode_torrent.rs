@@ -17,7 +17,7 @@
 use std::str;
 
 use bendy::{
-    decoder::{Decoder, DictDecoder, Object},
+    decoding::{Decoder, DictDecoder, Object},
     Error as BencodeError,
 };
 use failure::Fail;

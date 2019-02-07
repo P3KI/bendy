@@ -6,7 +6,7 @@
 //! this should be very simple:
 //!
 //! ```
-//! # use bendy::encoder::{Encodable, SingleItemEncoder};
+//! # use bendy::encoding::{Encodable, SingleItemEncoder};
 //! # use bendy::Error;
 //!
 //! struct Message {
@@ -31,7 +31,7 @@
 //! Then, messages can be serialized using [`Encodable::to_bytes`]:
 //!
 //! ```
-//! # use bendy::encoder::{Encodable, SingleItemEncoder};
+//! # use bendy::encoding::{Encodable, SingleItemEncoder};
 //! # use bendy::Error;
 //! #
 //! # struct Message {
@@ -75,7 +75,7 @@
 //! appropriate buffer for the depth:
 //!
 //! ```
-//! # use bendy::encoder::{Encodable, Encoder};
+//! # use bendy::encoding::{Encodable, Encoder};
 //! # use bendy::Error;
 //! #
 //! # type ObjectType = u32;
