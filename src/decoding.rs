@@ -64,10 +64,12 @@
 //! ```
 mod decoder;
 mod error;
+mod from_bencode;
 mod object;
 
 pub use self::{
     decoder::{Decoder, DictDecoder, ListDecoder},
     error::{Error, ErrorKind, ResultExt},
+    from_bencode::FromBencode,
     object::Object,
 };
