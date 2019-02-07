@@ -6,7 +6,7 @@ use std::{
 use crate::encoding::{Encoder, Error, SingleItemEncoder};
 
 /// An object that can be encoded into a single bencode object
-pub trait Encodable {
+pub trait ToBencode {
     /// The maximum depth that this object could encode to. Leaves do not consume a level, so an
     /// `i1e` has depth 0 and `li1ee` has depth 1.
     const MAX_DEPTH: usize;
@@ -15,7 +15,7 @@ pub trait Encodable {
     fn encode(&self, encoder: SingleItemEncoder) -> Result<(), Error>;
 
     /// Encode this object to a byte string
-    fn to_bytes(&self) -> Result<Vec<u8>, Error> {
+    fn to_bencode(&self) -> Result<Vec<u8>, Error> {
         let mut encoder = Encoder::new().with_max_depth(Self::MAX_DEPTH);
         encoder.emit_with(|e| self.encode(e).map_err(Error::into))?;
 
@@ -29,7 +29,7 @@ pub trait Encodable {
 pub struct AsString<I>(pub I);
 
 // Forwarding impls
-impl<'a, E: 'a + Encodable + Sized> Encodable for &'a E {
+impl<'a, E: 'a + ToBencode + Sized> ToBencode for &'a E {
     const MAX_DEPTH: usize = E::MAX_DEPTH;
 
     fn encode(&self, encoder: SingleItemEncoder) -> Result<(), Error> {
@@ -37,7 +37,7 @@ impl<'a, E: 'a + Encodable + Sized> Encodable for &'a E {
     }
 }
 
-impl<E: Encodable> Encodable for Box<E> {
+impl<E: ToBencode> ToBencode for Box<E> {
     const MAX_DEPTH: usize = E::MAX_DEPTH;
 
     fn encode(&self, encoder: SingleItemEncoder) -> Result<(), Error> {
@@ -45,7 +45,7 @@ impl<E: Encodable> Encodable for Box<E> {
     }
 }
 
-impl<E: Encodable> Encodable for ::std::rc::Rc<E> {
+impl<E: ToBencode> ToBencode for ::std::rc::Rc<E> {
     const MAX_DEPTH: usize = E::MAX_DEPTH;
 
     fn encode(&self, encoder: SingleItemEncoder) -> Result<(), Error> {
@@ -53,7 +53,7 @@ impl<E: Encodable> Encodable for ::std::rc::Rc<E> {
     }
 }
 
-impl<E: Encodable> Encodable for ::std::sync::Arc<E> {
+impl<E: ToBencode> ToBencode for ::std::sync::Arc<E> {
     const MAX_DEPTH: usize = E::MAX_DEPTH;
 
     fn encode(&self, encoder: SingleItemEncoder) -> Result<(), Error> {
@@ -62,7 +62,7 @@ impl<E: Encodable> Encodable for ::std::sync::Arc<E> {
 }
 
 // Base type impls
-impl<'a> Encodable for &'a str {
+impl<'a> ToBencode for &'a str {
     const MAX_DEPTH: usize = 0;
 
     fn encode(&self, encoder: SingleItemEncoder) -> Result<(), Error> {
@@ -70,7 +70,7 @@ impl<'a> Encodable for &'a str {
     }
 }
 
-impl Encodable for String {
+impl ToBencode for String {
     const MAX_DEPTH: usize = 0;
 
     fn encode(&self, encoder: SingleItemEncoder) -> Result<(), Error> {
@@ -80,7 +80,7 @@ impl Encodable for String {
 
 macro_rules! impl_encodable_integer {
     ($($type:ty)*) => {$(
-        impl Encodable for $type {
+        impl ToBencode for $type {
             const MAX_DEPTH: usize = 1;
 
             fn encode(&self, encoder: SingleItemEncoder) -> Result<(), Error> {
@@ -94,9 +94,9 @@ impl_encodable_integer!(u8 u16 u32 u64 usize i8 i16 i32 i64 isize);
 
 macro_rules! impl_encodable_iterable {
     ($($type:ident)*) => {$(
-        impl <ContentT> Encodable for $type<ContentT>
+        impl <ContentT> ToBencode for $type<ContentT>
         where
-            ContentT: Encodable
+            ContentT: ToBencode
         {
             const MAX_DEPTH: usize = ContentT::MAX_DEPTH + 1;
 
@@ -116,9 +116,9 @@ macro_rules! impl_encodable_iterable {
 
 impl_encodable_iterable!(Vec VecDeque LinkedList);
 
-impl<'a, ContentT> Encodable for &'a [ContentT]
+impl<'a, ContentT> ToBencode for &'a [ContentT]
 where
-    ContentT: Encodable,
+    ContentT: ToBencode,
 {
     const MAX_DEPTH: usize = ContentT::MAX_DEPTH + 1;
 
@@ -134,7 +134,7 @@ where
     }
 }
 
-impl<K: AsRef<[u8]>, V: Encodable> Encodable for BTreeMap<K, V> {
+impl<K: AsRef<[u8]>, V: ToBencode> ToBencode for BTreeMap<K, V> {
     const MAX_DEPTH: usize = V::MAX_DEPTH + 1;
 
     fn encode(&self, encoder: SingleItemEncoder) -> Result<(), Error> {
@@ -149,10 +149,10 @@ impl<K: AsRef<[u8]>, V: Encodable> Encodable for BTreeMap<K, V> {
     }
 }
 
-impl<K, V, S> Encodable for HashMap<K, V, S>
+impl<K, V, S> ToBencode for HashMap<K, V, S>
 where
     K: AsRef<[u8]> + Eq + Hash,
-    V: Encodable,
+    V: ToBencode,
     S: ::std::hash::BuildHasher,
 {
     const MAX_DEPTH: usize = V::MAX_DEPTH + 1;
@@ -174,7 +174,7 @@ where
     }
 }
 
-impl<I> Encodable for AsString<I>
+impl<I> ToBencode for AsString<I>
 where
     I: AsRef<[u8]>,
 {
@@ -215,7 +215,7 @@ mod test {
         qux: Vec<u8>,
     }
 
-    impl Encodable for Foo {
+    impl ToBencode for Foo {
         const MAX_DEPTH: usize = 2;
 
         fn encode(&self, encoder: SingleItemEncoder) -> Result<(), Error> {

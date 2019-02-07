@@ -2,18 +2,18 @@
 //!
 //! # Encoding a structure
 //!
-//! The easiest way to encode a structure is to implement [`Encodable`] for it. For most structures,
+//! The easiest way to encode a structure is to implement [`ToBencode`] for it. For most structures,
 //! this should be very simple:
 //!
 //! ```
-//! # use bendy::encoding::{Encodable, SingleItemEncoder, Error};
+//! # use bendy::encoding::{ToBencode, SingleItemEncoder, Error};
 //!
 //! struct Message {
 //!     foo: i32,
 //!     bar: String,
 //! }
 //!
-//! impl Encodable for Message {
+//! impl ToBencode for Message {
 //!     // Atoms have depth one. The struct wrapper adds one level to that
 //!     const MAX_DEPTH: usize = 1;
 //!
@@ -28,17 +28,17 @@
 //! }
 //! ```
 //!
-//! Then, messages can be serialized using [`Encodable::to_bytes`]:
+//! Then, messages can be serialized using [`ToBencode::to_bencode`]:
 //!
 //! ```
-//! # use bendy::encoding::{Encodable, SingleItemEncoder, Error};
+//! # use bendy::encoding::{ToBencode, SingleItemEncoder, Error};
 //! #
 //! # struct Message {
 //! #    foo: i32,
 //! #    bar: String,
 //! # }
 //! #
-//! # impl Encodable for Message {
+//! # impl ToBencode for Message {
 //! #     // Atoms have depth zero. The struct wrapper adds one level to that
 //! #     const MAX_DEPTH: usize = 1;
 //! #
@@ -57,16 +57,16 @@
 //! Message{
 //!     foo: 1,
 //!     bar: "quux".to_string(),
-//! }.to_bytes()
+//! }.to_bencode()
 //! # ;
 //! # assert!(result.is_ok());
 //! ```
 //!
-//! Most primitive types already implement [`Encodable`].
+//! Most primitive types already implement [`ToBencode`].
 //!
 //! # Nesting depth limits
 //!
-//! To allow this to be used on limited platforms, all implementations of [`Encodable`] include a
+//! To allow this to be used on limited platforms, all implementations of [`ToBencode`] include a
 //! maximum nesting depth. Atoms (integers and byte strings) are considered to have depth 0. An
 //! object (a list or dict) containing only atoms has depth 1, and in general, an object has a depth
 //! equal to the depth of its deepest member plus one. In some cases, an object doesn't have a
@@ -75,7 +75,7 @@
 //! appropriate buffer for the depth:
 //!
 //! ```
-//! # use bendy::encoding::{Encodable, Encoder, Error};
+//! # use bendy::encoding::{ToBencode, Encoder, Error};
 //! #
 //! # type ObjectType = u32;
 //! # static object: u32 = 0;
@@ -94,23 +94,24 @@
 //!
 //! Once an error occurs during encoding, all future calls to the same encoding stream will fail
 //! early with the same error. It is not defined whether any callback or implementation of
-//! [`Encodable::encode`] is called before returning an error; such callbacks should respond to
-//! failure by bailing out as quickly as possible.
+//! [`ToBencode::encode`] is called before returning an error; such callbacks should
+//! respond to failure by bailing out as quickly as possible.
 //!
 //! Not all values in [`Error`] can be caused by an encoding operation. Specifically, you only need
 //! to worry about [`UnsortedKeys`] and [`NestingTooDeep`].
 //!
+//! [`ToBencode::encode`]: self::ToBencode::encode
 //! [`UnsortedKeys`]: self::Error#UnsortedKeys
 //! [`NestingTooDeep`]: self::Error#NestingTooDeep
 
-mod encodable;
 mod encoder;
 mod error;
 mod printable_integer;
+mod to_bencode;
 
 pub use self::{
-    encodable::{AsString, Encodable},
     encoder::{Encoder, SingleItemEncoder, SortedDictEncoder, UnsortedDictEncoder},
     error::Error,
     printable_integer::PrintableInteger,
+    to_bencode::{AsString, ToBencode},
 };

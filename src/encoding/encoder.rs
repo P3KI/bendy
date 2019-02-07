@@ -1,7 +1,7 @@
 use std::{collections::BTreeMap, io::Write};
 
 use crate::{
-    encoding::{Encodable, Error, PrintableInteger},
+    encoding::{Error, PrintableInteger, ToBencode},
     state_tracker::{StateTracker, StructureError, Token},
 };
 
@@ -50,7 +50,7 @@ impl Encoder {
     }
 
     /// Emit an arbitrary encodable object
-    pub fn emit<E: Encodable>(&mut self, value: E) -> Result<(), StructureError> {
+    pub fn emit<E: ToBencode>(&mut self, value: E) -> Result<(), StructureError> {
         self.emit_with(|e| value.encode(e).map_err(Error::into))
     }
 
@@ -218,7 +218,7 @@ pub struct SingleItemEncoder<'a> {
 
 impl<'a> SingleItemEncoder<'a> {
     /// Emit an arbitrary encodable object
-    pub fn emit<E: Encodable + ?Sized>(self, value: &E) -> Result<(), StructureError> {
+    pub fn emit<E: ToBencode + ?Sized>(self, value: &E) -> Result<(), StructureError> {
         value.encode(self).map_err(Error::into)
     }
 
@@ -283,7 +283,7 @@ impl<'a> SingleItemEncoder<'a> {
     /// the caller needs to ensure that the iterator has a defined order.
     pub fn emit_unchecked_list(
         self,
-        iterable: impl Iterator<Item = impl Encodable>,
+        iterable: impl Iterator<Item = impl ToBencode>,
     ) -> Result<(), StructureError> {
         self.emit_list(|e| {
             for item in iterable {
@@ -303,7 +303,7 @@ impl<'a> SortedDictEncoder<'a> {
     /// Emit a key/value pair
     pub fn emit_pair<E>(&mut self, key: &[u8], value: E) -> Result<(), StructureError>
     where
-        E: Encodable,
+        E: ToBencode,
     {
         self.encoder.emit_token(Token::String(key))?;
         self.encoder.emit(value)
@@ -333,7 +333,7 @@ impl UnsortedDictEncoder {
     /// Emit a key/value pair
     pub fn emit_pair<E>(&mut self, key: &[u8], value: E) -> Result<(), StructureError>
     where
-        E: Encodable,
+        E: ToBencode,
     {
         self.emit_pair_with(key, |e| value.encode(e).map_err(Error::into))
     }
