@@ -4,8 +4,7 @@
 //! For any decoding process, first we need to create a decoder:
 //!
 //! ```
-//! # use bendy::decoding::{Decoder,Object};
-//! # use bendy::Error;
+//! # use bendy::decoding::{Error, Decoder,Object};
 //! #
 //! # let buf: &[u8] = b"d3:fooi1ee";
 //! let mut decoder = Decoder::new(buf);
@@ -17,8 +16,7 @@
 //! attacker can cause your program to use, so we recommend setting the bounds tightly:
 //!
 //! ```
-//! # use bendy::decoding::{Decoder,Object};
-//! # use bendy::Error;
+//! # use bendy::decoding::{Decoder,Object, Error};
 //! #
 //! # let buf: &[u8] = b"d3:fooi1ee";
 //! # let mut decoder = Decoder::new(buf);
@@ -32,8 +30,7 @@
 //! Now, you can start reading objects:
 //!
 //! ```
-//! # use bendy::decoding::{Decoder,Object};
-//! # use bendy::Error;
+//! # use bendy::decoding::{Decoder,Object, Error};
 //! #
 //! # fn decode_list(_: bendy::decoding::ListDecoder) {}
 //! # fn decode_dict(_: bendy::decoding::DictDecoder) {}
@@ -65,11 +62,12 @@
 //!     return decoder.next_object().is_ok();
 //! }
 //! ```
-
 mod decoder;
+mod error;
 mod object;
 
 pub use self::{
     decoder::{Decoder, DictDecoder, ListDecoder},
+    error::{Error, ErrorKind, ResultExt},
     object::Object,
 };
