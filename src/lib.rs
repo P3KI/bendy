@@ -8,5 +8,3 @@ pub mod decoding;
 pub mod encoding;
 
 mod state_tracker;
-
-pub use self::state_tracker::StructureError as Error;
