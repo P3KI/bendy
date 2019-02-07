@@ -13,66 +13,12 @@
 //! ```
 //! cargo run --example decode_torrent > parsing_output.txt
 //! ```
-
 use std::str;
 
-use bendy::{
-    decoding::{Decoder, DictDecoder, Object},
-    Error as BencodeError,
-};
-use failure::Fail;
+use bendy::decoding::{Decoder, DictDecoder, Error, Object, ResultExt};
 
 static EXAMPLE_TORRENT: &[u8] =
     include_bytes!("torrent_files/debian-9.4.0-amd64-netinst.iso.torrent");
-
-#[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Debug, Fail)]
-pub enum Error {
-    /// Read Item was not conforming to torrent file standard
-    #[fail(display = "Read Item is unknown: {}", _0)]
-    UnknownField(String),
-
-    /// Necessary Fields are missing
-    #[fail(display = "A necessary field is missing: {}", _0)]
-    MissingField(String),
-
-    /// BencodeError Wrapper
-    #[fail(display = "Decoding failed.")]
-    DecodeError(#[cause] BencodeError),
-
-    /// Torrent file is empty, incomplete or flawed
-    #[fail(display = "Torrent file is empty, incomplete or flawed.")]
-    TorrentStructureError,
-
-    /// Data field not parsable or wrong datatype.
-    ///
-    /// Expects two Strings:
-    ///
-    /// 1) The expected datatype and
-    /// 2) the torrent field for which the data was parsed to give
-    ///    the user more data for debugging.
-    #[fail(display = "Malformed field. Expected {} in {}.", _0, _1)]
-    MalformedField(String, String),
-}
-
-impl Error {
-    fn unknown_field(field_name: &str) -> Error {
-        Error::UnknownField(field_name.into())
-    }
-
-    fn missing_field(field_name: &str) -> Error {
-        Error::MissingField(field_name.into())
-    }
-
-    fn malformed_field(ex_type: &str, field: &str) -> Error {
-        Error::MalformedField(ex_type.into(), field.into())
-    }
-}
-
-impl From<BencodeError> for Error {
-    fn from(err: BencodeError) -> Self {
-        Error::DecodeError(err)
-    }
-}
 
 /// Main struct containing all required information.
 ///
@@ -101,87 +47,81 @@ struct Info {
     pub file_length: String,
 }
 
-/// Treats object as bencode integer.
-fn decode_integer_as_string(field_name: &str, data: Object) -> Result<String, Error> {
-    let error = |_| Err(Error::malformed_field("Integer", field_name));
-
-    let number_string = data.integer_or_else(error)?;
-    Ok(number_string.to_owned())
-}
-
 /// Treats object as byte string.
-fn decode_bytes_as_string(field_name: &str, data: Object) -> Result<String, Error> {
-    let error = |_| Err(Error::malformed_field("String", field_name));
-
-    let bytes = data.bytes_or_else(error)?;
-    let text = str::from_utf8(bytes).map_err(|_| Error::malformed_field("String", field_name))?;
-
+fn decode_bytes_as_string(data: Object) -> Result<String, Error> {
+    let bytes = data.try_into_bytes()?;
+    let text = str::from_utf8(bytes).map_err(Error::from)?;
     Ok(text.to_owned())
 }
 
-/// Treats object as byte string.
-fn decode_bytes_as_vec(field_name: &str, data: Object) -> Result<Vec<u8>, Error> {
-    let error = |_| Err(Error::malformed_field("String", field_name));
-
-    let bytes = data.bytes_or_else(error)?;
-    Ok(bytes.to_vec())
-}
-
 /// Treats object as list of strings.
-fn decode_list_of_strings(field_name: &str, data: Object) -> Result<Vec<String>, Error> {
-    let error = |_| Err(Error::malformed_field("List", field_name));
+fn decode_list_of_strings(data: Object) -> Result<Vec<String>, Error> {
+    let mut list = data.try_into_list()?;
+    let mut items = Vec::new();
 
-    let mut list_dec = data.list_or_else(error)?;
-    let mut list = Vec::new();
-
-    while let Some(object) = list_dec.next_object()? {
-        let list_element = decode_bytes_as_string(field_name, object)?;
-        list.push(list_element);
+    while let Some(object) = list.next_object()? {
+        let list_element = decode_bytes_as_string(object)?;
+        items.push(list_element);
     }
 
-    Ok(list)
+    Ok(items)
 }
 
 /// Treats object as dictionary containing all fields for the info struct.
 /// On success the dictionary is parsed for the fields of info which are
 /// necessary for torrent. Any missing field will result in a missing field
 /// error which will stop the decoding.
-fn decode_info(field_name: &str, data: Object) -> Result<Info, Error> {
+fn decode_info(data: Object) -> Result<Info, Error> {
     let mut file_length = None;
     let mut name = None;
     let mut piece_length = None;
     let mut pieces = None;
 
-    let mut dict_dec =
-        data.dictionary_or_else(|_| Err(Error::malformed_field("Info Dictionary", field_name)))?;
+    let mut dict_dec = data.try_into_dictionary().context("torrent.info")?;
 
     while let Some(pair) = dict_dec.next_pair()? {
         match pair {
             (b"length", value) => {
-                file_length = Some(decode_integer_as_string("torrent.info.file_length", value)?);
+                file_length = value
+                    .try_into_integer()
+                    .context("torrent.info.file.length")
+                    .map(Some)?;
             },
             (b"name", value) => {
-                name = Some(decode_bytes_as_string("torrent.info.name", value)?);
+                name = decode_bytes_as_string(value)
+                    .context("torrent.info.name")
+                    .map(Some)?;
             },
             (b"piece length", value) => {
-                piece_length = Some(decode_integer_as_string("torrent.info.length", value)?);
+                piece_length = value
+                    .try_into_integer()
+                    .context("torrent.info.length")
+                    .map(Some)?;
             },
             (b"pieces", value) => {
-                pieces = Some(decode_bytes_as_vec("torrent.info.pieces", value)?);
+                pieces = value
+                    .try_into_bytes()
+                    .context("torrent.info.pieces")
+                    .map(Some)?;
             },
             (unknown_field, _) => {
-                return match str::from_utf8(unknown_field) {
-                    Ok(field) => Err(Error::unknown_field(field)),
-                    Err(_) => Err(Error::TorrentStructureError),
-                };
+                return Err(Error::unexpected_field(String::from_utf8_lossy(
+                    unknown_field,
+                )));
             },
         }
     }
 
-    let file_length = file_length.ok_or_else(|| Error::missing_field("file_length"))?;
+    let file_length = file_length
+        .ok_or_else(|| Error::missing_field("file_length"))?
+        .to_string();
     let name = name.ok_or_else(|| Error::missing_field("name"))?;
-    let piece_length = piece_length.ok_or_else(|| Error::missing_field("piece_length"))?;
-    let pieces = pieces.ok_or_else(|| Error::missing_field("pieces"))?;
+    let piece_length = piece_length
+        .ok_or_else(|| Error::missing_field("piece_length"))?
+        .to_string();
+    let pieces = pieces
+        .ok_or_else(|| Error::missing_field("pieces"))?
+        .to_owned();
 
     // Check that we discovered all necessary fields
     Ok(Info {
@@ -204,25 +144,36 @@ fn decode_torrent(mut dict_dec: DictDecoder) -> Result<MetaInfo, Error> {
     while let Some(pair) = dict_dec.next_pair()? {
         match pair {
             (b"announce", value) => {
-                announce = Some(decode_bytes_as_string("torrent.announce", value)?);
+                announce = decode_bytes_as_string(value)
+                    .map(Into::into)
+                    .map(Some)
+                    .context("torrent.announce")?;
             },
             (b"comment", value) => {
-                comment = Some(decode_bytes_as_string("torrent.comment", value)?);
+                comment = decode_bytes_as_string(value)
+                    .map(Into::into)
+                    .map(Some)
+                    .context("torrent.comment")?;
             },
             (b"creation date", value) => {
-                creation_date = Some(decode_integer_as_string("torrent.creation_date", value)?);
+                creation_date = value
+                    .try_into_integer()
+                    .context("torrent.creation_date")
+                    .map(Into::into)
+                    .map(Some)?;
             },
             (b"httpseeds", value) => {
-                http_seeds = Some(decode_list_of_strings("torrent.http_seeds", value)?);
+                http_seeds = decode_list_of_strings(value)
+                    .context("torrent.http_seeds")
+                    .map(Some)?;
             },
             (b"info", value) => {
-                info = Some(decode_info("torrent.info", value)?);
+                info = decode_info(value).map(Some)?;
             },
             (unknown_field, _) => {
-                return match str::from_utf8(unknown_field) {
-                    Ok(field) => Err(Error::unknown_field(field)),
-                    Err(_) => Err(Error::TorrentStructureError),
-                };
+                return Err(Error::unexpected_field(String::from_utf8_lossy(
+                    unknown_field,
+                )));
             },
         }
     }
@@ -236,7 +187,7 @@ fn decode_torrent(mut dict_dec: DictDecoder) -> Result<MetaInfo, Error> {
     })
 }
 
-fn main() -> Result<(), failure::Error> {
+fn main() -> Result<(), Error> {
     // Try to parse with a `max_depth` of two.
     //
     // The required max depth of a data structure is calculated as follows:
@@ -268,7 +219,9 @@ fn main() -> Result<(), failure::Error> {
         Some(Object::Dict(dict)) => decode_torrent(dict)?,
         _ => {
             eprint!("Non-parsable file: Expected bencode dictionary.");
-            return Err(Error::TorrentStructureError)?;
+            return Err(Error::malformed_content(failure::err_msg(
+                "empty file discovered",
+            )));
         },
     };
 

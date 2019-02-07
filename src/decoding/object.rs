@@ -1,5 +1,5 @@
 use crate::{
-    decoding::{DictDecoder, ListDecoder},
+    decoding::{DictDecoder, Error, ListDecoder},
     state_tracker::Token,
 };
 
@@ -90,6 +90,28 @@ impl<'obj, 'ser: 'obj> Object<'obj, 'ser> {
         }
     }
 
+    /// Try to treat the object as a byte string, mapping [`Object::Bytes(v)`] into
+    /// [`Ok(v)`]. Any other variant results in an [`Error::UnexpectedElement`].
+    ///
+    /// [`Object::Bytes(v)`]: self::Object::Bytes
+    /// [`Ok(v)`]: https://doc.rust-lang.org/std/result/enum.Result.html#variant.Ok
+    /// [`Error::UnexpectedElement`]: self::Error::UnexpectedElement
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use bendy::decoding::{Error, Object};
+    ///
+    /// let x = Object::Bytes(b"foo");
+    /// assert_eq!(b"foo", x.try_into_bytes().unwrap());
+    ///
+    /// let x = Object::Integer("foo");
+    /// assert!(x.try_into_bytes().is_err());
+    /// ```
+    pub fn try_into_bytes(self) -> Result<&'ser [u8], Error> {
+        self.bytes_or_else(|obj| Err(Error::unexpected_token("String", obj.into_token().name())))
+    }
+
     /// Try to treat the object as an integer and return the internal string representation,
     /// mapping [`Object::Integer(v)`] into [`Ok(v)`]. Any other variant returns the given
     /// default value.
@@ -155,6 +177,29 @@ impl<'obj, 'ser: 'obj> Object<'obj, 'ser> {
             Object::Integer(content) => Ok(content),
             _ => op(self),
         }
+    }
+
+    /// Try to treat the object as an integer and return the internal string representation,
+    /// mapping [`Object::Integer(v)`] into [`Ok(v)`]. Any other variant results in an
+    /// [`Error::UnexpectedElement`].
+    ///
+    /// [`Object::Integer(v)`]: self::Object::Integer
+    /// [`Ok(v)`]: https://doc.rust-lang.org/std/result/enum.Result.html#variant.Ok
+    /// [`Error::UnexpectedElement`]: self::Error::UnexpectedElement
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use bendy::decoding::{Error, Object};
+    ///
+    /// let x = Object::Integer("123");
+    /// assert_eq!("123", x.try_into_integer().unwrap());
+    ///
+    /// let x = Object::Bytes(b"foo");
+    /// assert!(x.try_into_integer().is_err());
+    /// ```
+    pub fn try_into_integer(self) -> Result<&'ser str, Error> {
+        self.integer_or_else(|obj| Err(Error::unexpected_token("Num", obj.into_token().name())))
     }
 
     /// Try to treat the object as a list and return the internal list content decoder,
@@ -226,6 +271,31 @@ impl<'obj, 'ser: 'obj> Object<'obj, 'ser> {
         }
     }
 
+    /// Try to treat the object as a list and return the internal list content decoder,
+    /// mapping [`Object::List(v)`] into [`Ok(v)`]. Any other variant results in an
+    /// [`Error::UnexpectedElement`].
+    ///
+    /// [`Object::List(v)`]: self::Object::List
+    /// [`Ok(v)`]: https://doc.rust-lang.org/std/result/enum.Result.html#variant.Ok
+    /// [`Error::UnexpectedElement`]: self::Error::UnexpectedElement
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use bendy::decoding::{Decoder, Error, Object};
+    ///
+    /// let mut list_decoder = Decoder::new(b"le");
+    /// let x = list_decoder.next_object().unwrap().unwrap();
+    ///
+    /// assert!(x.try_into_list().is_ok());
+    ///
+    /// let x = Object::Bytes(b"foo");
+    /// assert!(x.try_into_list().is_err());
+    /// ```
+    pub fn try_into_list(self) -> Result<ListDecoder<'obj, 'ser>, Error> {
+        self.list_or_else(|obj| Err(Error::unexpected_token("List", obj.into_token().name())))
+    }
+
     /// Try to treat the object as a dictionary and return the internal dictionary content
     /// decoder, mapping [`Object::Dict(v)`] into [`Ok(v)`]. Any other variant returns the
     /// given default value.
@@ -295,5 +365,30 @@ impl<'obj, 'ser: 'obj> Object<'obj, 'ser> {
             Object::Dict(content) => Ok(content),
             _ => op(self),
         }
+    }
+
+    /// Try to treat the object as a dictionary and return the internal dictionary content
+    /// decoder, mapping [`Object::Dict(v)`] into [`Ok(v)`]. Any other variant results in
+    /// an [`Error::UnexpectedElement`].
+    ///
+    /// [`Object::Dict(v)`]: self::Object::Dict
+    /// [`Ok(v)`]: https://doc.rust-lang.org/std/result/enum.Result.html#variant.Ok
+    /// [`Error::UnexpectedElement`]: self::Error::UnexpectedElement
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use bendy::decoding::{Decoder, Error, Object};
+    ///
+    /// let mut dict_decoder = Decoder::new(b"de");
+    /// let x = dict_decoder.next_object().unwrap().unwrap();
+    ///
+    /// assert!(x.try_into_dictionary().is_ok());
+    ///
+    /// let x = Object::Bytes(b"foo");
+    /// assert!(x.try_into_dictionary().is_err());
+    /// ```
+    pub fn try_into_dictionary(self) -> Result<DictDecoder<'obj, 'ser>, Error> {
+        self.dictionary_or_else(|obj| Err(Error::unexpected_token("Dict", obj.into_token().name())))
     }
 }
