@@ -59,12 +59,17 @@ impl From<ErrorKind> for Error {
 
 impl Error {
     pub fn context(mut self, context: impl Display) -> Self {
-        self.context = Some(context.to_string());
+        if let Some(current) = self.context.as_mut() {
+            *current = format!("{}.{}", context, current);
+        } else {
+            self.context = Some(context.to_string());
+        }
+
         self
     }
 
     /// Raised when there is a general error while deserializing a type.
-    /// The message should not be capitalized and show not end with a period.
+    /// The message should not be capitalized and should not end with a period.
     pub fn malformed_content(cause: impl Into<failure::Error>) -> Error {
         Self::from(ErrorKind::MalformedContent(cause.into()))
     }

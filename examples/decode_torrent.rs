@@ -77,32 +77,21 @@ fn decode_info(data: Object) -> Result<Info, Error> {
     let mut piece_length = None;
     let mut pieces = None;
 
-    let mut dict_dec = data.try_into_dictionary().context("torrent.info")?;
+    let mut dict_dec = data.try_into_dictionary()?;
 
     while let Some(pair) = dict_dec.next_pair()? {
         match pair {
             (b"length", value) => {
-                file_length = value
-                    .try_into_integer()
-                    .context("torrent.info.file.length")
-                    .map(Some)?;
+                file_length = value.try_into_integer().context("file.length").map(Some)?;
             },
             (b"name", value) => {
-                name = decode_bytes_as_string(value)
-                    .context("torrent.info.name")
-                    .map(Some)?;
+                name = decode_bytes_as_string(value).context("name").map(Some)?;
             },
             (b"piece length", value) => {
-                piece_length = value
-                    .try_into_integer()
-                    .context("torrent.info.length")
-                    .map(Some)?;
+                piece_length = value.try_into_integer().context("length").map(Some)?;
             },
             (b"pieces", value) => {
-                pieces = value
-                    .try_into_bytes()
-                    .context("torrent.info.pieces")
-                    .map(Some)?;
+                pieces = value.try_into_bytes().context("pieces").map(Some)?;
             },
             (unknown_field, _) => {
                 return Err(Error::unexpected_field(String::from_utf8_lossy(
@@ -147,28 +136,28 @@ fn decode_torrent(mut dict_dec: DictDecoder) -> Result<MetaInfo, Error> {
                 announce = decode_bytes_as_string(value)
                     .map(Into::into)
                     .map(Some)
-                    .context("torrent.announce")?;
+                    .context("announce")?;
             },
             (b"comment", value) => {
                 comment = decode_bytes_as_string(value)
                     .map(Into::into)
                     .map(Some)
-                    .context("torrent.comment")?;
+                    .context("comment")?;
             },
             (b"creation date", value) => {
                 creation_date = value
                     .try_into_integer()
-                    .context("torrent.creation_date")
+                    .context("creation_date")
                     .map(Into::into)
                     .map(Some)?;
             },
             (b"httpseeds", value) => {
                 http_seeds = decode_list_of_strings(value)
-                    .context("torrent.http_seeds")
+                    .context("http_seeds")
                     .map(Some)?;
             },
             (b"info", value) => {
-                info = decode_info(value).map(Some)?;
+                info = decode_info(value).context("info").map(Some)?;
             },
             (unknown_field, _) => {
                 return Err(Error::unexpected_field(String::from_utf8_lossy(
