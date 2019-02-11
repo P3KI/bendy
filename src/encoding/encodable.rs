@@ -3,10 +3,7 @@ use std::{
     hash::Hash,
 };
 
-use crate::{
-    encoding::{Encoder, SingleItemEncoder},
-    token::Error,
-};
+use crate::encoding::{Encoder, Error, SingleItemEncoder};
 
 /// An object that can be encoded into a single bencode object
 pub trait Encodable {
@@ -20,10 +17,16 @@ pub trait Encodable {
     /// Encode this object to a byte string
     fn to_bytes(&self) -> Result<Vec<u8>, Error> {
         let mut encoder = Encoder::new().with_max_depth(Self::MAX_DEPTH);
-        encoder.emit_with(|e| self.encode(e))?;
-        encoder.get_output()
+        encoder.emit_with(|e| self.encode(e).map_err(Error::into))?;
+
+        let bytes = encoder.get_output()?;
+        Ok(bytes)
     }
 }
+
+/// Wrapper to allow `Vec<u8>` encoding as bencode string element.
+#[derive(Clone, Copy, Debug, Default, Hash, Eq, PartialEq, PartialOrd, Ord)]
+pub struct AsString<I>(pub I);
 
 // Forwarding impls
 impl<'a, E: 'a + Encodable + Sized> Encodable for &'a E {
@@ -63,7 +66,7 @@ impl<'a> Encodable for &'a str {
     const MAX_DEPTH: usize = 0;
 
     fn encode(&self, encoder: SingleItemEncoder) -> Result<(), Error> {
-        encoder.emit_str(self)
+        encoder.emit_str(self).map_err(Error::from)
     }
 }
 
@@ -71,7 +74,7 @@ impl Encodable for String {
     const MAX_DEPTH: usize = 0;
 
     fn encode(&self, encoder: SingleItemEncoder) -> Result<(), Error> {
-        encoder.emit_str(self)
+        encoder.emit_str(self).map_err(Error::from)
     }
 }
 
@@ -81,7 +84,7 @@ macro_rules! impl_encodable_integer {
             const MAX_DEPTH: usize = 1;
 
             fn encode(&self, encoder: SingleItemEncoder) -> Result<(), Error> {
-                encoder.emit_int(*self)
+                encoder.emit_int(*self).map_err(Error::from)
             }
         }
     )*}
@@ -103,7 +106,9 @@ macro_rules! impl_encodable_iterable {
                         e.emit(item)?;
                     }
                     Ok(())
-                })
+                })?;
+
+                Ok(())
             }
         }
     )*}
@@ -123,7 +128,9 @@ where
                 e.emit(item)?;
             }
             Ok(())
-        })
+        })?;
+
+        Ok(())
     }
 }
 
@@ -136,7 +143,9 @@ impl<K: AsRef<[u8]>, V: Encodable> Encodable for BTreeMap<K, V> {
                 e.emit_pair(k.as_ref(), v)?;
             }
             Ok(())
-        })
+        })?;
+
+        Ok(())
     }
 }
 
@@ -159,13 +168,11 @@ where
                 e.emit_pair(k, v)?;
             }
             Ok(())
-        })
+        })?;
+
+        Ok(())
     }
 }
-
-/// Wrapper to allow `Vec<u8>` encoding as bencode string element.
-#[derive(Clone, Copy, Debug, Default, Hash, Eq, PartialEq, PartialOrd, Ord)]
-pub struct AsString<I>(pub I);
 
 impl<I> Encodable for AsString<I>
 where
@@ -174,7 +181,8 @@ where
     const MAX_DEPTH: usize = 1;
 
     fn encode(&self, encoder: SingleItemEncoder) -> Result<(), Error> {
-        encoder.emit_bytes(self.0.as_ref())
+        encoder.emit_bytes(self.0.as_ref())?;
+        Ok(())
     }
 }
 
@@ -200,7 +208,6 @@ where
 mod test {
 
     use super::*;
-    use crate::token::Error;
 
     struct Foo {
         bar: u32,
@@ -217,7 +224,9 @@ mod test {
                 e.emit_pair(b"baz", &self.baz)?;
                 e.emit_pair(b"qux", AsString(&self.qux))?;
                 Ok(())
-            })
+            })?;
+
+            Ok(())
         }
     }
 

@@ -6,8 +6,7 @@
 //! this should be very simple:
 //!
 //! ```
-//! # use bendy::encoder::{Encodable, SingleItemEncoder};
-//! # use bendy::Error;
+//! # use bendy::encoding::{Encodable, SingleItemEncoder, Error};
 //!
 //! struct Message {
 //!     foo: i32,
@@ -23,7 +22,8 @@
 //!             // Use e to emit the values
 //!             e.emit_pair(b"bar", &self.bar)?;
 //!             e.emit_pair(b"foo", &self.foo)
-//!         })
+//!         })?;
+//!         Ok(())
 //!     }
 //! }
 //! ```
@@ -31,8 +31,7 @@
 //! Then, messages can be serialized using [`Encodable::to_bytes`]:
 //!
 //! ```
-//! # use bendy::encoder::{Encodable, SingleItemEncoder};
-//! # use bendy::Error;
+//! # use bendy::encoding::{Encodable, SingleItemEncoder, Error};
 //! #
 //! # struct Message {
 //! #    foo: i32,
@@ -50,7 +49,8 @@
 //! #             // encoder.emit_and_sort_dict
 //! #             e.emit_pair(b"bar", &self.bar)?;
 //! #             e.emit_pair(b"foo", &self.foo)
-//! #         })
+//! #         })?;
+//! #         Ok(())
 //! #     }
 //! # }
 //! # let result: Result<Vec<u8>, Error> =
@@ -75,8 +75,7 @@
 //! appropriate buffer for the depth:
 //!
 //! ```
-//! # use bendy::encoder::{Encodable, Encoder};
-//! # use bendy::Error;
+//! # use bendy::encoding::{Encodable, Encoder, Error};
 //! #
 //! # type ObjectType = u32;
 //! # static object: u32 = 0;
@@ -86,6 +85,7 @@
 //!     .with_max_depth(ObjectType::MAX_DEPTH + 10);
 //! encoder.emit(object)?;
 //! encoder.get_output()
+//! #   .map_err(Error::from)
 //! #   .map(|_| ()) // ignore a success return value
 //! # }
 //! ```
@@ -105,10 +105,12 @@
 
 mod encodable;
 mod encoder;
+mod error;
 mod printable_integer;
 
 pub use self::{
     encodable::{AsString, Encodable},
     encoder::{Encoder, SingleItemEncoder, SortedDictEncoder, UnsortedDictEncoder},
+    error::Error,
     printable_integer::PrintableInteger,
 };
