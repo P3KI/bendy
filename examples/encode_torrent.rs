@@ -15,7 +15,7 @@
 
 use std::io::Write;
 
-use bendy::encoding::{AsString, Encodable, Error as EncodingError, SingleItemEncoder};
+use bendy::encoding::{AsString, Error as EncodingError, SingleItemEncoder, ToBencode};
 use failure::Error;
 
 /// Main struct containing all required information.
@@ -45,7 +45,7 @@ struct Info {
     pub file_length: String,
 }
 
-impl Encodable for MetaInfo {
+impl ToBencode for MetaInfo {
     // Adds an additional recursion level -- itself formatted as dictionary --
     // around the info struct.
     const MAX_DEPTH: usize = Info::MAX_DEPTH + 1;
@@ -75,7 +75,7 @@ impl Encodable for MetaInfo {
     }
 }
 
-impl Encodable for Info {
+impl ToBencode for Info {
     // The struct is encoded as dictionary and all of it internals are encoded
     // as flat values, i.e. strings or integers.
     const MAX_DEPTH: usize = 1;
@@ -108,7 +108,7 @@ fn main() -> Result<(), Error> {
         },
     };
 
-    let data = torrent.to_bytes()?;
+    let data = torrent.to_bencode()?;
     std::io::stdout().write_all(&data)?;
 
     Ok(())

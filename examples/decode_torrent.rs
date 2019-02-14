@@ -13,9 +13,10 @@
 //! ```
 //! cargo run --example decode_torrent > parsing_output.txt
 //! ```
-use std::str;
-
-use bendy::decoding::{Decoder, DictDecoder, Error, Object, ResultExt};
+use bendy::{
+    decoding::{Error, FromBencode, Object, ResultExt},
+    encoding::AsString,
+};
 
 static EXAMPLE_TORRENT: &[u8] =
     include_bytes!("torrent_files/debian-9.4.0-amd64-netinst.iso.torrent");
@@ -34,7 +35,7 @@ struct MetaInfo {
     pub announce: String,
     pub info: Info,
     pub comment: Option<String>,         // not official element
-    pub creation_date: Option<String>,   // not official element
+    pub creation_date: Option<u64>,      // not official element
     pub http_seeds: Option<Vec<String>>, // not official element
 }
 
@@ -47,136 +48,7 @@ struct Info {
     pub file_length: String,
 }
 
-/// Treats object as byte string.
-fn decode_bytes_as_string(data: Object) -> Result<String, Error> {
-    let bytes = data.try_into_bytes()?;
-    let text = str::from_utf8(bytes).map_err(Error::from)?;
-    Ok(text.to_owned())
-}
-
-/// Treats object as list of strings.
-fn decode_list_of_strings(data: Object) -> Result<Vec<String>, Error> {
-    let mut list = data.try_into_list()?;
-    let mut items = Vec::new();
-
-    while let Some(object) = list.next_object()? {
-        let list_element = decode_bytes_as_string(object)?;
-        items.push(list_element);
-    }
-
-    Ok(items)
-}
-
-/// Treats object as dictionary containing all fields for the info struct.
-/// On success the dictionary is parsed for the fields of info which are
-/// necessary for torrent. Any missing field will result in a missing field
-/// error which will stop the decoding.
-fn decode_info(data: Object) -> Result<Info, Error> {
-    let mut file_length = None;
-    let mut name = None;
-    let mut piece_length = None;
-    let mut pieces = None;
-
-    let mut dict_dec = data.try_into_dictionary()?;
-
-    while let Some(pair) = dict_dec.next_pair()? {
-        match pair {
-            (b"length", value) => {
-                file_length = value.try_into_integer().context("file.length").map(Some)?;
-            },
-            (b"name", value) => {
-                name = decode_bytes_as_string(value).context("name").map(Some)?;
-            },
-            (b"piece length", value) => {
-                piece_length = value.try_into_integer().context("length").map(Some)?;
-            },
-            (b"pieces", value) => {
-                pieces = value.try_into_bytes().context("pieces").map(Some)?;
-            },
-            (unknown_field, _) => {
-                return Err(Error::unexpected_field(String::from_utf8_lossy(
-                    unknown_field,
-                )));
-            },
-        }
-    }
-
-    let file_length = file_length
-        .ok_or_else(|| Error::missing_field("file_length"))?
-        .to_string();
-    let name = name.ok_or_else(|| Error::missing_field("name"))?;
-    let piece_length = piece_length
-        .ok_or_else(|| Error::missing_field("piece_length"))?
-        .to_string();
-    let pieces = pieces
-        .ok_or_else(|| Error::missing_field("pieces"))?
-        .to_owned();
-
-    // Check that we discovered all necessary fields
-    Ok(Info {
-        file_length,
-        name,
-        piece_length,
-        pieces,
-    })
-}
-
-/// Entry point for decoding a torrent. The dictionary is parsed for all non-optional and optional fields.
-/// Missing optional fields are ignored but any other missing fields result in stopping the decoding and in spawning an `MissingField` error.
-fn decode_torrent(mut dict_dec: DictDecoder) -> Result<MetaInfo, Error> {
-    let mut announce = None;
-    let mut comment = None;
-    let mut creation_date = None;
-    let mut http_seeds = None;
-    let mut info = None;
-
-    while let Some(pair) = dict_dec.next_pair()? {
-        match pair {
-            (b"announce", value) => {
-                announce = decode_bytes_as_string(value)
-                    .map(Into::into)
-                    .map(Some)
-                    .context("announce")?;
-            },
-            (b"comment", value) => {
-                comment = decode_bytes_as_string(value)
-                    .map(Into::into)
-                    .map(Some)
-                    .context("comment")?;
-            },
-            (b"creation date", value) => {
-                creation_date = value
-                    .try_into_integer()
-                    .context("creation_date")
-                    .map(Into::into)
-                    .map(Some)?;
-            },
-            (b"httpseeds", value) => {
-                http_seeds = decode_list_of_strings(value)
-                    .context("http_seeds")
-                    .map(Some)?;
-            },
-            (b"info", value) => {
-                info = decode_info(value).context("info").map(Some)?;
-            },
-            (unknown_field, _) => {
-                return Err(Error::unexpected_field(String::from_utf8_lossy(
-                    unknown_field,
-                )));
-            },
-        }
-    }
-
-    Ok(MetaInfo {
-        announce: announce.ok_or_else(|| Error::missing_field("announce"))?,
-        info: info.ok_or_else(|| Error::missing_field("info"))?,
-        comment,
-        creation_date,
-        http_seeds,
-    })
-}
-
-fn main() -> Result<(), Error> {
+impl FromBencode for MetaInfo {
     // Try to parse with a `max_depth` of two.
     //
     // The required max depth of a data structure is calculated as follows:
@@ -196,24 +68,144 @@ fn main() -> Result<(), Error> {
     //      file_length: String,
     //    },
     //    comment: Option<String>,
-    //    creation_date: Option<String>,
+    //    creation_date: Option<u64>,
     //    http_seeds: Option<Vec<String>>   // if available encoded as list but even then doesn't
     //                                         increase the limit over the deepest chain including
     //                                         info
     // }
-    let mut decoder = Decoder::new(EXAMPLE_TORRENT).with_max_depth(2);
+    const EXPECTED_RECURSION_DEPTH: usize = Info::EXPECTED_RECURSION_DEPTH + 1;
 
-    // A bencode encoded torrent file should always start with a base level dictionary.
-    let torrent = match decoder.next_object()? {
-        Some(Object::Dict(dict)) => decode_torrent(dict)?,
-        _ => {
-            eprint!("Non-parsable file: Expected bencode dictionary.");
-            return Err(Error::malformed_content(failure::err_msg(
-                "empty file discovered",
-            )));
-        },
-    };
+    /// Entry point for decoding a torrent. The dictionary is parsed for all
+    /// non-optional and optional fields. Missing optional fields are ignored
+    /// but any other missing fields result in stopping the decoding and in
+    /// spawning [`DecodingError::MissingField`].
+    fn decode_bencode_object(object: Object) -> Result<Self, Error>
+    where
+        Self: Sized,
+    {
+        let mut announce = None;
+        let mut comment = None;
+        let mut creation_date = None;
+        let mut http_seeds = None;
+        let mut info = None;
 
+        let mut dict_dec = object.try_into_dictionary()?;
+        while let Some(pair) = dict_dec.next_pair()? {
+            match pair {
+                (b"announce", value) => {
+                    announce = String::decode_bencode_object(value)
+                        .context("announce")
+                        .map(Some)?;
+                },
+                (b"comment", value) => {
+                    comment = String::decode_bencode_object(value)
+                        .context("comment")
+                        .map(Some)?;
+                },
+                (b"creation date", value) => {
+                    creation_date = u64::decode_bencode_object(value)
+                        .context("creation_date")
+                        .map(Some)?;
+                },
+                (b"httpseeds", value) => {
+                    http_seeds = Vec::decode_bencode_object(value)
+                        .context("http_seeds")
+                        .map(Some)?;
+                },
+                (b"info", value) => {
+                    info = Info::decode_bencode_object(value)
+                        .context("info")
+                        .map(Some)?;
+                },
+                (unknown_field, _) => {
+                    return Err(Error::unexpected_field(String::from_utf8_lossy(
+                        unknown_field,
+                    )));
+                },
+            }
+        }
+
+        let announce = announce.ok_or_else(|| Error::missing_field("announce"))?;
+        let info = info.ok_or_else(|| Error::missing_field("info"))?;
+
+        Ok(MetaInfo {
+            announce,
+            info,
+            comment,
+            creation_date,
+            http_seeds,
+        })
+    }
+}
+
+impl FromBencode for Info {
+    const EXPECTED_RECURSION_DEPTH: usize = 1;
+
+    /// Treats object as dictionary containing all fields for the info struct.
+    /// On success the dictionary is parsed for the fields of info which are
+    /// necessary for torrent. Any missing field will result in a missing field
+    /// error which will stop the decoding.
+    fn decode_bencode_object(object: Object) -> Result<Self, Error>
+    where
+        Self: Sized,
+    {
+        let mut file_length = None;
+        let mut name = None;
+        let mut piece_length = None;
+        let mut pieces = None;
+
+        let mut dict_dec = object.try_into_dictionary()?;
+        while let Some(pair) = dict_dec.next_pair()? {
+            match pair {
+                (b"length", value) => {
+                    file_length = value
+                        .try_into_integer()
+                        .context("file.length")
+                        .map(ToString::to_string)
+                        .map(Some)?;
+                },
+                (b"name", value) => {
+                    name = String::decode_bencode_object(value)
+                        .context("name")
+                        .map(Some)?;
+                },
+                (b"piece length", value) => {
+                    piece_length = value
+                        .try_into_integer()
+                        .context("length")
+                        .map(ToString::to_string)
+                        .map(Some)?;
+                },
+                (b"pieces", value) => {
+                    pieces = AsString::decode_bencode_object(value)
+                        .context("pieces")
+                        .map(|bytes| Some(bytes.0))?;
+                },
+                (unknown_field, _) => {
+                    return Err(Error::unexpected_field(String::from_utf8_lossy(
+                        unknown_field,
+                    )));
+                },
+            }
+        }
+
+        let file_length = file_length.ok_or_else(|| Error::missing_field("file_length"))?;
+        let name = name.ok_or_else(|| Error::missing_field("name"))?;
+        let piece_length = piece_length.ok_or_else(|| Error::missing_field("piece_length"))?;
+        let pieces = pieces.ok_or_else(|| Error::missing_field("pieces"))?;
+
+        // Check that we discovered all necessary fields
+        Ok(Info {
+            file_length,
+            name,
+            piece_length,
+            pieces,
+        })
+    }
+}
+
+fn main() -> Result<(), Error> {
+    let torrent = MetaInfo::from_bencode(EXAMPLE_TORRENT)?;
     println!("{:#?}", torrent);
     Ok(())
 }
