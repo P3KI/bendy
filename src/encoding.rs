@@ -111,7 +111,7 @@ mod to_bencode;
 
 pub use self::{
     encoder::{Encoder, SingleItemEncoder, SortedDictEncoder, UnsortedDictEncoder},
-    error::Error,
+    error::{Error, ErrorKind},
     printable_integer::PrintableInteger,
     to_bencode::{AsString, ToBencode},
 };
