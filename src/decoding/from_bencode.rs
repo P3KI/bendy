@@ -135,3 +135,48 @@ impl FromBencode for AsString<Vec<u8>> {
         object.try_into_bytes().map(Vec::from).map(AsString)
     }
 }
+
+#[cfg(test)]
+mod test {
+
+    use super::*;
+    use crate::encoding::AsString;
+
+    #[test]
+    fn from_bencode_to_string_should_work_with_valid_input() {
+        let expected_message = "hello";
+        let serialized_message =
+            format!("{}:{}", expected_message.len(), expected_message).into_bytes();
+
+        let decoded_message = String::from_bencode(&serialized_message).unwrap();
+        assert_eq!(expected_message, decoded_message);
+    }
+
+    #[test]
+    fn from_bencode_to_as_string_should_work_with_valid_input() {
+        let expected_message = "hello";
+        let serialized_message =
+            format!("{}:{}", expected_message.len(), expected_message).into_bytes();
+
+        let decoded_vector = AsString::from_bencode(&serialized_message).unwrap();
+        assert_eq!(expected_message.as_bytes(), &decoded_vector.0[..]);
+    }
+
+    #[test]
+    #[should_panic(expected = "Num")]
+    fn from_bencode_to_as_string_should_fail_for_integer() {
+        AsString::<Vec<u8>>::from_bencode(&b"i1e"[..]).unwrap();
+    }
+
+    #[test]
+    #[should_panic(expected = "NestingTooDeep")]
+    fn from_bencode_to_as_string_should_fail_for_list() {
+        AsString::<Vec<u8>>::from_bencode(&b"l1:ae"[..]).unwrap();
+    }
+
+    #[test]
+    #[should_panic(expected = "NestingTooDeep")]
+    fn from_bencode_to_as_string_should_fail_for_dictionary() {
+        AsString::<Vec<u8>>::from_bencode(&b"d1:a1:ae"[..]).unwrap();
+    }
+}
