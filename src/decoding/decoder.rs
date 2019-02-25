@@ -1,5 +1,5 @@
 use crate::{
-    decoding::Object,
+    decoding::{Error, Object},
     state_tracker::{StateTracker, StructureError, Token},
 };
 
@@ -11,7 +11,7 @@ use crate::{
 pub struct Decoder<'a> {
     source: &'a [u8],
     offset: usize,
-    state: StateTracker<&'a [u8]>,
+    state: StateTracker<&'a [u8], Error>,
 }
 
 impl<'ser> Decoder<'ser> {
@@ -133,7 +133,7 @@ impl<'ser> Decoder<'ser> {
         Ok(ival)
     }
 
-    fn raw_next_token(&mut self) -> Result<Token<'ser>, StructureError> {
+    fn raw_next_token(&mut self) -> Result<Token<'ser>, Error> {
         let token = match self.take_byte().ok_or(StructureError::UnexpectedEof)? as char {
             'e' => Token::End,
             'l' => Token::List,
@@ -150,11 +150,11 @@ impl<'ser> Decoder<'ser> {
                 Token::String(self.take_chunk(len).ok_or(StructureError::UnexpectedEof)?)
             },
             tok => {
-                return Err(StructureError::SyntaxError(format!(
+                return Err(Error::from(StructureError::SyntaxError(format!(
                     "Invalid token starting with {:?} at offset {}",
                     tok,
                     self.offset - 1
-                )));
+                ))));
             },
         };
 
@@ -162,7 +162,7 @@ impl<'ser> Decoder<'ser> {
     }
 
     /// Read the next token. Returns Ok(Some(token)) if a token was successfully read,
-    fn next_token(&mut self) -> Result<Option<Token<'ser>>, StructureError> {
+    fn next_token(&mut self) -> Result<Option<Token<'ser>>, Error> {
         self.state.check_error()?;
 
         if self.offset == self.source.len() {
@@ -189,7 +189,7 @@ impl<'ser> Decoder<'ser> {
 pub struct Tokens<'a>(Decoder<'a>);
 
 impl<'a> Iterator for Tokens<'a> {
-    type Item = Result<Token<'a>, StructureError>;
+    type Item = Result<Token<'a>, Error>;
 
     fn next(&mut self) -> Option<Self::Item> {
         // Only report an error once
@@ -216,7 +216,7 @@ impl<'ser> Decoder<'ser> {
     /// Note that complex objects (lists and dicts) are not fully validated before being
     /// returned from this method, so you may still get an error while decoding the contents
     /// of the object
-    pub fn next_object<'obj>(&'obj mut self) -> Result<Option<Object<'obj, 'ser>>, StructureError> {
+    pub fn next_object<'obj>(&'obj mut self) -> Result<Option<Object<'obj, 'ser>>, Error> {
         use self::Token::*;
         Ok(match self.next_token()? {
             None | Some(End) => None,
@@ -258,7 +258,7 @@ impl<'obj, 'ser: 'obj> DictDecoder<'obj, 'ser> {
     /// at the end of the dictionary
     pub fn next_pair<'item>(
         &'item mut self,
-    ) -> Result<Option<(&'ser [u8], Object<'item, 'ser>)>, StructureError> {
+    ) -> Result<Option<(&'ser [u8], Object<'item, 'ser>)>, Error> {
         if self.finished {
             return Ok(None);
         }
@@ -281,7 +281,7 @@ impl<'obj, 'ser: 'obj> DictDecoder<'obj, 'ser> {
     /// Consume (and validate the structure of) the rest of the items from the
     /// dictionary. This method should be used to check for encoding errors if
     /// [`DictDecoder::next_pair`] is not called until it returns `Ok(None)`.
-    pub fn consume_all(&mut self) -> Result<(), StructureError> {
+    pub fn consume_all(&mut self) -> Result<(), Error> {
         while let Some(_) = self.next_pair()? {
             // just drop the items
         }
@@ -289,7 +289,7 @@ impl<'obj, 'ser: 'obj> DictDecoder<'obj, 'ser> {
     }
 
     /// Get the raw bytes that made up this dictionary
-    pub fn into_raw(mut self) -> Result<&'ser [u8], StructureError> {
+    pub fn into_raw(mut self) -> Result<&'ser [u8], Error> {
         self.consume_all()?;
         Ok(&self.decoder.source[self.start_point..self.decoder.offset])
     }
@@ -313,9 +313,7 @@ impl<'obj, 'ser: 'obj> ListDecoder<'obj, 'ser> {
     }
 
     /// Get the next item from the list. Returns `Ok(None)` at the end of the list
-    pub fn next_object<'item>(
-        &'item mut self,
-    ) -> Result<Option<Object<'item, 'ser>>, StructureError> {
+    pub fn next_object<'item>(&'item mut self) -> Result<Option<Object<'item, 'ser>>, Error> {
         if self.finished {
             return Ok(None);
         }
@@ -333,7 +331,7 @@ impl<'obj, 'ser: 'obj> ListDecoder<'obj, 'ser> {
     /// [`ListDecoder::next_object`] is not called until it returns [`Ok(())`].
     ///
     /// [`Ok(())`]: https://doc.rust-lang.org/std/result/enum.Result.html#variant.Ok
-    pub fn consume_all(&mut self) -> Result<(), StructureError> {
+    pub fn consume_all(&mut self) -> Result<(), Error> {
         while let Some(_) = self.next_object()? {
             // just drop the items
         }
@@ -341,7 +339,7 @@ impl<'obj, 'ser: 'obj> ListDecoder<'obj, 'ser> {
     }
 
     /// Get the raw bytes that made up this list
-    pub fn into_raw(mut self) -> Result<&'ser [u8], StructureError> {
+    pub fn into_raw(mut self) -> Result<&'ser [u8], Error> {
         self.consume_all()?;
         Ok(&self.decoder.source[self.start_point..self.decoder.offset])
     }
@@ -365,7 +363,7 @@ mod test {
     static SIMPLE_MSG: &'static [u8] = b"d3:bari1e3:fooli2ei3eee";
 
     fn decode_tokens(msg: &[u8]) -> Vec<Token> {
-        let tokens: Vec<Result<Token, StructureError>> = Decoder::new(msg).tokens().collect();
+        let tokens: Vec<Result<Token, Error>> = Decoder::new(msg).tokens().collect();
         if tokens.iter().all(Result::is_ok) {
             tokens.into_iter().map(Result::unwrap).collect()
         } else {
@@ -377,7 +375,7 @@ mod test {
     }
 
     fn decode_err(msg: &[u8], err_regex: &str) {
-        let mut tokens: Vec<Result<Token, StructureError>> = Decoder::new(msg).tokens().collect();
+        let mut tokens: Vec<Result<Token, Error>> = Decoder::new(msg).tokens().collect();
         if tokens.iter().all(Result::is_ok) {
             panic!("Unexpected parse success: {:?}", tokens);
         } else {
@@ -501,14 +499,18 @@ mod test {
     fn dict_drop_should_consume_struct() {
         let mut decoder = Decoder::new(b"d3:fooi1e3:quxi2eei1000e");
         drop(decoder.next_object());
-        assert_eq!(decoder.tokens().next(), Some(Ok(Token::Num("1000"))));
+
+        let token = decoder.tokens().next().unwrap().unwrap();
+        assert_eq!(token, Token::Num("1000"));
     }
 
     #[test]
     fn list_drop_should_consume_struct() {
         let mut decoder = Decoder::new(b"li1ei2ei3eei1000e");
         drop(decoder.next_object());
-        assert_eq!(decoder.tokens().next(), Some(Ok(Token::Num("1000"))));
+
+        let token = decoder.tokens().next().unwrap().unwrap();
+        assert_eq!(token, Token::Num("1000"));
     }
 
     #[test]

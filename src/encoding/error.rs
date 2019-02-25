@@ -1,19 +1,42 @@
+use std::sync::Arc;
+
 use failure::Fail;
 
 use crate::state_tracker::StructureError;
 
-#[derive(Debug, Fail, Ord, PartialOrd, Eq, PartialEq)]
+#[derive(Debug, Clone, Fail)]
 #[fail(display = "encoding failed: {}", _0)]
-pub struct Error(StructureError);
+pub struct Error(#[fail(cause)] pub ErrorKind);
 
-impl From<StructureError> for Error {
-    fn from(error: StructureError) -> Self {
-        Self(error)
+/// An enumeration of potential errors that appear during bencode encoding.
+#[derive(Debug, Clone, Fail)]
+pub enum ErrorKind {
+    /// Error that occurs if the serialized structure contains invalid semantics.
+    #[fail(display = "malformed content discovered: {}", _0)]
+    MalformedContent(Arc<failure::Error>),
+
+    /// Error in the bencode structure (e.g. a missing field end separator).
+    #[fail(display = "bencode encoding corrupted")]
+    StructureError(#[fail(cause)] StructureError),
+}
+
+impl Error {
+    /// Raised when there is a general error while deserializing a type.
+    /// The message should not be capitalized and should not end with a period.
+    pub fn malformed_content(cause: impl Into<failure::Error>) -> Error {
+        let error = Arc::new(cause.into());
+        Self(ErrorKind::MalformedContent(error))
     }
 }
 
-impl Into<StructureError> for Error {
-    fn into(self) -> StructureError {
-        self.0
+impl From<StructureError> for Error {
+    fn from(error: StructureError) -> Self {
+        Self(ErrorKind::StructureError(error))
+    }
+}
+
+impl From<ErrorKind> for Error {
+    fn from(kind: ErrorKind) -> Self {
+        Self(kind)
     }
 }
