@@ -31,3 +31,7 @@ failure = "^0.1.3"
 
 [dev-dependencies]
 regex = "^1.0"
+skeptic = "^0.13"
+
+[build-dependencies]
+skeptic = "^0.13"
