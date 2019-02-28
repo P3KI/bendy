@@ -3,6 +3,8 @@
 All notable changes to this project will be documented in this file.
 
 ## Unreleased
+
+## 0.2.0 (2019/02/28)
 - Add new `try_into_*` utility methods on [`Object`].
 - Introduce ...
   - [`FromBencode`] trait for simpler decoding.
