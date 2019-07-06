@@ -5,6 +5,11 @@
 //!
 //! The encoder is likewise designed to ensure that it only produces valid structures.
 
+#![cfg_attr(not(feature = "std"), no_std)]
+
+#[cfg(not(feature = "std"))]
+extern crate alloc;
+
 pub mod decoding;
 pub mod encoding;
 pub mod state_tracker;

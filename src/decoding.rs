@@ -63,6 +63,7 @@
 //! #
 //! # assert!(syntax_check(b"i18e"));
 //! ```
+
 mod decoder;
 mod error;
 mod from_bencode;

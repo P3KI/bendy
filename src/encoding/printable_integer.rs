@@ -1,18 +1,14 @@
-use std::io::{self, Write};
+#[cfg(not(feature = "std"))]
+use core::fmt::Display;
+#[cfg(feature = "std")]
+use std::fmt::Display;
 
 /// A value that can be formatted as a decimal integer
-pub trait PrintableInteger {
-    /// Write the value as a decimal integer
-    fn write_to<W: Write>(self, w: W) -> io::Result<()>;
-}
+pub trait PrintableInteger: Display {}
 
 macro_rules! impl_integer {
     ($($type:ty)*) => {$(
-        impl PrintableInteger for $type {
-            fn write_to<W: Write>(self, mut w: W) -> io::Result<()> {
-                write!(w, "{}", self)
-            }
-        }
+        impl PrintableInteger for $type {}
     )*}
 }
 

@@ -1,3 +1,6 @@
+#[cfg(not(feature = "std"))]
+use alloc::vec::Vec;
+
 pub trait Stack<T> {
     fn peek_mut(&mut self) -> Option<&mut T>;
 

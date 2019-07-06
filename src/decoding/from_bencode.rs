@@ -1,3 +1,7 @@
+#[cfg(not(feature = "std"))]
+use alloc::{rc::Rc, string::String, vec::Vec};
+
+#[cfg(feature = "std")]
 use std::{
     collections::HashMap,
     hash::{BuildHasher, Hash},
@@ -88,6 +92,7 @@ impl FromBencode for String {
     }
 }
 
+#[cfg(feature = "std")]
 impl<K, V, H> FromBencode for HashMap<K, V, H>
 where
     K: FromBencode + Hash + Eq,
@@ -139,8 +144,12 @@ impl FromBencode for AsString<Vec<u8>> {
 #[cfg(test)]
 mod test {
 
-    use super::*;
+    #[cfg(not(feature = "std"))]
+    use alloc::{format, vec::Vec};
+
     use crate::encoding::AsString;
+
+    use super::*;
 
     #[test]
     fn from_bencode_to_string_should_work_with_valid_input() {
