@@ -26,6 +26,15 @@
 //!         Ok(())
 //!     }
 //! }
+//! #
+//! # fn main() -> Result<(), Error> {
+//! #    let message = Message{
+//! #      foo: 1,
+//! #      bar: "quux".to_string(),
+//! #    };
+//! #
+//! #   message.to_bencode().map(|_| ())
+//! # }
 //! ```
 //!
 //! Then, messages can be serialized using [`ToBencode::to_bencode`]:
@@ -53,13 +62,16 @@
 //! #         Ok(())
 //! #     }
 //! # }
-//! # let result: Result<Vec<u8>, Error> =
-//! Message{
-//!     foo: 1,
-//!     bar: "quux".to_string(),
-//! }.to_bencode()
-//! # ;
-//! # assert!(result.is_ok());
+//! #
+//! # fn main() -> Result<(), Error> {
+//!     let message = Message{
+//!       foo: 1,
+//!       bar: "quux".to_string(),
+//!     };
+//!
+//!     message.to_bencode()
+//! #    .map(|_| ())
+//! # }
 //! ```
 //!
 //! Most primitive types already implement [`ToBencode`].
@@ -78,15 +90,16 @@
 //! # use bendy::encoding::{ToBencode, Encoder, Error};
 //! #
 //! # type ObjectType = u32;
-//! # static object: u32 = 0;
+//! # static OBJECT: u32 = 0;
 //! #
 //! # fn main() -> Result<(), Error> {
-//! let mut encoder = Encoder::new()
-//!     .with_max_depth(ObjectType::MAX_DEPTH + 10);
-//! encoder.emit(object)?;
-//! encoder.get_output()
-//! #   .map_err(Error::from)
-//! #   .map(|_| ()) // ignore a success return value
+//!     let mut encoder = Encoder::new()
+//!       .with_max_depth(ObjectType::MAX_DEPTH + 10);
+//!
+//!     encoder.emit(OBJECT)?;
+//!     encoder.get_output()
+//! #     .map_err(Error::from)
+//! #     .map(|_| ()) // ignore a success return value
 //! # }
 //! ```
 //!
