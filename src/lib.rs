@@ -13,3 +13,6 @@ extern crate alloc;
 pub mod decoding;
 pub mod encoding;
 pub mod state_tracker;
+
+#[cfg(test)]
+doc_comment::doctest!("../README.md");
