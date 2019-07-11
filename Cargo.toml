@@ -1,6 +1,6 @@
 [package]
 name = "bendy"
-version = "0.2.0"
+version = "0.2.1"
 edition = "2018"
 
 authors = [
@@ -10,7 +10,7 @@ authors = [
 ]
 
 description = """
-A rust library for encoding and decoding bencode with enforced cannonicalization rules.
+A rust library for encoding and decoding bencode with enforced canonicalization rules.
 """
 
 repository = "https://github.com/P3KI/bendy"
@@ -18,20 +18,39 @@ license = "BSD-3-Clause"
 readme = "README.md"
 
 keywords = ["bencode", "serialization", "deserialization", "bittorent"]
-categories = ["encoding"]
+categories = ["encoding", "decoding", "no-std"]
 
 [badges]
 maintenance = {status = "actively-developed"}
+travis-ci = { repository = "P3KI/bendy" }
 
 [profile.release]
 lto = true
+opt-level = 3
+codegen-units = 1
 
 [dependencies]
-failure = "^0.1.3"
+failure = { version = "^0.1.3", default_features = false, features = ["derive"] }
 
 [dev-dependencies]
 regex = "^1.0"
-skeptic = "^0.13"
+doc-comment = "^0.3"
 
-[build-dependencies]
-skeptic = "^0.13"
+### FEATURES #################################################################
+
+[features]
+default = ["std"]
+
+# Provide implementations for common standard library types like `Vec<T>` and
+# `HashMap<K, V>`. Requires a dependency on the Rust standard library.
+std = [ "failure/std" ]
+
+### Targets ##################################################################
+
+[[test]]
+name = "core_test"
+required-features = [ "std" ]
+
+[[example]]
+name = "encode_torrent"
+required-features = [ "std" ]

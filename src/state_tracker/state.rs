@@ -1,3 +1,6 @@
+#[cfg(not(feature = "std"))]
+use alloc::vec::Vec;
+
 use crate::state_tracker::{Stack, StructureError, Token};
 
 /// The state of current level of the decoder

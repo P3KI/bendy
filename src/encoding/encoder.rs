@@ -1,4 +1,13 @@
-use std::{collections::BTreeMap, io::Write};
+#[cfg(not(feature = "std"))]
+use alloc::{
+    borrow::ToOwned,
+    collections::BTreeMap,
+    format,
+    string::{String, ToString},
+    vec::Vec,
+};
+#[cfg(feature = "std")]
+use std::{collections::BTreeMap, vec::Vec};
 
 use crate::{
     encoding::{Error, PrintableInteger, ToBencode},
@@ -34,7 +43,9 @@ impl Encoder {
             Token::Dict => self.output.push(b'd'),
             Token::String(s) => {
                 // Writing to a vec can't fail
-                write!(&mut self.output, "{}:", s.len()).unwrap();
+                let length = s.len().to_string();
+                self.output.extend_from_slice(length.as_bytes());
+                self.output.push(b':');
                 self.output.extend_from_slice(s);
             },
             Token::Num(num) => {
@@ -89,7 +100,7 @@ impl Encoder {
         // possible (for performance)
         self.state.observe_token(&Token::Num(""))?;
         self.output.push(b'i');
-        value.write_to(&mut self.output).unwrap(); // Vec can't produce an error
+        self.output.extend_from_slice(value.to_string().as_bytes());
         self.output.push(b'e');
         Ok(())
     }
@@ -114,13 +125,15 @@ impl Encoder {
     /// Example:
     ///
     /// ```
-    /// # use bendy::encoding::Encoder;
+    /// # use bendy::encoding::{Encoder, Error};
     /// #
-    /// # let mut encoder = Encoder::new();
-    /// encoder.emit_dict(|mut e| {
-    ///     e.emit_pair(b"a", "foo")?;
-    ///     e.emit_pair(b"b", 2)
-    /// });
+    /// # fn main() -> Result<(), Error>{
+    ///     let mut encoder = Encoder::new();
+    ///     encoder.emit_dict(|mut e| {
+    ///       e.emit_pair(b"a", "foo")?;
+    ///       e.emit_pair(b"b", 2)
+    ///     })
+    /// # }
     /// ```
     pub fn emit_dict<F>(&mut self, content_cb: F) -> Result<(), Error>
     where
@@ -137,14 +150,15 @@ impl Encoder {
     /// E.g., to emit the list `[1,2,3]`, you would write
     ///
     /// ```
-    /// # use bendy::encoding::Encoder;
-    /// #
+    /// # use bendy::encoding::{Encoder, Error};
+    /// # fn main() -> Result<(), Error> {
     /// let mut encoder = Encoder::new();
     /// encoder.emit_list(|e| {
-    ///    e.emit_int(1)?;
-    ///    e.emit_int(2)?;
-    ///    e.emit_int(3)
-    /// });
+    ///     e.emit_int(1)?;
+    ///     e.emit_int(2)?;
+    ///     e.emit_int(3)
+    /// })
+    /// # }
     /// ```
     pub fn emit_list<F>(&mut self, list_cb: F) -> Result<(), Error>
     where
@@ -165,14 +179,12 @@ impl Encoder {
     /// # use bendy::encoding::{Encoder, Error};
     /// #
     /// # fn main() -> Result<(), Error> {
-    /// # let mut encoder = Encoder::new();
-    /// #
-    /// encoder.emit_and_sort_dict(|mut e| {
-    ///     // Unlike in the example for Encoder::emit_dict(), these keys aren't sorted
-    ///     e.emit_pair(b"b", 2)?;
-    ///     e.emit_pair(b"a", "foo")
-    /// })?;
-    /// Ok(())
+    ///     let mut encoder = Encoder::new();
+    ///     encoder.emit_and_sort_dict(|e| {
+    ///       // Unlike in the example for Encoder::emit_dict(), these keys aren't sorted
+    ///       e.emit_pair(b"b", 2)?;
+    ///       e.emit_pair(b"a", "foo")
+    ///     })
     /// # }
     /// ```
     pub fn emit_and_sort_dict<F>(&mut self, content_cb: F) -> Result<(), Error>
@@ -345,7 +357,11 @@ impl UnsortedDictEncoder {
     where
         F: FnOnce(SingleItemEncoder) -> Result<(), Error>,
     {
+        #[cfg(not(feature = "std"))]
+        use alloc::collections::btree_map::Entry;
+        #[cfg(feature = "std")]
         use std::collections::btree_map::Entry;
+
         if self.error.is_err() {
             return self.error.clone();
         }

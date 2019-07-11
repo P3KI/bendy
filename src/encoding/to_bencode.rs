@@ -1,6 +1,18 @@
+#[cfg(not(feature = "std"))]
+use alloc::{
+    collections::{BTreeMap, LinkedList, VecDeque},
+    rc::Rc,
+    string::String,
+    sync::Arc,
+    vec::Vec,
+};
+
+#[cfg(feature = "std")]
 use std::{
     collections::{BTreeMap, HashMap, LinkedList, VecDeque},
-    hash::Hash,
+    hash::{BuildHasher, Hash},
+    rc::Rc,
+    sync::Arc,
 };
 
 use crate::encoding::{Encoder, Error, SingleItemEncoder};
@@ -37,6 +49,7 @@ impl<'a, E: 'a + ToBencode + Sized> ToBencode for &'a E {
     }
 }
 
+#[cfg(feature = "std")]
 impl<E: ToBencode> ToBencode for Box<E> {
     const MAX_DEPTH: usize = E::MAX_DEPTH;
 
@@ -45,7 +58,7 @@ impl<E: ToBencode> ToBencode for Box<E> {
     }
 }
 
-impl<E: ToBencode> ToBencode for ::std::rc::Rc<E> {
+impl<E: ToBencode> ToBencode for Rc<E> {
     const MAX_DEPTH: usize = E::MAX_DEPTH;
 
     fn encode(&self, encoder: SingleItemEncoder) -> Result<(), Error> {
@@ -53,7 +66,7 @@ impl<E: ToBencode> ToBencode for ::std::rc::Rc<E> {
     }
 }
 
-impl<E: ToBencode> ToBencode for ::std::sync::Arc<E> {
+impl<E: ToBencode> ToBencode for Arc<E> {
     const MAX_DEPTH: usize = E::MAX_DEPTH;
 
     fn encode(&self, encoder: SingleItemEncoder) -> Result<(), Error> {
@@ -149,11 +162,12 @@ impl<K: AsRef<[u8]>, V: ToBencode> ToBencode for BTreeMap<K, V> {
     }
 }
 
+#[cfg(feature = "std")]
 impl<K, V, S> ToBencode for HashMap<K, V, S>
 where
     K: AsRef<[u8]> + Eq + Hash,
     V: ToBencode,
-    S: ::std::hash::BuildHasher,
+    S: BuildHasher,
 {
     const MAX_DEPTH: usize = V::MAX_DEPTH + 1;
 
@@ -206,6 +220,9 @@ where
 
 #[cfg(test)]
 mod test {
+
+    #[cfg(not(feature = "std"))]
+    use alloc::{borrow::ToOwned, vec};
 
     use super::*;
 

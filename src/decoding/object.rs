@@ -100,7 +100,7 @@ impl<'obj, 'ser: 'obj> Object<'obj, 'ser> {
     /// # Examples
     ///
     /// ```
-    /// use bendy::decoding::{Error, Object};
+    /// use bendy::decoding::Object;
     ///
     /// let x = Object::Bytes(b"foo");
     /// assert_eq!(b"foo", x.try_into_bytes().unwrap());
@@ -190,7 +190,7 @@ impl<'obj, 'ser: 'obj> Object<'obj, 'ser> {
     /// # Examples
     ///
     /// ```
-    /// use bendy::decoding::{Error, Object};
+    /// use bendy::decoding::Object;
     ///
     /// let x = Object::Integer("123");
     /// assert_eq!("123", x.try_into_integer().unwrap());
@@ -282,7 +282,7 @@ impl<'obj, 'ser: 'obj> Object<'obj, 'ser> {
     /// # Examples
     ///
     /// ```
-    /// use bendy::decoding::{Decoder, Error, Object};
+    /// use bendy::decoding::{Decoder, Object};
     ///
     /// let mut list_decoder = Decoder::new(b"le");
     /// let x = list_decoder.next_object().unwrap().unwrap();
@@ -378,7 +378,7 @@ impl<'obj, 'ser: 'obj> Object<'obj, 'ser> {
     /// # Examples
     ///
     /// ```
-    /// use bendy::decoding::{Decoder, Error, Object};
+    /// use bendy::decoding::{Decoder, Object};
     ///
     /// let mut dict_decoder = Decoder::new(b"de");
     /// let x = dict_decoder.next_object().unwrap().unwrap();

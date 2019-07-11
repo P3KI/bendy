@@ -1,5 +1,14 @@
-use failure::Fail;
+#[cfg(not(feature = "std"))]
+use alloc::{
+    format,
+    string::{String, ToString},
+};
+#[cfg(not(feature = "std"))]
+use core::fmt::Display;
+#[cfg(feature = "std")]
 use std::fmt::Display;
+
+use failure::Fail;
 
 /// An encoding or decoding error
 #[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Debug, Fail)]

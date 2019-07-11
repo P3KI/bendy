@@ -1,4 +1,17 @@
+#[cfg(not(feature = "std"))]
+use alloc::{
+    format,
+    string::{FromUtf8Error, String, ToString},
+};
+#[cfg(not(feature = "std"))]
+use core::{
+    fmt::{self, Display, Formatter},
+    num::ParseIntError,
+};
+
+#[cfg(feature = "std")]
 use std::{
+    error::Error as StdError,
     fmt::{self, Display, Formatter},
     sync::Arc,
 };
@@ -18,9 +31,14 @@ pub struct Error {
 /// An enumeration of potential errors that appear during bencode deserialization.
 #[derive(Debug, Clone, Fail)]
 pub enum ErrorKind {
-    /// Error that occurs if the serialized structure contains invalid information.
+    /// Error that occurs if the serialized structure contains invalid semantics.
+    #[cfg(feature = "std")]
     #[fail(display = "malformed content discovered: {}", _0)]
     MalformedContent(Arc<failure::Error>),
+    /// Error that occurs if the serialized structure contains invalid semantics.
+    #[cfg(not(feature = "std"))]
+    #[fail(display = "malformed content discovered")]
+    MalformedContent,
     /// Error that occurs if the serialized structure is incomplete.
     #[fail(display = "missing field: {}", _0)]
     MissingField(String),
@@ -36,7 +54,7 @@ pub enum ErrorKind {
 }
 
 pub trait ResultExt {
-    fn context(self, context: impl std::fmt::Display) -> Self;
+    fn context(self, context: impl Display) -> Self;
 }
 
 impl Error {
@@ -52,6 +70,7 @@ impl Error {
 
     /// Raised when there is a general error while deserializing a type.
     /// The message should not be capitalized and should not end with a period.
+    #[cfg(feature = "std")]
     pub fn malformed_content(cause: impl Into<failure::Error>) -> Error {
         let error = Arc::new(cause.into());
         Self::from(ErrorKind::MalformedContent(error))
@@ -100,14 +119,29 @@ impl From<ErrorKind> for Error {
     }
 }
 
-impl<T: std::error::Error + Send + Sync + 'static> From<T> for Error {
+#[cfg(not(feature = "std"))]
+impl From<FromUtf8Error> for Error {
+    fn from(_: FromUtf8Error) -> Self {
+        Self::from(ErrorKind::MalformedContent)
+    }
+}
+
+#[cfg(not(feature = "std"))]
+impl From<ParseIntError> for Error {
+    fn from(_: ParseIntError) -> Self {
+        Self::from(ErrorKind::MalformedContent)
+    }
+}
+
+#[cfg(feature = "std")]
+impl<T: StdError + Send + Sync + 'static> From<T> for Error {
     fn from(error: T) -> Self {
         Self::malformed_content(error)
     }
 }
 
 impl<T> ResultExt for Result<T, Error> {
-    fn context(self, context: impl std::fmt::Display) -> Result<T, Error> {
+    fn context(self, context: impl Display) -> Result<T, Error> {
         self.map_err(|err| err.context(context))
     }
 }

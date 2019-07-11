@@ -1,3 +1,10 @@
+#[cfg(not(feature = "std"))]
+use alloc::format;
+#[cfg(not(feature = "std"))]
+use core::str;
+#[cfg(feature = "std")]
+use std::{format, str};
+
 use crate::{
     decoding::{Error, Object},
     state_tracker::{StateTracker, StructureError, Token},
@@ -54,7 +61,6 @@ impl<'ser> Decoder<'ser> {
     }
 
     fn take_int(&mut self, expected_terminator: char) -> Result<&'ser str, StructureError> {
-        use std::str;
         enum State {
             Start,
             Sign,
@@ -354,6 +360,13 @@ impl<'obj, 'ser: 'obj> Drop for ListDecoder<'obj, 'ser> {
 
 #[cfg(test)]
 mod test {
+
+    #[cfg(not(feature = "std"))]
+    use alloc::{vec, vec::Vec};
+    #[cfg(not(feature = "std"))]
+    use core::iter;
+
+    #[cfg(feature = "std")]
     use std::iter;
 
     use regex;

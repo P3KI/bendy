@@ -1,3 +1,4 @@
+#[cfg(feature = "std")]
 use std::sync::Arc;
 
 use failure::Fail;
@@ -12,9 +13,13 @@ pub struct Error(#[fail(cause)] pub ErrorKind);
 #[derive(Debug, Clone, Fail)]
 pub enum ErrorKind {
     /// Error that occurs if the serialized structure contains invalid semantics.
+    #[cfg(feature = "std")]
     #[fail(display = "malformed content discovered: {}", _0)]
     MalformedContent(Arc<failure::Error>),
-
+    /// Error that occurs if the serialized structure contains invalid semantics.
+    #[cfg(not(feature = "std"))]
+    #[fail(display = "malformed content discovered")]
+    MalformedContent,
     /// Error in the bencode structure (e.g. a missing field end separator).
     #[fail(display = "bencode encoding corrupted")]
     StructureError(#[fail(cause)] StructureError),
@@ -23,6 +28,7 @@ pub enum ErrorKind {
 impl Error {
     /// Raised when there is a general error while deserializing a type.
     /// The message should not be capitalized and should not end with a period.
+    #[cfg(feature = "std")]
     pub fn malformed_content(cause: impl Into<failure::Error>) -> Error {
         let error = Arc::new(cause.into());
         Self(ErrorKind::MalformedContent(error))
