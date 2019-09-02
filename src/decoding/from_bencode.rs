@@ -1,9 +1,9 @@
 #[cfg(not(feature = "std"))]
-use alloc::{rc::Rc, string::String, vec::Vec};
+use alloc::{collections::BTreeMap, rc::Rc, string::String, vec::Vec};
 
 #[cfg(feature = "std")]
 use std::{
-    collections::HashMap,
+    collections::{BTreeMap, HashMap},
     hash::{BuildHasher, Hash},
     rc::Rc,
 };
@@ -89,6 +89,31 @@ impl FromBencode for String {
         let content = String::from_utf8(content.to_vec())?;
 
         Ok(content)
+    }
+}
+
+impl<K, V> FromBencode for BTreeMap<K, V>
+where
+    K: FromBencode + Ord,
+    V: FromBencode,
+{
+    const EXPECTED_RECURSION_DEPTH: usize = V::EXPECTED_RECURSION_DEPTH + 1;
+
+    fn decode_bencode_object(object: Object) -> Result<Self, Error>
+    where
+        Self: Sized,
+    {
+        let mut dict = object.try_into_dictionary()?;
+        let mut result = BTreeMap::default();
+
+        while let Some((key, value)) = dict.next_pair()? {
+            let key = K::decode_bencode_object(Object::Bytes(key))?;
+            let value = V::decode_bencode_object(value)?;
+
+            result.insert(key, value);
+        }
+
+        Ok(result)
     }
 }
 
