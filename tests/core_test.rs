@@ -1,16 +1,19 @@
 //! Port of https://github.com/jamesleonis/bencode-cljc/blob/master/test/bencode_cljc/core_test.cljc
+//!
+//! Should only use #![no_std] compatible features but still requires the
+//! `std` feature flag to avoid that we need to define a global allocator.
 
-use std::collections::HashMap;
+extern crate alloc;
+use alloc::collections::BTreeMap;
 
 use bendy::{
     decoding::{Error as DecodingError, FromBencode, Object},
     encoding::{Error as EncodingError, SingleItemEncoder, ToBencode},
 };
-use failure::Error;
 
-///////////////////////////////////////////////////////////////
-// Dynamic Typing Utility
-///////////////////////////////////////////////////////////////
+// -----------------------------------------------------------------------------
+// Macros
+// -----------------------------------------------------------------------------
 
 macro_rules! list(
     {} => { Vec::<Something>::new() };
@@ -27,7 +30,7 @@ macro_rules! list(
 macro_rules! map(
     { $($key:expr => $value:expr),+ } => {
         {
-            let mut map = HashMap::new();
+            let mut map = BTreeMap::new();
             $( map.insert($key.to_owned(), Something::from($value)); )+
 
             map
@@ -35,88 +38,9 @@ macro_rules! map(
      };
 );
 
-#[derive(Debug, PartialEq)]
-enum Something {
-    Bytes(String),
-    Dict(HashMap<String, Something>),
-    Integer(i64),
-    List(Vec<Something>),
-}
-
-impl From<&str> for Something {
-    fn from(content: &str) -> Self {
-        Something::Bytes(content.to_owned())
-    }
-}
-
-impl<ContentT> From<HashMap<String, ContentT>> for Something
-where
-    Something: From<ContentT>,
-{
-    fn from(content: HashMap<String, ContentT>) -> Self {
-        let content = content
-            .into_iter()
-            .map(|(key, value)| (key, value.into()))
-            .collect();
-
-        Something::Dict(content)
-    }
-}
-
-impl From<i64> for Something {
-    fn from(content: i64) -> Self {
-        Something::Integer(content)
-    }
-}
-
-impl<ContentT> From<Vec<ContentT>> for Something
-where
-    Something: From<ContentT>,
-{
-    fn from(content: Vec<ContentT>) -> Self {
-        let content = content.into_iter().map(Into::into).collect();
-        Something::List(content)
-    }
-}
-
-impl FromBencode for Something {
-    fn decode_bencode_object(object: Object) -> Result<Self, DecodingError>
-    where
-        Self: Sized,
-    {
-        let something = match object {
-            Object::Bytes(content) => {
-                Something::Bytes(String::from_utf8_lossy(content).to_string())
-            },
-            Object::Integer(number) => Something::Integer(number.parse().unwrap()),
-            object @ Object::Dict(_) => {
-                Something::Dict(HashMap::decode_bencode_object(object).unwrap())
-            },
-            object @ Object::List(_) => {
-                Something::List(Vec::decode_bencode_object(object).unwrap())
-            },
-        };
-
-        Ok(something)
-    }
-}
-
-impl ToBencode for Something {
-    const MAX_DEPTH: usize = 999;
-
-    fn encode(&self, encoder: SingleItemEncoder) -> Result<(), EncodingError> {
-        match self {
-            Something::Bytes(content) => encoder.emit(content),
-            Something::Dict(content) => encoder.emit(content),
-            Something::Integer(content) => encoder.emit(content),
-            Something::List(content) => encoder.emit(content),
-        }
-    }
-}
-
-///////////////////////////////////////////////////////////////
+// -----------------------------------------------------------------------------
 // Tests
-///////////////////////////////////////////////////////////////
+// -----------------------------------------------------------------------------
 
 #[test]
 fn string_test_pairs() -> Result<(), Error> {
@@ -200,7 +124,7 @@ fn list_test_pairs() -> Result<(), Error> {
 #[test]
 fn map_test_pairs() -> Result<(), Error> {
     let pairs = [
-        (HashMap::new(), "de"),
+        (BTreeMap::new(), "de"),
         (
             map! {"cow" => "moo", "spam" => "eggs"},
             "d3:cow3:moo4:spam4:eggse",
@@ -234,7 +158,7 @@ fn map_test_pairs() -> Result<(), Error> {
         let encoded = original.to_bencode()?;
         assert_eq!(expected_encoding.as_bytes(), encoded.as_slice());
 
-        let decoded = HashMap::<String, Something>::from_bencode(&encoded)?;
+        let decoded = BTreeMap::<String, Something>::from_bencode(&encoded)?;
         assert_eq!(original, &decoded);
     }
 
@@ -312,7 +236,7 @@ fn mixed_use_dict_pairs() -> Result<(), Error> {
         let encoded = original.to_bencode()?;
         assert_eq!(expected_encoding.as_bytes(), encoded.as_slice());
 
-        let decoded = HashMap::<String, Something>::from_bencode(&encoded)?;
+        let decoded = BTreeMap::<String, Something>::from_bencode(&encoded)?;
         assert_eq!(original, &decoded);
     }
 
@@ -393,7 +317,112 @@ fn illegal_dictionary_encodings() {
     // "d5:hello5:worldei10e",
 
     for value in &values {
-        let error = HashMap::<String, Something>::from_bencode(value.as_bytes()).unwrap_err();
+        let error = BTreeMap::<String, Something>::from_bencode(value.as_bytes()).unwrap_err();
         assert!(error.to_string().contains("encoding corrupted"));
+    }
+}
+
+// -----------------------------------------------------------------------------
+// Dynamic Typing Utility
+// -----------------------------------------------------------------------------
+
+#[derive(Debug, PartialEq)]
+enum Something {
+    Bytes(String),
+    Dict(BTreeMap<String, Something>),
+    Integer(i64),
+    List(Vec<Something>),
+}
+
+impl From<&str> for Something {
+    fn from(content: &str) -> Self {
+        Something::Bytes(content.to_owned())
+    }
+}
+
+impl<ContentT> From<BTreeMap<String, ContentT>> for Something
+where
+    Something: From<ContentT>,
+{
+    fn from(content: BTreeMap<String, ContentT>) -> Self {
+        let content = content
+            .into_iter()
+            .map(|(key, value)| (key, value.into()))
+            .collect();
+
+        Something::Dict(content)
+    }
+}
+
+impl From<i64> for Something {
+    fn from(content: i64) -> Self {
+        Something::Integer(content)
+    }
+}
+
+impl<ContentT> From<Vec<ContentT>> for Something
+where
+    Something: From<ContentT>,
+{
+    fn from(content: Vec<ContentT>) -> Self {
+        let content = content.into_iter().map(Into::into).collect();
+        Something::List(content)
+    }
+}
+
+impl FromBencode for Something {
+    fn decode_bencode_object(object: Object) -> Result<Self, DecodingError>
+    where
+        Self: Sized,
+    {
+        let something = match object {
+            Object::Bytes(content) => {
+                Something::Bytes(String::from_utf8_lossy(content).to_string())
+            },
+            Object::Integer(number) => Something::Integer(number.parse().unwrap()),
+            object @ Object::Dict(_) => {
+                Something::Dict(BTreeMap::decode_bencode_object(object).unwrap())
+            },
+            object @ Object::List(_) => {
+                Something::List(Vec::decode_bencode_object(object).unwrap())
+            },
+        };
+
+        Ok(something)
+    }
+}
+
+impl ToBencode for Something {
+    const MAX_DEPTH: usize = 999;
+
+    fn encode(&self, encoder: SingleItemEncoder) -> Result<(), EncodingError> {
+        match self {
+            Something::Bytes(content) => encoder.emit(content),
+            Something::Dict(content) => encoder.emit(content),
+            Something::Integer(content) => encoder.emit(content),
+            Something::List(content) => encoder.emit(content),
+        }
+    }
+}
+
+// -----------------------------------------------------------------------------
+// Error
+// -----------------------------------------------------------------------------
+
+#[derive(Debug)]
+enum Error {
+    DecodingError(DecodingError),
+    EncodingError(EncodingError),
+}
+
+impl From<DecodingError> for Error {
+    fn from(error: DecodingError) -> Self {
+        Self::DecodingError(error)
+    }
+}
+
+impl From<EncodingError> for Error {
+    fn from(error: EncodingError) -> Self {
+        Self::EncodingError(error)
     }
 }
