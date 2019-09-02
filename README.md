@@ -565,6 +565,7 @@ impl FromBencode for Location {
 
 fn main() {}
 
+#[test]
 fn decode_list() -> Result<(), Error> {
     let encoded = b"li2ei3ee".to_vec();
     let expected = Location(2, 3);

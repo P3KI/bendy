@@ -13,6 +13,7 @@
 //! ```
 //! cargo run --example decode_torrent > parsing_output.txt
 //! ```
+
 use bendy::{
     decoding::{Error, FromBencode, Object, ResultExt},
     encoding::AsString,
