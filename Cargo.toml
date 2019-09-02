@@ -29,27 +29,29 @@ lto = true
 opt-level = 3
 codegen-units = 1
 
+### DEPENDENCIES ###############################################################
+
 [dependencies]
 failure = { version = "^0.1.3", default_features = false, features = ["derive"] }
 
 [dev-dependencies]
 regex = "^1.0"
 
-### FEATURES #################################################################
+### FEATURES ###################################################################
 
 [features]
 default = ["std"]
 
 # Provide implementations for common standard library types like `Vec<T>` and
 # `HashMap<K, V>`. Requires a dependency on the Rust standard library.
-std = [ "failure/std" ]
+std = ["failure/std"]
 
-### Targets ##################################################################
+### Targets ####################################################################
 
 [[test]]
 name = "core_test"
-required-features = [ "std" ]
+required-features = ["std"]
 
 [[example]]
 name = "encode_torrent"
-required-features = [ "std" ]
+required-features = ["std"]
