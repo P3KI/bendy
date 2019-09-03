@@ -4,6 +4,17 @@ All notable changes to this project will be documented in this file.
 
 ## Unreleased
 
+## 0.2.1 (2019/09/03)
+
+- Add missing [`FromBencode`] implementation for [`BTreeMap`].
+- Introduce `std` as default enabled feature.
+  - Disabling this feature makes bendy `no_std` compatible.
+  - This currently requires that the target provides allocator support and
+    also supports `atomic_cas` as bendy contains a default [`ToBencode`]
+    implementation for `Arc<T: ToBencode>`.
+- Update minimal required rustc version to v1.36 (to use `extern crate alloc`
+  inside tests and examples).
+
 ## 0.2.0 (2019/02/28)
 - Add new `try_into_*` utility methods on [`Object`].
 - Introduce ...
@@ -38,6 +49,7 @@ Initial release
 
 [`AsRef`]: https://doc.rust-lang.org/std/convert/trait.AsRef.html
 [`AsString`]: https://docs.rs/bendy/latest/bendy/encoding/struct.AsString.html
+[`BTreeMap`]: https://doc.rust-lang.org/std/collections/struct.BTreeMap.html
 [`decoder`]: https://docs.rs/bendy/0.1.2/bendy/decoder/index.html
 [`decoding`]: https://docs.rs/bendy/latest/bendy/decoding/index.html
 [`DecodingError`]: https://docs.rs/bendy/latest/bendy/decoding/struct.Error.html
