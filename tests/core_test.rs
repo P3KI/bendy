@@ -417,12 +417,12 @@ enum Error {
 
 impl From<DecodingError> for Error {
     fn from(error: DecodingError) -> Self {
-        Self::DecodingError(error)
+        Error::DecodingError(error)
     }
 }
 
 impl From<EncodingError> for Error {
     fn from(error: EncodingError) -> Self {
-        Self::EncodingError(error)
+        Error::EncodingError(error)
     }
 }

@@ -5,7 +5,7 @@ rust:
   - stable
   - beta
   - nightly
-  - 1.36.0   // stable alloc
+  - 1.36.0   # stable alloc
 
 os:
   - linux
@@ -17,6 +17,14 @@ env:
     - RUST_BACKTRACE=1
 
 script:
-  - cargo clean
-  - cargo build
-  - cargo test
+  - cargo test --all
+  - cargo test --all --no-default-features
+
+matrix:
+  include:
+     - name: "Rust: 1.36 - embedded"
+       rust: 1.36.0
+       install:
+         - rustup target add thumbv7m-none-eabi
+       script:
+         - cargo build --all --no-default-features --target=thumbv7m-none-eabi
