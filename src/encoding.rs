@@ -64,12 +64,12 @@
 //! # }
 //! #
 //! # fn main() -> Result<(), Error> {
-//!     let message = Message{
-//!       foo: 1,
-//!       bar: "quux".to_string(),
-//!     };
+//! let message = Message {
+//!     foo: 1,
+//!     bar: "quux".to_string(),
+//! };
 //!
-//!     message.to_bencode()
+//! message.to_bencode()
 //! #    .map(|_| ())
 //! # }
 //! ```
@@ -93,11 +93,10 @@
 //! # static OBJECT: u32 = 0;
 //! #
 //! # fn main() -> Result<(), Error> {
-//!     let mut encoder = Encoder::new()
-//!       .with_max_depth(ObjectType::MAX_DEPTH + 10);
+//! let mut encoder = Encoder::new().with_max_depth(ObjectType::MAX_DEPTH + 10);
 //!
-//!     encoder.emit(OBJECT)?;
-//!     encoder.get_output()
+//! encoder.emit(OBJECT)?;
+//! encoder.get_output()
 //! #     .map_err(Error::from)
 //! #     .map(|_| ()) // ignore a success return value
 //! # }

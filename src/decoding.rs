@@ -19,8 +19,7 @@
 //! # use bendy::decoding::{Decoder};
 //! #
 //! # let buf: &[u8] = b"d3:fooi1ee";
-//! let _decoder = Decoder::new(buf)
-//!   .with_max_depth(3);
+//! let _decoder = Decoder::new(buf).with_max_depth(3);
 //! ```
 //!
 //! Atoms (integers and strings) have depth zero, and lists and dicts have a depth equal to the
@@ -42,7 +41,7 @@
 //!     Some(Object::List(d)) => decode_list(d),
 //!     Some(Object::Dict(d)) => decode_dict(d),
 //!     Some(Object::Integer(_)) => (), // integer, as a string
-//!     Some(Object::Bytes(_)) => (), // A raw bytestring
+//!     Some(Object::Bytes(_)) => (),   // A raw bytestring
 //! };
 //! ```
 //!

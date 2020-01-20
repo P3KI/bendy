@@ -128,11 +128,11 @@ impl Encoder {
     /// # use bendy::encoding::{Encoder, Error};
     /// #
     /// # fn main() -> Result<(), Error>{
-    ///     let mut encoder = Encoder::new();
-    ///     encoder.emit_dict(|mut e| {
-    ///       e.emit_pair(b"a", "foo")?;
-    ///       e.emit_pair(b"b", 2)
-    ///     })
+    /// let mut encoder = Encoder::new();
+    /// encoder.emit_dict(|mut e| {
+    ///     e.emit_pair(b"a", "foo")?;
+    ///     e.emit_pair(b"b", 2)
+    /// })
     /// # }
     /// ```
     pub fn emit_dict<F>(&mut self, content_cb: F) -> Result<(), Error>
@@ -179,12 +179,12 @@ impl Encoder {
     /// # use bendy::encoding::{Encoder, Error};
     /// #
     /// # fn main() -> Result<(), Error> {
-    ///     let mut encoder = Encoder::new();
-    ///     encoder.emit_and_sort_dict(|e| {
-    ///       // Unlike in the example for Encoder::emit_dict(), these keys aren't sorted
-    ///       e.emit_pair(b"b", 2)?;
-    ///       e.emit_pair(b"a", "foo")
-    ///     })
+    /// let mut encoder = Encoder::new();
+    /// encoder.emit_and_sort_dict(|e| {
+    ///     // Unlike in the example for Encoder::emit_dict(), these keys aren't sorted
+    ///     e.emit_pair(b"b", 2)?;
+    ///     e.emit_pair(b"a", "foo")
+    /// })
     /// # }
     /// ```
     pub fn emit_and_sort_dict<F>(&mut self, content_cb: F) -> Result<(), Error>
