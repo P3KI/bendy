@@ -1,9 +1,5 @@
-#[cfg(not(feature = "std"))]
 use alloc::format;
-#[cfg(not(feature = "std"))]
 use core::str;
-#[cfg(feature = "std")]
-use std::{format, str};
 
 use crate::{
     decoding::{Error, Object},
@@ -363,11 +359,7 @@ mod test {
 
     #[cfg(not(feature = "std"))]
     use alloc::{vec, vec::Vec};
-    #[cfg(not(feature = "std"))]
     use core::iter;
-
-    #[cfg(feature = "std")]
-    use std::iter;
 
     use regex;
 
