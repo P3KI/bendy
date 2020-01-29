@@ -4,6 +4,10 @@ All notable changes to this project will be documented in this file.
 
 ## Unreleased
 
+## 0.2.2 (2020/01/29)
+
+- Make the `no_std` api match the `std` api a little bit more closely.
+
 ## 0.2.1 (2019/09/03)
 
 - Add missing [`FromBencode`] implementation for [`BTreeMap`].
