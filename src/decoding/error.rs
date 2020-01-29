@@ -1,20 +1,16 @@
 #[cfg(not(feature = "std"))]
+use alloc::{str::Utf8Error, string::FromUtf8Error};
+#[cfg(not(feature = "std"))]
+use core::num::ParseIntError;
+
 use alloc::{
     format,
-    string::{FromUtf8Error, String, ToString},
+    string::{String, ToString},
 };
-#[cfg(not(feature = "std"))]
-use core::{
-    fmt::{self, Display, Formatter},
-    num::ParseIntError,
-};
+use core::fmt::{self, Display, Formatter};
 
 #[cfg(feature = "std")]
-use std::{
-    error::Error as StdError,
-    fmt::{self, Display, Formatter},
-    sync::Arc,
-};
+use std::{error::Error as StdError, sync::Arc};
 
 use failure::Fail;
 
@@ -76,6 +72,11 @@ impl Error {
         Self::from(ErrorKind::MalformedContent(error))
     }
 
+    #[cfg(not(feature = "std"))]
+    pub fn malformed_content<T>(_cause: T) -> Error {
+        Self::from(ErrorKind::MalformedContent)
+    }
+
     /// Returns a `Error::MissingField` which contains the name of the field.
     pub fn missing_field(field_name: impl Display) -> Error {
         Self::from(ErrorKind::MissingField(field_name.to_string()))
@@ -121,15 +122,22 @@ impl From<ErrorKind> for Error {
 
 #[cfg(not(feature = "std"))]
 impl From<FromUtf8Error> for Error {
-    fn from(_: FromUtf8Error) -> Self {
-        Self::from(ErrorKind::MalformedContent)
+    fn from(err: FromUtf8Error) -> Self {
+        Self::malformed_content(err)
+    }
+}
+
+#[cfg(not(feature = "std"))]
+impl From<Utf8Error> for Error {
+    fn from(err: Utf8Error) -> Self {
+        Self::malformed_content(err)
     }
 }
 
 #[cfg(not(feature = "std"))]
 impl From<ParseIntError> for Error {
-    fn from(_: ParseIntError) -> Self {
-        Self::from(ErrorKind::MalformedContent)
+    fn from(err: ParseIntError) -> Self {
+        Self::malformed_content(err)
     }
 }
 

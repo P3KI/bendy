@@ -28,10 +28,18 @@ pub enum ErrorKind {
 impl Error {
     /// Raised when there is a general error while deserializing a type.
     /// The message should not be capitalized and should not end with a period.
+    ///
+    /// Note that, when building with no_std, this method accepts any type as
+    /// its argument.
     #[cfg(feature = "std")]
     pub fn malformed_content(cause: impl Into<failure::Error>) -> Error {
         let error = Arc::new(cause.into());
         Self(ErrorKind::MalformedContent(error))
+    }
+
+    #[cfg(not(feature = "std"))]
+    pub fn malformed_content<T>(_cause: T) -> Error {
+        Self(ErrorKind::MalformedContent)
     }
 }
 

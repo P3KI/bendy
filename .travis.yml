@@ -28,3 +28,10 @@ matrix:
          - rustup target add thumbv7m-none-eabi
        script:
          - cargo build --all --no-default-features --target=thumbv7m-none-eabi
+     - name: "Rust 1.38 - Windows"
+       rust: 1.38.0
+       os: windows
+  exclude:
+     # backtrace on Windows requires 1.38
+     - os: windows
+       rust: 1.36.0
