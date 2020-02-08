@@ -12,7 +12,7 @@ end_of_line = lf
 insert_final_newline = true
 # Soft tabs
 indent_style = space
-# Two-space indentation
+# Four-space indentation
 indent_size = 4
 # Trim trailing whitespace
 trim_trailing_whitespace = true
