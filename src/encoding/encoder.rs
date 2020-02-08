@@ -36,7 +36,7 @@ impl Encoder {
     }
 
     /// Emit a single token to the encoder
-    fn emit_token(&mut self, token: Token) -> Result<(), Error> {
+    pub(crate) fn emit_token(&mut self, token: Token) -> Result<(), Error> {
         self.state.check_error()?;
         self.state.observe_token(&token)?;
         match token {
@@ -192,31 +192,48 @@ impl Encoder {
     where
         F: FnOnce(&mut UnsortedDictEncoder) -> Result<(), Error>,
     {
-        // emit the dict token so that a pre-existing state error is reported early
-        self.emit_token(Token::Dict)?;
+        let mut encoder = self.begin_unsorted_dict()?;
 
-        let mut encoder = UnsortedDictEncoder {
-            content: BTreeMap::new(),
-            error: Ok(()),
-            remaining_depth: self.state.remaining_depth(),
-        };
         content_cb(&mut encoder)?;
 
-        encoder.error?;
-        for (k, v) in encoder.content {
-            self.emit_bytes(&k)?;
-            // We know that the output is a single object by construction
-            self.state.observe_token(&Token::Num(""))?;
-            self.output.extend_from_slice(&v);
-        }
-
-        self.emit_token(Token::End)
+        self.end_unsorted_dict(encoder)
     }
 
     /// Return the encoded string, if all objects written are complete
     pub fn get_output(mut self) -> Result<Vec<u8>, Error> {
         self.state.observe_eof()?;
         Ok(self.output)
+    }
+
+    #[cfg(feature = "serde")]
+    pub(crate) fn remaining_depth(&self) -> usize {
+        self.state.remaining_depth()
+    }
+
+    pub(crate) fn begin_unsorted_dict(&mut self) -> Result<UnsortedDictEncoder, Error> {
+        // emit the dict token so that a pre-existing state error is reported early
+        self.emit_token(Token::Dict)?;
+
+        Ok(UnsortedDictEncoder {
+            content: BTreeMap::new(),
+            error: Ok(()),
+            remaining_depth: self.state.remaining_depth(),
+        })
+    }
+
+    pub(crate) fn end_unsorted_dict(&mut self, encoder: UnsortedDictEncoder) -> Result<(), Error> {
+        let content = encoder.done()?;
+
+        for (k, v) in content {
+            self.emit_bytes(&k)?;
+            // We know that the output is a single object by construction
+            self.state.observe_token(&Token::Num(""))?;
+            self.output.extend_from_slice(&v);
+        }
+
+        self.emit_token(Token::End)?;
+
+        Ok(())
     }
 }
 
@@ -410,6 +427,11 @@ impl UnsortedDictEncoder {
         vacancy.insert(encoded_object);
 
         Ok(())
+    }
+
+    fn done(self) -> Result<BTreeMap<Vec<u8>, Vec<u8>>, Error> {
+        self.error?;
+        Ok(self.content)
     }
 }
 

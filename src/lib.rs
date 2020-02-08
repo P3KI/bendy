@@ -12,3 +12,6 @@ extern crate alloc;
 pub mod decoding;
 pub mod encoding;
 pub mod state_tracker;
+
+#[cfg(feature = "serde")]
+pub mod serde;
