@@ -2,9 +2,11 @@
 
 use crate::serde::common::*;
 
-mod struct_serializer;
-
+pub use map_serializer::MapSerializer;
 pub use struct_serializer::StructSerializer;
+
+mod map_serializer;
+mod struct_serializer;
 
 /// Serialize an instance of `T` to bencode
 pub fn to_bytes<T>(value: &T) -> Result<Vec<u8>>
@@ -40,21 +42,37 @@ impl Serializer {
     pub fn into_bytes(self) -> Result<Vec<u8>> {
         Ok(self.encoder.get_output()?)
     }
+
+    fn emit_empty_list(&mut self) -> Result<()> {
+        self.encoder.emit_list(|_| Ok(()))?;
+        Ok(())
+    }
+
+    fn begin_struct(&mut self) -> Result<StructSerializer> {
+        let encoder = self.encoder.begin_unsorted_dict()?;
+        Ok(StructSerializer::new(&mut self.encoder, encoder))
+    }
+
+    fn begin_map(&mut self) -> Result<MapSerializer> {
+        let encoder = self.encoder.begin_unsorted_dict()?;
+        Ok(MapSerializer::new(&mut self.encoder, encoder))
+    }
 }
 
 impl<'a> serde::ser::Serializer for &'a mut Serializer {
     type Error = Error;
     type Ok = ();
-    type SerializeMap = Self;
+    type SerializeMap = MapSerializer<'a>;
     type SerializeSeq = Self;
     type SerializeStruct = StructSerializer<'a>;
-    type SerializeStructVariant = Self;
+    type SerializeStructVariant = StructSerializer<'a>;
     type SerializeTuple = Self;
     type SerializeTupleStruct = Self;
     type SerializeTupleVariant = Self;
 
-    fn serialize_bool(self, _v: bool) -> Result<()> {
-        Err(Error::unsupported_type("bool"))
+    fn serialize_bool(self, v: bool) -> Result<()> {
+        self.encoder.emit(if v { 1 } else { 0 })?;
+        Ok(())
     }
 
     fn serialize_i8(self, v: i8) -> Result<()> {
@@ -107,16 +125,19 @@ impl<'a> serde::ser::Serializer for &'a mut Serializer {
         Ok(())
     }
 
-    fn serialize_f32(self, _v: f32) -> Result<()> {
-        Err(Error::unsupported_type("f32"))
+    fn serialize_f32(self, v: f32) -> Result<()> {
+        let bytes = v.to_be_bytes();
+        self.serialize_bytes(&bytes)
     }
 
-    fn serialize_f64(self, _v: f64) -> Result<()> {
-        Err(Error::unsupported_type("f64"))
+    fn serialize_f64(self, v: f64) -> Result<()> {
+        let bytes = v.to_be_bytes();
+        self.serialize_bytes(&bytes)
     }
 
-    fn serialize_char(self, _v: char) -> Result<()> {
-        Err(Error::unsupported_type("char"))
+    fn serialize_char(self, v: char) -> Result<()> {
+        let mut buffer: [u8; 4] = [0; 4];
+        self.serialize_str(v.encode_utf8(&mut buffer))
     }
 
     fn serialize_str(self, v: &str) -> Result<()> {
@@ -129,31 +150,25 @@ impl<'a> serde::ser::Serializer for &'a mut Serializer {
     }
 
     fn serialize_none(self) -> Result<()> {
-        Err(Error::unsupported_type("Option"))
+        self.emit_empty_list()
     }
 
-    fn serialize_some<T>(self, _value: &T) -> Result<()>
+    fn serialize_some<T>(self, value: &T) -> Result<()>
     where
         T: ?Sized + Serialize,
     {
-        Err(Error::unsupported_type("Option"))
+        self.encoder.emit_token(Token::List)?;
+        value.serialize(&mut *self)?;
+        self.encoder.emit_token(Token::End)?;
+        Ok(())
     }
 
     fn serialize_unit(self) -> Result<()> {
-        Err(Error::unsupported_type("()"))
+        self.emit_empty_list()
     }
 
     fn serialize_unit_struct(self, _name: &'static str) -> Result<()> {
-        Err(Error::unsupported_type("unit struct"))
-    }
-
-    fn serialize_unit_variant(
-        self,
-        _name: &'static str,
-        _variant_index: u32,
-        _variant: &'static str,
-    ) -> Result<()> {
-        Err(Error::unsupported_type("enum unit variant"))
+        self.emit_empty_list()
     }
 
     fn serialize_newtype_struct<T>(self, _name: &'static str, value: &T) -> Result<()>
@@ -161,19 +176,6 @@ impl<'a> serde::ser::Serializer for &'a mut Serializer {
         T: ?Sized + Serialize,
     {
         value.serialize(self)
-    }
-
-    fn serialize_newtype_variant<T>(
-        self,
-        _name: &'static str,
-        _variant_index: u32,
-        _variant: &'static str,
-        _value: &T,
-    ) -> Result<()>
-    where
-        T: ?Sized + Serialize,
-    {
-        Err(Error::unsupported_type("enum newtype variant"))
     }
 
     fn serialize_seq(self, _len: Option<usize>) -> Result<Self::SerializeSeq> {
@@ -195,33 +197,63 @@ impl<'a> serde::ser::Serializer for &'a mut Serializer {
         Ok(self)
     }
 
+    fn serialize_map(self, _len: Option<usize>) -> Result<Self::SerializeMap> {
+        self.begin_map()
+    }
+
+    fn serialize_unit_variant(
+        self,
+        _name: &'static str,
+        _variant_index: u32,
+        variant: &'static str,
+    ) -> Result<()> {
+        self.serialize_str(variant)
+    }
+
+    fn serialize_newtype_variant<T>(
+        self,
+        _name: &'static str,
+        _variant_index: u32,
+        variant: &'static str,
+        value: &T,
+    ) -> Result<()>
+    where
+        T: ?Sized + Serialize,
+    {
+        self.encoder.emit_token(Token::Dict)?;
+        self.serialize_str(variant)?;
+        value.serialize(&mut *self)?;
+        self.encoder.emit_token(Token::End)?;
+        Ok(())
+    }
+
+    fn serialize_struct(self, _name: &'static str, _len: usize) -> Result<Self::SerializeStruct> {
+        self.begin_struct()
+    }
+
     fn serialize_tuple_variant(
         self,
         _name: &'static str,
         _variant_index: u32,
-        _variant: &'static str,
+        variant: &'static str,
         _len: usize,
     ) -> Result<Self::SerializeTupleVariant> {
-        Err(Error::unsupported_type("enum tuple variant"))
-    }
-
-    fn serialize_map(self, _len: Option<usize>) -> Result<Self::SerializeMap> {
-        Err(Error::unsupported_type("map"))
-    }
-
-    fn serialize_struct(self, _name: &'static str, _len: usize) -> Result<Self::SerializeStruct> {
-        let encoder = self.encoder.begin_unsorted_dict()?;
-        Ok(StructSerializer::new(&mut self.encoder, encoder))
+        self.encoder.emit_token(Token::Dict)?;
+        self.serialize_str(variant)?;
+        self.encoder.emit_token(Token::List)?;
+        Ok(self)
     }
 
     fn serialize_struct_variant(
         self,
         _name: &'static str,
         _variant_index: u32,
-        _variant: &'static str,
+        variant: &'static str,
         _len: usize,
     ) -> Result<Self::SerializeStructVariant> {
-        Err(Error::unsupported_type("enum struct variant"))
+        self.encoder.emit_token(Token::Dict)?;
+        self.serialize_str(variant)?;
+        self.begin_struct()
     }
 }
 
@@ -303,15 +335,17 @@ impl<'a> SerializeTupleVariant for &'a mut Serializer {
     type Error = Error;
     type Ok = ();
 
-    fn serialize_field<T>(&mut self, _value: &T) -> Result<()>
+    fn serialize_field<T>(&mut self, value: &T) -> Result<()>
     where
         T: ?Sized + Serialize,
     {
-        unreachable!()
+        value.serialize(&mut **self)
     }
 
     fn end(self) -> Result<()> {
-        unreachable!()
+        self.encoder.emit_token(Token::End)?;
+        self.encoder.emit_token(Token::End)?;
+        Ok(())
     }
 }
 
@@ -327,6 +361,8 @@ impl<'a> SerializeStructVariant for &'a mut Serializer {
     }
 
     fn end(self) -> Result<()> {
-        unreachable!()
+        self.encoder.emit_token(Token::End)?;
+        self.encoder.emit_token(Token::End)?;
+        Ok(())
     }
 }

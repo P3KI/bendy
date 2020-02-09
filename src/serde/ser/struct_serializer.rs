@@ -13,13 +13,8 @@ impl<'outer> StructSerializer<'outer> {
     ) -> StructSerializer<'outer> {
         StructSerializer { encoder, outer }
     }
-}
 
-impl<'outer> SerializeStruct for StructSerializer<'outer> {
-    type Error = Error;
-    type Ok = ();
-
-    fn serialize_field<T>(&mut self, key: &'static str, value: &T) -> Result<()>
+    fn save_field<T>(&mut self, key: &'static str, value: &T) -> Result<()>
     where
         T: ?Sized + Serialize,
     {
@@ -31,9 +26,39 @@ impl<'outer> SerializeStruct for StructSerializer<'outer> {
 
         Ok(())
     }
+}
+
+impl<'outer> SerializeStruct for StructSerializer<'outer> {
+    type Error = Error;
+    type Ok = ();
+
+    fn serialize_field<T>(&mut self, key: &'static str, value: &T) -> Result<()>
+    where
+        T: ?Sized + Serialize,
+    {
+        self.save_field(key, value)
+    }
 
     fn end(self) -> Result<()> {
         self.outer.end_unsorted_dict(self.encoder)?;
+        Ok(())
+    }
+}
+
+impl<'outer> SerializeStructVariant for StructSerializer<'outer> {
+    type Error = Error;
+    type Ok = ();
+
+    fn serialize_field<T>(&mut self, key: &'static str, value: &T) -> Result<()>
+    where
+        T: ?Sized + Serialize,
+    {
+        self.save_field(key, value)
+    }
+
+    fn end(self) -> Result<()> {
+        self.outer.end_unsorted_dict(self.encoder)?;
+        self.outer.emit_token(Token::End)?;
         Ok(())
     }
 }

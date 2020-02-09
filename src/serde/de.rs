@@ -81,6 +81,12 @@ impl<'de> Deserializer<'de> {
         }
     }
 
+    fn expect_empty_list(&mut self) -> Result<()> {
+        self.expect_list_begin()?;
+        self.expect_end()?;
+        Ok(())
+    }
+
     fn peek_end(&mut self) -> bool {
         self.peek() == Some(Token::End)
     }
@@ -97,18 +103,29 @@ impl<'de> Deserializer<'de> {
 impl<'de, 'a> serde::de::Deserializer<'de> for &'a mut Deserializer<'de> {
     type Error = Error;
 
-    fn deserialize_any<V>(self, _visitor: V) -> Result<V::Value>
+    fn deserialize_any<V>(self, visitor: V) -> Result<V::Value>
     where
         V: Visitor<'de>,
     {
-        Err(Error::UnsupportedSelfDescribing)
+        match self.peek() {
+            Some(Token::Dict) => self.deserialize_map(visitor),
+            Some(Token::String(_)) => self.deserialize_bytes(visitor),
+            Some(Token::List) => self.deserialize_seq(visitor),
+            Some(Token::Num(_)) => self.deserialize_i64(visitor),
+            Some(Token::End) => Err(Error::Decode(StructureError::invalid_state("End").into())),
+            None => Err(Error::Decode(StructureError::UnexpectedEof.into())),
+        }
     }
 
-    fn deserialize_bool<V>(self, _visitor: V) -> Result<V::Value>
+    fn deserialize_bool<V>(self, visitor: V) -> Result<V::Value>
     where
         V: Visitor<'de>,
     {
-        Err(Error::unsupported_type("bool"))
+        match self.next_integer()? {
+            "0" => visitor.visit_bool(false),
+            "1" => visitor.visit_bool(true),
+            other => Err(Error::InvalidBool(other.to_owned())),
+        }
     }
 
     fn deserialize_i8<V>(self, visitor: V) -> Result<V::Value>
@@ -181,25 +198,42 @@ impl<'de, 'a> serde::de::Deserializer<'de> for &'a mut Deserializer<'de> {
         visitor.visit_u128(self.next_integer()?.parse()?)
     }
 
-    fn deserialize_f32<V>(self, _visitor: V) -> Result<V::Value>
+    fn deserialize_f32<V>(self, visitor: V) -> Result<V::Value>
     where
         V: Visitor<'de>,
     {
-        Err(Error::unsupported_type("f32"))
+        let bytes = self.next_bytes()?;
+        let value = f32::from_be_bytes(
+            bytes
+                .try_into()
+                .map_err(|_| Error::InvalidF32(bytes.len()))?,
+        );
+        visitor.visit_f32(value)
     }
 
-    fn deserialize_f64<V>(self, _visitor: V) -> Result<V::Value>
+    fn deserialize_f64<V>(self, visitor: V) -> Result<V::Value>
     where
         V: Visitor<'de>,
     {
-        Err(Error::unsupported_type("f64"))
+        let bytes = self.next_bytes()?;
+        let value = f64::from_be_bytes(
+            bytes
+                .try_into()
+                .map_err(|_| Error::InvalidF64(bytes.len()))?,
+        );
+        visitor.visit_f64(value)
     }
 
-    fn deserialize_char<V>(self, _visitor: V) -> Result<V::Value>
+    fn deserialize_char<V>(self, visitor: V) -> Result<V::Value>
     where
         V: Visitor<'de>,
     {
-        Err(Error::unsupported_type("char"))
+        let s: &str = self.next_string()?;
+        let count = s.chars().count();
+        if count != 1 {
+            return Err(Error::InvalidChar(count));
+        }
+        visitor.visit_char(s.chars().next().unwrap())
     }
 
     fn deserialize_str<V>(self, visitor: V) -> Result<V::Value>
@@ -230,25 +264,33 @@ impl<'de, 'a> serde::de::Deserializer<'de> for &'a mut Deserializer<'de> {
         self.deserialize_bytes(visitor)
     }
 
-    fn deserialize_option<V>(self, _visitor: V) -> Result<V::Value>
+    fn deserialize_option<V>(self, visitor: V) -> Result<V::Value>
     where
         V: Visitor<'de>,
     {
-        Err(Error::unsupported_type("Option"))
+        self.expect_list_begin()?;
+        let value = if self.peek_end() {
+            visitor.visit_none()
+        } else {
+            visitor.visit_some(&mut *self)
+        };
+        self.expect_end()?;
+        value
     }
 
-    fn deserialize_unit<V>(self, _visitor: V) -> Result<V::Value>
+    fn deserialize_unit<V>(self, visitor: V) -> Result<V::Value>
     where
         V: Visitor<'de>,
     {
-        Err(Error::unsupported_type("()"))
+        self.expect_empty_list()?;
+        visitor.visit_unit()
     }
 
-    fn deserialize_unit_struct<V>(self, _name: &'static str, _visitor: V) -> Result<V::Value>
+    fn deserialize_unit_struct<V>(self, _name: &'static str, visitor: V) -> Result<V::Value>
     where
         V: Visitor<'de>,
     {
-        Err(Error::unsupported_type("unit struct"))
+        self.deserialize_unit(visitor)
     }
 
     fn deserialize_newtype_struct<V>(self, _name: &'static str, visitor: V) -> Result<V::Value>
@@ -287,11 +329,14 @@ impl<'de, 'a> serde::de::Deserializer<'de> for &'a mut Deserializer<'de> {
         self.deserialize_seq(visitor)
     }
 
-    fn deserialize_map<V>(self, _visitor: V) -> Result<V::Value>
+    fn deserialize_map<V>(self, visitor: V) -> Result<V::Value>
     where
         V: Visitor<'de>,
     {
-        Err(Error::unsupported_type("map"))
+        self.expect_dict_begin()?;
+        let value = visitor.visit_map(&mut *self)?;
+        self.expect_end()?;
+        Ok(value)
     }
 
     fn deserialize_struct<V>(
@@ -313,12 +358,17 @@ impl<'de, 'a> serde::de::Deserializer<'de> for &'a mut Deserializer<'de> {
         self,
         _name: &'static str,
         _variants: &'static [&'static str],
-        _visitor: V,
+        visitor: V,
     ) -> Result<V::Value>
     where
         V: Visitor<'de>,
     {
-        Err(Error::unsupported_type("enum"))
+        if self.peek() == Some(Token::Dict) {
+            self.expect_dict_begin()?;
+            visitor.visit_enum(self)
+        } else {
+            visitor.visit_enum(self.next_string()?.into_deserializer())
+        }
     }
 
     fn deserialize_identifier<V>(self, visitor: V) -> Result<V::Value>
@@ -328,11 +378,11 @@ impl<'de, 'a> serde::de::Deserializer<'de> for &'a mut Deserializer<'de> {
         self.deserialize_str(visitor)
     }
 
-    fn deserialize_ignored_any<V>(self, _visitor: V) -> Result<V::Value>
+    fn deserialize_ignored_any<V>(self, visitor: V) -> Result<V::Value>
     where
         V: Visitor<'de>,
     {
-        Err(Error::UnsupportedSelfDescribing)
+        self.deserialize_any(visitor)
     }
 }
 
@@ -375,11 +425,11 @@ impl<'de> EnumAccess<'de> for &mut Deserializer<'de> {
     type Error = Error;
     type Variant = Self;
 
-    fn variant_seed<V>(self, _seed: V) -> Result<(V::Value, Self)>
+    fn variant_seed<V>(self, seed: V) -> Result<(V::Value, Self)>
     where
         V: DeserializeSeed<'de>,
     {
-        unreachable!()
+        Ok((seed.deserialize(&mut *self)?, self))
     }
 }
 
@@ -387,27 +437,33 @@ impl<'de> VariantAccess<'de> for &mut Deserializer<'de> {
     type Error = Error;
 
     fn unit_variant(self) -> Result<()> {
-        unreachable!()
+        Ok(())
     }
 
-    fn newtype_variant_seed<T>(self, _seed: T) -> Result<T::Value>
+    fn newtype_variant_seed<T>(self, seed: T) -> Result<T::Value>
     where
         T: DeserializeSeed<'de>,
     {
-        unreachable!()
+        let value = seed.deserialize(&mut *self)?;
+        self.expect_end()?;
+        Ok(value)
     }
 
-    fn tuple_variant<V>(self, _len: usize, _visitor: V) -> Result<V::Value>
+    fn tuple_variant<V>(self, _len: usize, visitor: V) -> Result<V::Value>
     where
         V: Visitor<'de>,
     {
-        unreachable!()
+        let value = serde::de::Deserializer::deserialize_seq(&mut *self, visitor)?;
+        self.expect_end()?;
+        Ok(value)
     }
 
-    fn struct_variant<V>(self, _fields: &'static [&'static str], _visitor: V) -> Result<V::Value>
+    fn struct_variant<V>(self, _fields: &'static [&'static str], visitor: V) -> Result<V::Value>
     where
         V: Visitor<'de>,
     {
-        unreachable!()
+        let value = serde::de::Deserializer::deserialize_map(&mut *self, visitor)?;
+        self.expect_end()?;
+        Ok(value)
     }
 }
