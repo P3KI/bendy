@@ -19,3 +19,5 @@ pub mod state_tracker;
 
 #[cfg(feature = "serde")]
 pub mod serde;
+
+pub mod value;
