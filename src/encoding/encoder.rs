@@ -29,6 +29,7 @@ impl Encoder {
     }
 
     /// Set the max depth of the encoded object
+    #[must_use]
     pub fn with_max_depth(mut self, max_depth: usize) -> Self {
         self.state.set_max_depth(max_depth);
         self
