@@ -72,7 +72,7 @@ impl<'a> serde::ser::Serializer for &'a mut Serializer {
     type SerializeTupleVariant = Self;
 
     fn serialize_bool(self, _v: bool) -> Result<()> {
-        panic!("bendy::Serializer::serialize_bool: not supported");
+        Err(Error::unsupported_type("bool"))
     }
 
     fn serialize_i8(self, v: i8) -> Result<()> {
@@ -126,15 +126,15 @@ impl<'a> serde::ser::Serializer for &'a mut Serializer {
     }
 
     fn serialize_f32(self, _v: f32) -> Result<()> {
-        panic!("bendy::Serializer::serialize_f32: not supported");
+        Err(Error::unsupported_type("f32"))
     }
 
     fn serialize_f64(self, _v: f64) -> Result<()> {
-        panic!("bendy::Serializer::serialize_f64: not supported");
+        Err(Error::unsupported_type("f64"))
     }
 
     fn serialize_char(self, _v: char) -> Result<()> {
-        panic!("bendy::Serializer::serialize_char: not supported");
+        Err(Error::unsupported_type("char"))
     }
 
     fn serialize_str(self, v: &str) -> Result<()> {
@@ -147,22 +147,22 @@ impl<'a> serde::ser::Serializer for &'a mut Serializer {
     }
 
     fn serialize_none(self) -> Result<()> {
-        panic!("bendy::Serializer::serialize_none: not supported");
+        Err(Error::unsupported_type("Option"))
     }
 
     fn serialize_some<T>(self, _value: &T) -> Result<()>
     where
         T: ?Sized + Serialize,
     {
-        panic!("bendy::Serializer::serialize_some: not supported");
+        Err(Error::unsupported_type("Option"))
     }
 
     fn serialize_unit(self) -> Result<()> {
-        panic!("bendy::Serializer::serialize_unit: not supported");
+        Err(Error::unsupported_type("()"))
     }
 
     fn serialize_unit_struct(self, _name: &'static str) -> Result<()> {
-        panic!("bendy::Serializer::serialize_unit_struct: not supported");
+        Err(Error::unsupported_type("unit struct"))
     }
 
     fn serialize_unit_variant(
@@ -171,7 +171,7 @@ impl<'a> serde::ser::Serializer for &'a mut Serializer {
         _variant_index: u32,
         _variant: &'static str,
     ) -> Result<()> {
-        panic!("bendy::Serializer::serialize_unit_variant: not supported");
+        Err(Error::unsupported_type("enum unit variant"))
     }
 
     fn serialize_newtype_struct<T>(self, _name: &'static str, value: &T) -> Result<()>
@@ -191,7 +191,7 @@ impl<'a> serde::ser::Serializer for &'a mut Serializer {
     where
         T: ?Sized + Serialize,
     {
-        panic!("bendy::Serializer::serialize_newtype_variant: not supported");
+        Err(Error::unsupported_type("enum newtype variant"))
     }
 
     fn serialize_seq(self, _len: Option<usize>) -> Result<Self::SerializeSeq> {
@@ -220,11 +220,11 @@ impl<'a> serde::ser::Serializer for &'a mut Serializer {
         _variant: &'static str,
         _len: usize,
     ) -> Result<Self::SerializeTupleVariant> {
-        panic!("bendy::Serializer::serialize_tuple_variant: not supported");
+        Err(Error::unsupported_type("enum tuple variant"))
     }
 
     fn serialize_map(self, _len: Option<usize>) -> Result<Self::SerializeMap> {
-        panic!("bendy::Serializer::serialize_map: not supported");
+        Err(Error::unsupported_type("map"))
     }
 
     fn serialize_struct(self, _name: &'static str, _len: usize) -> Result<Self::SerializeStruct> {
@@ -238,7 +238,7 @@ impl<'a> serde::ser::Serializer for &'a mut Serializer {
         _variant: &'static str,
         _len: usize,
     ) -> Result<Self::SerializeStructVariant> {
-        panic!("bendy::Serializer::serialize_struct_variant: not supported");
+        Err(Error::unsupported_type("enum struct variant"))
     }
 }
 

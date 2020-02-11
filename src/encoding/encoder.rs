@@ -387,10 +387,7 @@ impl UnsortedDictEncoder {
         let vacancy = match self.content.entry(key.to_owned()) {
             Entry::Vacant(vacancy) => vacancy,
             Entry::Occupied(occupation) => {
-                self.error = Err(Error::from(StructureError::InvalidState(format!(
-                    "Duplicate key {}",
-                    String::from_utf8_lossy(occupation.key())
-                ))));
+                self.error = Err(Error::from(StructureError::duplicate_key(occupation.key())));
                 return self.error.clone();
             },
         };

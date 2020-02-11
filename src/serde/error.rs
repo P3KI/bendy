@@ -11,10 +11,21 @@ pub enum Error {
     CustomEncode(String),
     /// Error that occurs if a serde-related error occurs during deserialization
     CustomDecode(String),
+    /// Error that occurs if the serializer or deserializer encounters an unsupported type
+    UnsupportedType(&'static str),
+    /// Error that occurs if the deserializer is used in a way that requires a self-describing
+    /// format, which is not yet supported
+    UnsupportedSelfDescribing,
     /// Error that occurs if a problem is encountered during serialization
     Encode(encoding::Error),
     /// Error that occurs if a problem is encountered during deserialization
     Decode(decoding::Error),
+}
+
+impl Error {
+    pub(crate) fn unsupported_type(name: &'static str) -> Error {
+        Self::UnsupportedType(name)
+    }
 }
 
 impl From<encoding::Error> for Error {
@@ -63,6 +74,15 @@ impl Display for Error {
             Self::CustomDecode(message) => write!(f, "Deserialization failed: {}", message),
             Self::Encode(error) => write!(f, "{}", error),
             Self::Decode(error) => write!(f, "{}", error),
+            Self::UnsupportedType(name) => write!(
+                f,
+                "Serializing and deserializing values of type `{}` is not supported",
+                name
+            ),
+            Self::UnsupportedSelfDescribing => write!(
+                f,
+                "Deserialization that requires a self-describing format is not yet supported"
+            ),
         }
     }
 }

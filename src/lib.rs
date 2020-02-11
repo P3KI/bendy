@@ -9,6 +9,10 @@
 
 extern crate alloc;
 
+#[cfg(test)]
+#[macro_use]
+mod assert_matches;
+
 pub mod decoding;
 pub mod encoding;
 pub mod state_tracker;

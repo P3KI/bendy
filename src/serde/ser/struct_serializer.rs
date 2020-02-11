@@ -31,7 +31,9 @@ impl<'outer> SerializeStruct for StructSerializer<'outer> {
         T: ?Sized + Serialize,
     {
         if self.contents.contains_key(key) {
-            panic!("bendy::StructSerializer::serialize_field: serialize_field called with duplicate field name")
+            return Err(Error::Encode(
+                StructureError::duplicate_key(key.as_bytes()).into(),
+            ));
         }
 
         let mut serializer = Serializer::with_max_depth(self.remaining_depth);

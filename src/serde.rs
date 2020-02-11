@@ -225,129 +225,125 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "serialize_bool: not supported")]
     fn unsupported_bool_serialize() {
-        to_bytes(&true).ok();
+        assert_matches!(to_bytes(&true), Err(Error::UnsupportedType("bool")));
     }
 
     #[test]
-    #[should_panic(expected = "deserialize_bool: not supported")]
     fn unsupported_bool_deserialize() {
-        from_bytes::<bool>(b"").ok();
+        assert_matches!(from_bytes::<bool>(b""), Err(Error::UnsupportedType("bool")));
     }
 
     #[test]
-    #[should_panic(expected = "deserialize_f32: not supported")]
     fn unsupported_f32_deserialize() {
-        from_bytes::<f32>(b"").ok();
+        assert_matches!(from_bytes::<f32>(b""), Err(Error::UnsupportedType("f32")));
     }
 
     #[test]
-    #[should_panic(expected = "serialize_f32: not supported")]
     fn unsupported_f32_serialize() {
-        to_bytes(&0f32).ok();
+        assert_matches!(to_bytes(&0f32), Err(Error::UnsupportedType("f32")));
     }
 
     #[test]
-    #[should_panic(expected = "deserialize_f64: not supported")]
     fn unsupported_f64_deserialize() {
-        from_bytes::<f64>(b"").ok();
+        assert_matches!(from_bytes::<f64>(b""), Err(Error::UnsupportedType("f64")));
     }
 
     #[test]
-    #[should_panic(expected = "serialize_f64: not supported")]
     fn unsupported_f64_serialize() {
-        to_bytes(&0f64).ok();
+        assert_matches!(to_bytes(&0f64), Err(Error::UnsupportedType("f64")));
     }
 
     #[test]
-    #[should_panic(expected = "deserialize_option: not supported")]
     fn unsupported_option_deserialize() {
-        from_bytes::<Option<()>>(b"").ok();
+        assert_matches!(
+            from_bytes::<Option<u8>>(b""),
+            Err(Error::UnsupportedType("Option"))
+        );
     }
 
     #[test]
-    #[should_panic(expected = "serialize_some: not supported")]
     fn unsupported_some_serialize() {
-        to_bytes(&Some(0)).ok();
+        assert_matches!(to_bytes(&Some(0)), Err(Error::UnsupportedType("Option")));
     }
 
     #[test]
-    #[should_panic(expected = "serialize_none: not supported")]
     fn unsupported_none_serialize() {
-        to_bytes::<Option<u8>>(&None).ok();
+        assert_matches!(
+            to_bytes::<Option<u8>>(&None),
+            Err(Error::UnsupportedType("Option"))
+        );
     }
 
     #[test]
-    #[should_panic(expected = "deserialize_unit: not supported")]
     fn unsupported_unit_deserialize() {
-        from_bytes::<()>(b"").ok();
+        assert_matches!(from_bytes::<()>(b""), Err(Error::UnsupportedType("()")));
     }
 
     #[test]
-    #[should_panic(expected = "serialize_unit: not supported")]
     fn unsupported_unit_serialize() {
-        to_bytes(&()).ok();
+        assert_matches!(to_bytes(&()), Err(Error::UnsupportedType("()")));
     }
 
     #[test]
-    #[should_panic(expected = "deserialize_unit_struct: not supported")]
     fn unsupported_unit_struct_deserialize() {
-        #[derive(Deserialize)]
+        #[derive(Deserialize, Debug)]
         struct Foo;
-        from_bytes::<Foo>(b"").ok();
+        assert_matches!(
+            from_bytes::<Foo>(b""),
+            Err(Error::UnsupportedType("unit struct"))
+        );
     }
 
     #[test]
-    #[should_panic(expected = "serialize_unit_struct: not supported")]
     fn unsupported_unit_struct_serialize() {
         #[derive(Serialize)]
         struct Foo;
-        to_bytes(&Foo).ok();
+        assert_matches!(to_bytes(&Foo), Err(Error::UnsupportedType("unit struct")));
     }
 
     #[test]
-    #[should_panic(expected = "deserialize_char: not supported")]
     fn unsupported_char_deserialize() {
-        from_bytes::<char>(b"").ok();
+        assert_matches!(from_bytes::<char>(b""), Err(Error::UnsupportedType("char")));
     }
 
     #[test]
-    #[should_panic(expected = "serialize_char: not supported")]
     fn unsupported_char_serialize() {
-        to_bytes(&'a').ok();
+        assert_matches!(to_bytes(&'a'), Err(Error::UnsupportedType("char")));
     }
 
     #[test]
-    #[should_panic(expected = "deserialize_map: not supported")]
     fn unsupported_map_deserialize() {
-        from_bytes::<BTreeMap<u8, u8>>(b"").ok();
+        assert_matches!(
+            from_bytes::<BTreeMap<u8, u8>>(b""),
+            Err(Error::UnsupportedType("map"))
+        );
     }
 
     #[test]
-    #[should_panic(expected = "serialize_map: not supported")]
     fn unsupported_map_serialize() {
         let map: BTreeMap<u8, u8> = BTreeMap::new();
-        to_bytes(&map).ok();
+        assert_matches!(to_bytes(&map), Err(Error::UnsupportedType("map")));
     }
 
     #[test]
-    #[should_panic(expected = "deserialize_enum: not supported")]
     fn unsupported_enum_deserialize() {
-        #[derive(Deserialize)]
+        #[derive(Deserialize, Debug)]
         enum Foo {}
-        from_bytes::<Foo>(b"").ok();
+        assert_matches!(from_bytes::<Foo>(b""), Err(Error::UnsupportedType("enum")));
     }
 
     #[test]
-    #[should_panic(expected = "deserialize_any: not supported")]
     fn unsupported_any_deserialize() {
         #[serde(untagged)]
-        #[derive(Deserialize)]
+        #[derive(Deserialize, Debug)]
         pub(crate) enum Foo {
             A { _x: char },
             B { _x: String },
         }
-        from_bytes::<Foo>(b"").ok();
+        assert_matches!(
+            from_bytes::<Foo>(b""),
+            Err(Error::UnsupportedSelfDescribing)
+        );
     }
 }

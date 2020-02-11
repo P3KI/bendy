@@ -41,4 +41,8 @@ impl StructureError {
     pub fn invalid_state(expected: impl Display) -> Self {
         StructureError::InvalidState(expected.to_string())
     }
+
+    pub fn duplicate_key(key: &[u8]) -> Self {
+        StructureError::InvalidState(format!("Duplicate key {}", String::from_utf8_lossy(key)))
+    }
 }

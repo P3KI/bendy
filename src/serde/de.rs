@@ -101,14 +101,14 @@ impl<'de, 'a> serde::de::Deserializer<'de> for &'a mut Deserializer<'de> {
     where
         V: Visitor<'de>,
     {
-        panic!("bendy::Deserialializer::deserialize_any: not supported");
+        Err(Error::UnsupportedSelfDescribing)
     }
 
     fn deserialize_bool<V>(self, _visitor: V) -> Result<V::Value>
     where
         V: Visitor<'de>,
     {
-        panic!("bendy::Deserializer::deserialize_bool: not supported");
+        Err(Error::unsupported_type("bool"))
     }
 
     fn deserialize_i8<V>(self, visitor: V) -> Result<V::Value>
@@ -185,21 +185,21 @@ impl<'de, 'a> serde::de::Deserializer<'de> for &'a mut Deserializer<'de> {
     where
         V: Visitor<'de>,
     {
-        panic!("bendy::Deserializer::deserialize_f32: not supported");
+        Err(Error::unsupported_type("f32"))
     }
 
     fn deserialize_f64<V>(self, _visitor: V) -> Result<V::Value>
     where
         V: Visitor<'de>,
     {
-        panic!("bendy::Deserializer::deserialize_f64: not supported");
+        Err(Error::unsupported_type("f64"))
     }
 
     fn deserialize_char<V>(self, _visitor: V) -> Result<V::Value>
     where
         V: Visitor<'de>,
     {
-        panic!("bendy::Deserializer::deserialize_char: not supported");
+        Err(Error::unsupported_type("char"))
     }
 
     fn deserialize_str<V>(self, visitor: V) -> Result<V::Value>
@@ -234,21 +234,21 @@ impl<'de, 'a> serde::de::Deserializer<'de> for &'a mut Deserializer<'de> {
     where
         V: Visitor<'de>,
     {
-        panic!("bendy::Deserializer::deserialize_option: not supported");
+        Err(Error::unsupported_type("Option"))
     }
 
     fn deserialize_unit<V>(self, _visitor: V) -> Result<V::Value>
     where
         V: Visitor<'de>,
     {
-        panic!("bendy::Deserializer::deserialize_unit: not supported");
+        Err(Error::unsupported_type("()"))
     }
 
     fn deserialize_unit_struct<V>(self, _name: &'static str, _visitor: V) -> Result<V::Value>
     where
         V: Visitor<'de>,
     {
-        panic!("bendy::Deserializer::deserialize_unit_struct: not supported");
+        Err(Error::unsupported_type("unit struct"))
     }
 
     fn deserialize_newtype_struct<V>(self, _name: &'static str, visitor: V) -> Result<V::Value>
@@ -291,7 +291,7 @@ impl<'de, 'a> serde::de::Deserializer<'de> for &'a mut Deserializer<'de> {
     where
         V: Visitor<'de>,
     {
-        panic!("bendy::Deserializer::deserialize_map: not supported");
+        Err(Error::unsupported_type("map"))
     }
 
     fn deserialize_struct<V>(
@@ -318,7 +318,7 @@ impl<'de, 'a> serde::de::Deserializer<'de> for &'a mut Deserializer<'de> {
     where
         V: Visitor<'de>,
     {
-        panic!("bendy::Deserializer::deserialize_enum: not supported");
+        Err(Error::unsupported_type("enum"))
     }
 
     fn deserialize_identifier<V>(self, visitor: V) -> Result<V::Value>
@@ -332,7 +332,7 @@ impl<'de, 'a> serde::de::Deserializer<'de> for &'a mut Deserializer<'de> {
     where
         V: Visitor<'de>,
     {
-        panic!("bendy::Deserializer::deserialize_ignored_any: not supported");
+        Err(Error::UnsupportedSelfDescribing)
     }
 }
 
