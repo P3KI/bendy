@@ -40,24 +40,6 @@ impl Serializer {
     pub fn into_bytes(self) -> Result<Vec<u8>> {
         Ok(self.encoder.get_output()?)
     }
-
-    fn struct_serializer(&mut self) -> StructSerializer {
-        let remaining_depth = self.encoder.remaining_depth();
-        StructSerializer::new(self, remaining_depth)
-    }
-
-    pub(crate) fn emit_struct(&mut self, contents: BTreeMap<Vec<u8>, Vec<u8>>) -> Result<()> {
-        self.encoder.emit_token(Token::Dict)?;
-        for (key, value) in contents {
-            self.encoder.emit_bytes(&key)?;
-            for result in Decoder::new(&value).tokens() {
-                let token = result?;
-                self.encoder.emit_token(token)?;
-            }
-        }
-        self.encoder.emit_token(Token::End)?;
-        Ok(())
-    }
 }
 
 impl<'a> serde::ser::Serializer for &'a mut Serializer {
@@ -228,7 +210,8 @@ impl<'a> serde::ser::Serializer for &'a mut Serializer {
     }
 
     fn serialize_struct(self, _name: &'static str, _len: usize) -> Result<Self::SerializeStruct> {
-        Ok(self.struct_serializer())
+        let encoder = self.encoder.begin_unsorted_dict()?;
+        Ok(StructSerializer::new(&mut self.encoder, encoder))
     }
 
     fn serialize_struct_variant(

@@ -205,11 +205,6 @@ impl Encoder {
         Ok(self.output)
     }
 
-    #[cfg(feature = "serde")]
-    pub(crate) fn remaining_depth(&self) -> usize {
-        self.state.remaining_depth()
-    }
-
     pub(crate) fn begin_unsorted_dict(&mut self) -> Result<UnsortedDictEncoder, Error> {
         // emit the dict token so that a pre-existing state error is reported early
         self.emit_token(Token::Dict)?;
@@ -412,6 +407,7 @@ impl UnsortedDictEncoder {
         self.save_pair(key, encoded_object)
     }
 
+    #[cfg(feature = "serde")]
     pub(crate) fn remaining_depth(&self) -> usize {
         self.remaining_depth
     }

@@ -30,10 +30,12 @@ pub use ser::{to_bytes, Serializer};
 mod tests {
     use super::common::*;
 
-    use serde::{de::DeserializeOwned, ser::Serialize};
-    use serde_derive::{Deserialize, Serialize};
+    use std::collections::BTreeMap;
 
     use super::{de::from_bytes, ser::to_bytes};
+
+    use serde::{de::DeserializeOwned, ser::Serialize};
+    use serde_derive::{Deserialize, Serialize};
 
     fn case<V, B>(value: V, want: B)
     where

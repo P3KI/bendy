@@ -2,19 +2,16 @@ use crate::serde::common::*;
 
 /// Bencode sub-serializer for structs.
 pub struct StructSerializer<'outer> {
-    pub(crate) outer: &'outer mut Serializer,
+    pub(crate) outer: &'outer mut Encoder,
     encoder: UnsortedDictEncoder,
 }
 
 impl<'outer> StructSerializer<'outer> {
     pub(crate) fn new(
-        outer: &'outer mut Serializer,
-        remaining_depth: usize,
+        outer: &'outer mut Encoder,
+        encoder: UnsortedDictEncoder,
     ) -> StructSerializer<'outer> {
-        StructSerializer {
-            encoder: UnsortedDictEncoder::new(remaining_depth),
-            outer,
-        }
+        StructSerializer { encoder, outer }
     }
 }
 
@@ -36,7 +33,7 @@ impl<'outer> SerializeStruct for StructSerializer<'outer> {
     }
 
     fn end(self) -> Result<()> {
-        let contents = self.encoder.done()?;
-        self.outer.emit_struct(contents)
+        self.outer.end_unsorted_dict(self.encoder)?;
+        Ok(())
     }
 }

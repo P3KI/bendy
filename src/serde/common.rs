@@ -1,6 +1,5 @@
 /// Standard library
 pub(crate) use std::{
-    collections::BTreeMap,
     fmt::{self, Debug, Display, Formatter},
     iter::Peekable,
     num::ParseIntError,
