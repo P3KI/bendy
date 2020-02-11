@@ -214,11 +214,7 @@ impl Encoder {
         // emit the dict token so that a pre-existing state error is reported early
         self.emit_token(Token::Dict)?;
 
-        Ok(UnsortedDictEncoder {
-            content: BTreeMap::new(),
-            error: Ok(()),
-            remaining_depth: self.state.remaining_depth(),
-        })
+        Ok(UnsortedDictEncoder::new(self.state.remaining_depth()))
     }
 
     pub(crate) fn end_unsorted_dict(&mut self, encoder: UnsortedDictEncoder) -> Result<(), Error> {
@@ -362,6 +358,14 @@ pub struct UnsortedDictEncoder {
 }
 
 impl UnsortedDictEncoder {
+    pub(crate) fn new(remaining_depth: usize) -> Self {
+        Self {
+            content: BTreeMap::new(),
+            error: Ok(()),
+            remaining_depth,
+        }
+    }
+
     /// Emit a key/value pair
     pub fn emit_pair<E>(&mut self, key: &[u8], value: E) -> Result<(), Error>
     where
@@ -375,23 +379,6 @@ impl UnsortedDictEncoder {
     where
         F: FnOnce(SingleItemEncoder) -> Result<(), Error>,
     {
-        #[cfg(not(feature = "std"))]
-        use alloc::collections::btree_map::Entry;
-        #[cfg(feature = "std")]
-        use std::collections::btree_map::Entry;
-
-        if self.error.is_err() {
-            return self.error.clone();
-        }
-
-        let vacancy = match self.content.entry(key.to_owned()) {
-            Entry::Vacant(vacancy) => vacancy,
-            Entry::Occupied(occupation) => {
-                self.error = Err(Error::from(StructureError::duplicate_key(occupation.key())));
-                return self.error.clone();
-            },
-        };
-
         let mut value_written = false;
 
         let mut encoder = Encoder::new().with_max_depth(self.remaining_depth);
@@ -421,12 +408,45 @@ impl UnsortedDictEncoder {
         let encoded_object = encoder
             .get_output()
             .expect("Any errors should have been caught by observe_eof");
-        vacancy.insert(encoded_object);
+
+        self.save_pair(key, encoded_object)
+    }
+
+    pub(crate) fn remaining_depth(&self) -> usize {
+        self.remaining_depth
+    }
+
+    pub(crate) fn save_pair(
+        &mut self,
+        unencoded_key: &[u8],
+        encoded_value: Vec<u8>,
+    ) -> Result<(), Error> {
+        #[cfg(not(feature = "std"))]
+        use alloc::collections::btree_map::Entry;
+        #[cfg(feature = "std")]
+        use std::collections::btree_map::Entry;
+
+        if self.error.is_err() {
+            return self.error.clone();
+        }
+
+        let vacancy = match self.content.entry(unencoded_key.to_owned()) {
+            Entry::Vacant(vacancy) => vacancy,
+            Entry::Occupied(occupation) => {
+                self.error = Err(Error::from(StructureError::InvalidState(format!(
+                    "Duplicate key {}",
+                    String::from_utf8_lossy(occupation.key())
+                ))));
+                return self.error.clone();
+            },
+        };
+
+        vacancy.insert(encoded_value);
 
         Ok(())
     }
 
-    fn done(self) -> Result<BTreeMap<Vec<u8>, Vec<u8>>, Error> {
+    pub(crate) fn done(self) -> Result<BTreeMap<Vec<u8>, Vec<u8>>, Error> {
         self.error?;
         Ok(self.content)
     }

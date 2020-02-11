@@ -11,8 +11,8 @@ pub(crate) use std::{
 pub(crate) use serde::{
     de::{DeserializeSeed, EnumAccess, MapAccess, SeqAccess, VariantAccess, Visitor},
     ser::{
-        Serialize, SerializeMap, SerializeSeq, SerializeStructVariant, SerializeTuple,
-        SerializeTupleStruct, SerializeTupleVariant,
+        Serialize, SerializeMap, SerializeSeq, SerializeStruct, SerializeStructVariant,
+        SerializeTuple, SerializeTupleStruct, SerializeTupleVariant,
     },
     Deserialize,
 };
@@ -20,7 +20,7 @@ pub(crate) use serde::{
 /// Structs and enums
 pub(crate) use crate::{
     decoding::{self, Decoder, Tokens},
-    encoding::{self, Encoder},
+    encoding::{self, Encoder, UnsortedDictEncoder},
     serde::{ser::Serializer, Error, Result},
     state_tracker::{StructureError, Token},
 };

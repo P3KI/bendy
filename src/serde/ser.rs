@@ -46,10 +46,10 @@ impl Serializer {
         StructSerializer::new(self, remaining_depth)
     }
 
-    pub(crate) fn emit_struct(&mut self, contents: BTreeMap<&'static str, Vec<u8>>) -> Result<()> {
+    pub(crate) fn emit_struct(&mut self, contents: BTreeMap<Vec<u8>, Vec<u8>>) -> Result<()> {
         self.encoder.emit_token(Token::Dict)?;
         for (key, value) in contents {
-            self.encoder.emit_bytes(key.as_bytes())?;
+            self.encoder.emit_bytes(&key)?;
             for result in Decoder::new(&value).tokens() {
                 let token = result?;
                 self.encoder.emit_token(token)?;
