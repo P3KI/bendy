@@ -103,7 +103,7 @@ macro_rules! impl_encodable_integer {
     )*}
 }
 
-impl_encodable_integer!(u8 u16 u32 u64 usize i8 i16 i32 i64 isize);
+impl_encodable_integer!(u8 u16 u32 u64 u128 usize i8 i16 i32 i64 i128 isize);
 
 macro_rules! impl_encodable_iterable {
     ($($type:ident)*) => {$(

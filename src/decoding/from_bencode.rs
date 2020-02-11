@@ -57,7 +57,7 @@ macro_rules! impl_from_bencode_for_integer {
     )*}
 }
 
-impl_from_bencode_for_integer!(u8 u16 u32 u64 usize i8 i16 i32 i64 isize);
+impl_from_bencode_for_integer!(u8 u16 u32 u64 u128 usize i8 i16 i32 i64 i128 isize);
 
 impl<ContentT: FromBencode> FromBencode for Vec<ContentT> {
     const EXPECTED_RECURSION_DEPTH: usize = ContentT::EXPECTED_RECURSION_DEPTH + 1;

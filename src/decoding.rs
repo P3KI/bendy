@@ -69,7 +69,7 @@ mod from_bencode;
 mod object;
 
 pub use self::{
-    decoder::{Decoder, DictDecoder, ListDecoder},
+    decoder::{Decoder, DictDecoder, ListDecoder, Tokens},
     error::{Error, ErrorKind, ResultExt},
     from_bencode::FromBencode,
     object::Object,
