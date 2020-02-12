@@ -5,9 +5,9 @@
 //! - `true`: The integer value `1`.
 //! - `false`: The integer value `0`.
 //! - `char`: A string containing the UTF-8 encoding of the value.
-//! - `f32`: Represented as a length-four bencode byte string containing the little-
+//! - `f32`: Represented as a length-four bencode byte string containing the big-
 //!   endian order bytes of the IEEE-754 representation of the value.
-//! - `f64`: Represented as a length-eight bencode byte string containing the little-
+//! - `f64`: Represented as a length-eight bencode byte string containing the big-
 //!   endian order bytes of the IEEE-754 representation of the value.
 //! - `()`: Represented as the empty bencode list, `le`.
 //! - `Some(t)`: Represented as a list containing the bencoding of `t`.
@@ -230,7 +230,7 @@ mod tests {
     #[test]
     fn f32() {
         let value = 100f32;
-        let bytes = value.to_le_bytes();
+        let bytes = value.to_be_bytes();
         let mut bencode: Vec<u8> = Vec::new();
         bencode.extend(b"4:");
         bencode.extend(&bytes);
@@ -240,7 +240,7 @@ mod tests {
     #[test]
     fn f64() {
         let value = 100f64;
-        let bytes = value.to_le_bytes();
+        let bytes = value.to_be_bytes();
         let mut bencode: Vec<u8> = Vec::new();
         bencode.extend(b"8:");
         bencode.extend(&bytes);

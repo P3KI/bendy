@@ -126,12 +126,12 @@ impl<'a> serde::ser::Serializer for &'a mut Serializer {
     }
 
     fn serialize_f32(self, v: f32) -> Result<()> {
-        let bytes = v.to_le_bytes();
+        let bytes = v.to_be_bytes();
         self.serialize_bytes(&bytes)
     }
 
     fn serialize_f64(self, v: f64) -> Result<()> {
-        let bytes = v.to_le_bytes();
+        let bytes = v.to_be_bytes();
         self.serialize_bytes(&bytes)
     }
 

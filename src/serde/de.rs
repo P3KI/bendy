@@ -203,7 +203,7 @@ impl<'de, 'a> serde::de::Deserializer<'de> for &'a mut Deserializer<'de> {
         V: Visitor<'de>,
     {
         let bytes = self.next_bytes()?;
-        let value = f32::from_le_bytes(
+        let value = f32::from_be_bytes(
             bytes
                 .try_into()
                 .map_err(|_| Error::InvalidF32(bytes.len()))?,
@@ -216,7 +216,7 @@ impl<'de, 'a> serde::de::Deserializer<'de> for &'a mut Deserializer<'de> {
         V: Visitor<'de>,
     {
         let bytes = self.next_bytes()?;
-        let value = f64::from_le_bytes(
+        let value = f64::from_be_bytes(
             bytes
                 .try_into()
                 .map_err(|_| Error::InvalidF64(bytes.len()))?,
