@@ -50,8 +50,8 @@
 /// repr('Å', b"2:\xC3\x85");
 /// repr(0, "i0e");
 /// repr(-15, "i-15e");
-/// repr(1.0f32, b"4:\x00\x00\x80\x3F");
-/// repr(1.0f64, b"8:\x00\x00\x00\x00\x00\x00\xF0\x3F");
+/// repr(1.0f32, b"4:\x3F\x80\x00\x00");
+/// repr(1.0f64, b"8:\x3F\xF0\x00\x00\x00\x00\x00\x00");
 /// repr(Some(0), "li0ee");
 /// repr(<Option<i32>>::None, "le");
 ///
