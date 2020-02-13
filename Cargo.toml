@@ -49,6 +49,7 @@ default = ["std"]
 # `HashMap<K, V>`. Requires a dependency on the Rust standard library.
 std = ["failure/std"]
 
+# Provide serde serialize and deserialize support
 serde_support = ["serde", "serde_bytes"]
 
 ### Targets ####################################################################
