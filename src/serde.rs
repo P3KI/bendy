@@ -44,6 +44,7 @@
 /// ```
 /// use bendy::serde::to_bytes;
 /// use serde::Serialize;
+/// use serde_ as serde;
 /// use serde_derive::Serialize;
 /// use std::collections::HashMap;
 ///
@@ -70,18 +71,22 @@
 /// map.insert("bar", 2);
 /// repr(map, "d3:bari2e3:fooi1ee");
 ///
+/// #[serde(crate = "serde_")]
 /// #[derive(Serialize)]
 /// struct Unit;
 /// repr(Unit, "le");
 ///
+/// #[serde(crate = "serde_")]
 /// #[derive(Serialize)]
 /// struct Newtype(String);
 /// repr(Newtype("foo".into()), "3:foo");
 ///
+/// #[serde(crate = "serde_")]
 /// #[derive(Serialize)]
 /// struct Tuple(bool, i32);
 /// repr(Tuple(false, 100), "li0ei100ee");
 ///
+/// #[serde(crate = "serde_")]
 /// #[derive(Serialize)]
 /// struct Record {
 ///     a: String,
@@ -96,6 +101,7 @@
 ///     "d1:a5:hello1:bi0ee",
 /// );
 ///
+/// #[serde(crate = "serde_")]
 /// #[derive(Serialize)]
 /// enum Enum {
 ///     Unit,
@@ -110,6 +116,7 @@
 /// repr(Enum::Struct { a: 'x', b: true }, "d6:Structd1:a1:x1:bi1eee");
 ///
 /// #[serde(untagged)]
+/// #[serde(crate = "serde_")]
 /// #[derive(Serialize)]
 /// enum Untagged {
 ///     Foo { x: i32 },
@@ -133,7 +140,7 @@ pub use ser::{to_bytes, Serializer};
 mod tests {
     use super::common::*;
 
-    use std::collections::HashMap;
+    use std::{collections::HashMap, fmt::Debug};
 
     use super::{de::from_bytes, ser::to_bytes};
 
@@ -297,6 +304,7 @@ mod tests {
     #[test]
     fn bytes_with_serde_bytes() {
         #[derive(Debug, Serialize, Deserialize, PartialEq)]
+        #[serde(crate = "serde_")]
         #[serde(transparent)]
         struct Owned {
             #[serde(with = "serde_bytes")]
@@ -311,6 +319,7 @@ mod tests {
         );
 
         #[derive(Debug, Serialize, Deserialize, PartialEq)]
+        #[serde(crate = "serde_")]
         #[serde(transparent)]
         struct Borrowed<'bytes> {
             #[serde(with = "serde_bytes")]
@@ -339,6 +348,7 @@ mod tests {
     #[test]
     fn unit_struct() {
         #[derive(Debug, Serialize, Deserialize, PartialEq)]
+        #[serde(crate = "serde_")]
         struct Foo;
         case(Foo, "le");
     }
@@ -346,6 +356,7 @@ mod tests {
     #[test]
     fn newtype_struct() {
         #[derive(Debug, Serialize, Deserialize, PartialEq)]
+        #[serde(crate = "serde_")]
         struct Foo(u8);
         case(Foo(1), "i1e");
     }
@@ -358,6 +369,7 @@ mod tests {
     #[test]
     fn tuple_struct() {
         #[derive(Serialize, Deserialize, Debug, PartialEq)]
+        #[serde(crate = "serde_")]
         struct Foo(String, u32, i32);
 
         case(Foo("hello".to_string(), 1, -100), "l5:helloi1ei-100ee");
@@ -366,6 +378,7 @@ mod tests {
     #[test]
     fn record_struct() {
         #[derive(Serialize, Deserialize, Debug, PartialEq)]
+        #[serde(crate = "serde_")]
         struct Foo {
             a: u8,
             b: String,
@@ -387,6 +400,7 @@ mod tests {
         // error if the struct serializer failed to correctly order
         // the fields during serialization.
         #[derive(Serialize, Deserialize, Debug, PartialEq, Default)]
+        #[serde(crate = "serde_")]
         struct Foo {
             fac: u8,
             fb: u8,
@@ -398,6 +412,7 @@ mod tests {
     #[test]
     fn enum_tests() {
         #[derive(Serialize, Deserialize, Debug, PartialEq)]
+        #[serde(crate = "serde_")]
         enum Enum {
             Unit,
             Newtype(i32),
@@ -415,6 +430,7 @@ mod tests {
     fn untagged_enum() {
         #[serde(untagged)]
         #[derive(Serialize, Deserialize, Debug, PartialEq)]
+        #[serde(crate = "serde_")]
         enum Untagged {
             Foo { x: i32 },
             Bar { y: String },
@@ -427,12 +443,14 @@ mod tests {
     #[test]
     fn flatten() {
         #[derive(Serialize, Deserialize, Debug, PartialEq)]
+        #[serde(crate = "serde_")]
         struct Foo {
             #[serde(flatten)]
             bar: Bar,
         }
 
         #[derive(Serialize, Deserialize, Debug, PartialEq)]
+        #[serde(crate = "serde_")]
         struct Bar {
             x: i32,
         }
