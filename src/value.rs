@@ -10,16 +10,13 @@ use alloc::{
     vec::Vec,
 };
 
-#[cfg(feature = "serde_support")]
+#[cfg(feature = "serde")]
 use std::{
     convert::TryInto,
     fmt::{self, Formatter},
 };
 
-#[cfg(feature = "serde_support")]
-use serde_bytes::Bytes;
-
-#[cfg(feature = "serde_support")]
+#[cfg(feature = "serde")]
 use serde::{
     ser::{SerializeMap, SerializeSeq},
     Serialize,
@@ -98,9 +95,11 @@ impl<'a> FromBencode for Value<'a> {
     }
 }
 
-#[cfg(feature = "serde_support")]
+#[cfg(feature = "serde")]
 mod serde_impls {
     use super::*;
+
+    use serde_bytes::Bytes;
 
     impl<'a> Serialize for Value<'a> {
         fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
