@@ -19,7 +19,7 @@ env:
 script:
   - cargo test --all
   - cargo test --all --no-default-features
-  - cargo test --all --features serde_support
+  - cargo test --all --features serde
 
 matrix:
   include:
