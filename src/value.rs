@@ -4,18 +4,22 @@
 //! `Value` implements `FromBencode`, `ToBencode`. If the `serde` feature is
 //! enabled, it also implements `Serialize` and `Deserialize`.
 
-use std::{borrow::Cow, collections::BTreeMap};
+use alloc::{
+    borrow::{Cow, ToOwned},
+    collections::BTreeMap,
+    vec::Vec,
+};
 
-#[cfg(feature = "serde")]
+#[cfg(feature = "serde_support")]
 use std::{
     convert::TryInto,
     fmt::{self, Formatter},
 };
 
-#[cfg(feature = "serde")]
+#[cfg(feature = "serde_support")]
 use serde_bytes::Bytes;
 
-#[cfg(feature = "serde")]
+#[cfg(feature = "serde_support")]
 use serde::{
     ser::{SerializeMap, SerializeSeq},
     Serialize,
@@ -60,10 +64,10 @@ impl<'a> ToBencode for Value<'a> {
 
     fn encode(&self, encoder: SingleItemEncoder) -> Result<(), crate::encoding::Error> {
         match self {
-            Self::Bytes(bytes) => encoder.emit_bytes(bytes),
-            Self::Dict(dict) => dict.encode(encoder),
-            Self::Integer(integer) => integer.encode(encoder),
-            Self::List(list) => list.encode(encoder),
+            Value::Bytes(bytes) => encoder.emit_bytes(bytes),
+            Value::Dict(dict) => dict.encode(encoder),
+            Value::Integer(integer) => integer.encode(encoder),
+            Value::List(list) => list.encode(encoder),
         }
     }
 }
@@ -94,112 +98,115 @@ impl<'a> FromBencode for Value<'a> {
     }
 }
 
-#[cfg(feature = "serde")]
-impl<'a> Serialize for Value<'a> {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: serde::ser::Serializer,
-    {
-        match self {
-            Value::Bytes(string) => serializer.serialize_bytes(string),
-            Value::Integer(int) => serializer.serialize_i64(*int),
-            Value::List(list) => {
-                let mut seed = serializer.serialize_seq(Some(list.len()))?;
-                for value in list {
-                    seed.serialize_element(value)?;
-                }
-                seed.end()
-            },
-            Value::Dict(dict) => {
-                let mut seed = serializer.serialize_map(Some(dict.len()))?;
-                for (k, v) in dict {
-                    let bytes = Bytes::new(k);
-                    seed.serialize_entry(bytes, v)?;
-                }
-                seed.end()
-            },
+#[cfg(feature = "serde_support")]
+mod serde_impls {
+    use super::*;
+
+    impl<'a> Serialize for Value<'a> {
+        fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+        where
+            S: serde::ser::Serializer,
+        {
+            match self {
+                Value::Bytes(string) => serializer.serialize_bytes(string),
+                Value::Integer(int) => serializer.serialize_i64(*int),
+                Value::List(list) => {
+                    let mut seed = serializer.serialize_seq(Some(list.len()))?;
+                    for value in list {
+                        seed.serialize_element(value)?;
+                    }
+                    seed.end()
+                },
+                Value::Dict(dict) => {
+                    let mut seed = serializer.serialize_map(Some(dict.len()))?;
+                    for (k, v) in dict {
+                        let bytes = Bytes::new(k);
+                        seed.serialize_entry(bytes, v)?;
+                    }
+                    seed.end()
+                },
+            }
         }
     }
-}
 
-#[cfg(feature = "serde")]
-impl<'a> serde::de::Deserialize<'a> for Value<'a> {
-    #[inline]
-    fn deserialize<D>(deserializer: D) -> Result<Value<'a>, D::Error>
-    where
-        D: serde::de::Deserializer<'a>,
-    {
-        deserializer.deserialize_any(Visitor)
-    }
-}
-
-#[cfg(feature = "serde")]
-struct Visitor;
-
-#[cfg(feature = "serde")]
-impl<'a> serde::de::Visitor<'a> for Visitor {
-    type Value = Value<'a>;
-
-    fn expecting(&self, formatter: &mut Formatter) -> fmt::Result {
-        formatter.write_str("any valid BEncode value")
-    }
-
-    fn visit_i64<E>(self, value: i64) -> Result<Value<'a>, E> {
-        Ok(Value::Integer(value))
-    }
-
-    fn visit_u64<E>(self, value: u64) -> Result<Value<'a>, E> {
-        Ok(Value::Integer(value.try_into().unwrap()))
-    }
-
-    fn visit_borrowed_bytes<E>(self, value: &'a [u8]) -> Result<Value<'a>, E>
-    where
-        E: serde::de::Error,
-    {
-        Ok(Value::Bytes(Cow::Borrowed(value)))
-    }
-
-    fn visit_borrowed_str<E>(self, value: &'a str) -> Result<Value<'a>, E>
-    where
-        E: serde::de::Error,
-    {
-        Ok(Value::Bytes(Cow::Borrowed(value.as_bytes())))
-    }
-
-    fn visit_string<E>(self, value: String) -> Result<Value<'a>, E> {
-        Ok(Value::Bytes(Cow::Owned(value.into_bytes())))
-    }
-
-    fn visit_byte_buf<E>(self, value: Vec<u8>) -> Result<Value<'a>, E> {
-        Ok(Value::Bytes(Cow::Owned(value)))
-    }
-
-    fn visit_seq<V>(self, mut access: V) -> Result<Value<'a>, V::Error>
-    where
-        V: serde::de::SeqAccess<'a>,
-    {
-        let mut list = Vec::new();
-        while let Some(e) = access.next_element()? {
-            list.push(e);
+    impl<'a> serde::de::Deserialize<'a> for Value<'a> {
+        #[inline]
+        fn deserialize<D>(deserializer: D) -> Result<Value<'a>, D::Error>
+        where
+            D: serde::de::Deserializer<'a>,
+        {
+            deserializer.deserialize_any(Visitor)
         }
-        Ok(Value::List(list))
     }
 
-    fn visit_map<V>(self, mut access: V) -> Result<Value<'a>, V::Error>
-    where
-        V: serde::de::MapAccess<'a>,
-    {
-        let mut map = BTreeMap::new();
-        while let Some((k, v)) = access.next_entry::<&Bytes, _>()? {
-            map.insert(Cow::Borrowed(k.as_ref()), v);
+    struct Visitor;
+
+    impl<'a> serde::de::Visitor<'a> for Visitor {
+        type Value = Value<'a>;
+
+        fn expecting(&self, formatter: &mut Formatter) -> fmt::Result {
+            formatter.write_str("any valid BEncode value")
         }
-        Ok(Value::Dict(map))
+
+        fn visit_i64<E>(self, value: i64) -> Result<Value<'a>, E> {
+            Ok(Value::Integer(value))
+        }
+
+        fn visit_u64<E>(self, value: u64) -> Result<Value<'a>, E> {
+            Ok(Value::Integer(value.try_into().unwrap()))
+        }
+
+        fn visit_borrowed_bytes<E>(self, value: &'a [u8]) -> Result<Value<'a>, E>
+        where
+            E: serde::de::Error,
+        {
+            Ok(Value::Bytes(Cow::Borrowed(value)))
+        }
+
+        fn visit_borrowed_str<E>(self, value: &'a str) -> Result<Value<'a>, E>
+        where
+            E: serde::de::Error,
+        {
+            Ok(Value::Bytes(Cow::Borrowed(value.as_bytes())))
+        }
+
+        fn visit_string<E>(self, value: String) -> Result<Value<'a>, E> {
+            Ok(Value::Bytes(Cow::Owned(value.into_bytes())))
+        }
+
+        fn visit_byte_buf<E>(self, value: Vec<u8>) -> Result<Value<'a>, E> {
+            Ok(Value::Bytes(Cow::Owned(value)))
+        }
+
+        fn visit_seq<V>(self, mut access: V) -> Result<Value<'a>, V::Error>
+        where
+            V: serde::de::SeqAccess<'a>,
+        {
+            let mut list = Vec::new();
+            while let Some(e) = access.next_element()? {
+                list.push(e);
+            }
+            Ok(Value::List(list))
+        }
+
+        fn visit_map<V>(self, mut access: V) -> Result<Value<'a>, V::Error>
+        where
+            V: serde::de::MapAccess<'a>,
+        {
+            let mut map = BTreeMap::new();
+            while let Some((k, v)) = access.next_entry::<&Bytes, _>()? {
+                map.insert(Cow::Borrowed(k.as_ref()), v);
+            }
+            Ok(Value::Dict(map))
+        }
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    use alloc::{string::String, vec};
 
     fn case(value: Value, expected: impl AsRef<[u8]>) {
         let expected = expected.as_ref();
