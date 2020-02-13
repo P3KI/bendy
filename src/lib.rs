@@ -9,7 +9,7 @@
 
 extern crate alloc;
 
-#[cfg(all(test, feature = "serde"))]
+#[cfg(all(test, feature = "serde_support"))]
 #[macro_use]
 mod assert_matches;
 
@@ -17,7 +17,7 @@ pub mod decoding;
 pub mod encoding;
 pub mod state_tracker;
 
-#[cfg(feature = "serde")]
+#[cfg(feature = "serde_support")]
 pub mod serde;
 
 pub mod value;
