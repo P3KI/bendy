@@ -36,25 +36,25 @@ pub enum Error {
 
 impl From<encoding::Error> for Error {
     fn from(encoding_error: encoding::Error) -> Self {
-        Self::Encode(encoding_error)
+        Error::Encode(encoding_error)
     }
 }
 
 impl From<decoding::Error> for Error {
     fn from(decoding_error: decoding::Error) -> Self {
-        Self::Decode(decoding_error)
+        Error::Decode(decoding_error)
     }
 }
 
 impl From<ParseIntError> for Error {
     fn from(parse_int_error: ParseIntError) -> Self {
-        Self::Decode(parse_int_error.into())
+        Error::Decode(parse_int_error.into())
     }
 }
 
 impl From<Utf8Error> for Error {
     fn from(utf8_error: Utf8Error) -> Self {
-        Self::Decode(utf8_error.into())
+        Error::Decode(utf8_error.into())
     }
 }
 
@@ -63,38 +63,38 @@ impl serde::ser::Error for Error {
     where
         T: Display,
     {
-        Self::CustomEncode(msg.to_string())
+        Error::CustomEncode(msg.to_string())
     }
 }
 
 impl serde::de::Error for Error {
     fn custom<T: Display>(msg: T) -> Self {
-        Self::CustomDecode(msg.to_string())
+        Error::CustomDecode(msg.to_string())
     }
 }
 
 impl Display for Error {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         match self {
-            Self::CustomEncode(message) => write!(f, "Serialization failed: {}", message),
-            Self::CustomDecode(message) => write!(f, "Deserialization failed: {}", message),
-            Self::Encode(error) => write!(f, "{}", error),
-            Self::Decode(error) => write!(f, "{}", error),
-            Self::InvalidBool(value) => write!(f, "Invalid integer value for bool: `{}`", value),
-            Self::InvalidF32(length) => {
+            Error::CustomEncode(message) => write!(f, "Serialization failed: {}", message),
+            Error::CustomDecode(message) => write!(f, "Deserialization failed: {}", message),
+            Error::Encode(error) => write!(f, "{}", error),
+            Error::Decode(error) => write!(f, "{}", error),
+            Error::InvalidBool(value) => write!(f, "Invalid integer value for bool: `{}`", value),
+            Error::InvalidF32(length) => {
                 write!(f, "Invalid length byte string value for f32: {}", length)
             },
-            Self::InvalidF64(length) => {
+            Error::InvalidF64(length) => {
                 write!(f, "Invalid length byte string value for f64: {}", length)
             },
-            Self::InvalidChar(length) => {
+            Error::InvalidChar(length) => {
                 write!(f, "Invalid length string value for char: {}", length)
             },
-            Self::ArbitraryMapKeysUnsupported => write!(
+            Error::ArbitraryMapKeysUnsupported => write!(
                 f,
                 "Maps with key types that do not serialize to byte strings are unsupported",
             ),
-            Self::MapSerializationCallOrder => {
+            Error::MapSerializationCallOrder => {
                 write!(f, "Map serialization methods called out of order")
             },
         }

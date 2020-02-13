@@ -52,8 +52,10 @@
 /// repr(-15, "i-15e");
 /// repr(1.0f32, b"4:\x3F\x80\x00\x00");
 /// repr(1.0f64, b"8:\x3F\xF0\x00\x00\x00\x00\x00\x00");
+///
+/// let none: Option<i32> = None;
+/// repr(none, "le");
 /// repr(Some(0), "li0ee");
-/// repr(<Option<i32>>::None, "le");
 ///
 /// let mut map = HashMap::new();
 /// map.insert("foo", 1);
@@ -229,8 +231,8 @@ mod tests {
 
     #[test]
     fn f32() {
-        let value = 100f32;
-        let bytes = value.to_be_bytes();
+        let value = 100.100f32;
+        let bytes = value.to_bits().to_be_bytes();
         let mut bencode: Vec<u8> = Vec::new();
         bencode.extend(b"4:");
         bencode.extend(&bytes);
@@ -239,8 +241,8 @@ mod tests {
 
     #[test]
     fn f64() {
-        let value = 100f64;
-        let bytes = value.to_be_bytes();
+        let value = 100.100f64;
+        let bytes = value.to_bits().to_be_bytes();
         let mut bencode: Vec<u8> = Vec::new();
         bencode.extend(b"8:");
         bencode.extend(&bytes);
@@ -434,7 +436,7 @@ mod tests {
     fn invalid_bool() {
         assert_matches!(
             from_bytes::<bool>(b"i100e"),
-            Err(Error::InvalidBool(value)) if value == "100"
+            Err(Error::InvalidBool(ref value)) if value == "100"
         );
     }
 
