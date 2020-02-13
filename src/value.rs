@@ -10,13 +10,13 @@ use alloc::{
     vec::Vec,
 };
 
-#[cfg(feature = "serde")]
+#[cfg(feature = "serde_support")]
 use std::{
     convert::TryInto,
     fmt::{self, Formatter},
 };
 
-#[cfg(feature = "serde")]
+#[cfg(feature = "serde_support")]
 use serde::{
     ser::{SerializeMap, SerializeSeq},
     Serialize,
@@ -95,7 +95,7 @@ impl<'a> FromBencode for Value<'a> {
     }
 }
 
-#[cfg(feature = "serde")]
+#[cfg(feature = "serde_support")]
 mod serde_impls {
     use super::*;
 
@@ -235,7 +235,7 @@ mod tests {
 
         assert_eq!(decoded, value);
 
-        #[cfg(feature = "serde")]
+        #[cfg(feature = "serde_support")]
         {
             let deserialized = match crate::serde::de::from_bytes::<Value>(expected) {
                 Ok(deserialized) => deserialized,

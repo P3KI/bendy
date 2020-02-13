@@ -407,7 +407,7 @@ impl UnsortedDictEncoder {
         self.save_pair(key, encoded_object)
     }
 
-    #[cfg(feature = "serde")]
+    #[cfg(feature = "serde_support")]
     pub(crate) fn remaining_depth(&self) -> usize {
         self.remaining_depth
     }
