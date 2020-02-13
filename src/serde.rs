@@ -31,6 +31,14 @@
 //! Bencode dictionary keys may only be byte strings. For this reason, map types with
 //! keys that do not serialize as byte strings are unsupported.
 //!
+//! Note that values of type `f32` and `f64` do not conform to bencode's canonical
+//! representation rules. For example, both `f32` and `f64` support negative zero
+//! values which have different bit patterns, but which represent the same logical
+//! value as positive zero.
+//!
+//! If you require bencoded values to have canonical representations, then it is best
+//! to avoid floating point values.
+//!
 //! Example Representations
 //! -----------------------
 /// ```
