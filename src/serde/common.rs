@@ -1,11 +1,13 @@
 /// Standard library
 pub(crate) use std::{
     convert::TryInto,
-    fmt::{self, Debug, Display, Formatter},
+    fmt::{self, Display, Formatter},
     iter::Peekable,
     num::ParseIntError,
     str::{self, Utf8Error},
 };
+
+pub(crate) use serde_ as serde;
 
 /// Dependencies
 pub(crate) use serde::{
