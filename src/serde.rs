@@ -1,21 +1,124 @@
 //! Serde bencode serialization and deserialization.
 //!
-//! The Serde data model contains a number of types which have no native bencode
-//! representation. Serializing and deserializing these types is currently
-//! unsupported:
-//! - `()`
-//! - `HashMap` and `BTreeMap`
-//! - `Option`
-//! - `bool`
-//! - `char`
-//! - `f32` and `f64`
-//! - enums
-//! - unit structs
+//! Rust types and values are represented in bencode as follows:
 //!
-//! In addition, the current implementation is not self-describing, so
-//! deserialization relying on  `serde::de::Deserializer::deserialize_any` is
-//! unsupported.
-
+//! - `true`: The integer value `1`.
+//! - `false`: The integer value `0`.
+//! - `char`: A string containing the UTF-8 encoding of the value.
+//! - `f32`: Represented as a length-four bencode byte string containing the big-
+//!   endian order bytes of the IEEE-754 representation of the value.
+//! - `f64`: Represented as a length-eight bencode byte string containing the big-
+//!   endian order bytes of the IEEE-754 representation of the value.
+//! - `()`: Represented as the empty bencode list, `le`.
+//! - `Some(t)`: Represented as a list containing the bencoding of `t`.
+//! - `None`: Represented as the empty list.
+//! - maps, including BTreeMap and HashMap: bencoded dictionaries.
+//! - record structs: Represented as bencoded dictionaries with the fields of the
+//!   struct represented as UTF-8 keys mapped to the bencoded serializations of the
+//!   values.
+//! - tuple structs: Represented as bencoded lists containing the serialized values
+//!   of the fields.
+//! - unit structs: Represented as the empty bencode list, `le`.
+//! - enum unit variants: Represented as a string containing the name of the variant,
+//! - enum newtype variants: Represented as a dict mapping the name of the variant
+//!   to the value the variant contains.
+//! - enum tuple variants: Represented as a dict mapping the name of the variant
+//!   to a list containing the fields of the enum.
+//! - enum struct variants: Represented as a dict mapping the name of the variant
+//!   to the struct representation of the fields of the variant.
+//! - untagged enums: Repesented as the variant value without any surrounding dictionary.
+//!
+//! Bencode dictionary keys may only be byte strings. For this reason, map types with
+//! keys that do not serialize as byte strings are unsupported.
+//!
+//! Note that values of type `f32` and `f64` do not conform to bencode's canonical
+//! representation rules. For example, both `f32` and `f64` support negative zero
+//! values which have different bit patterns, but which represent the same logical
+//! value as positive zero.
+//!
+//! If you require bencoded values to have canonical representations, then it is best
+//! to avoid floating point values.
+//!
+//! Example Representations
+//! -----------------------
+/// ```
+/// use bendy::serde::to_bytes;
+/// use serde::Serialize;
+/// use serde_derive::Serialize;
+/// use std::collections::HashMap;
+///
+/// fn repr(value: impl Serialize, bencode: impl AsRef<[u8]>) {
+///     assert_eq!(to_bytes(&value).unwrap(), bencode.as_ref());
+/// }
+///
+/// repr(true, "i1e");
+/// repr(false, "i0e");
+/// repr((), "le");
+/// repr('a', "1:a");
+/// repr('Å', b"2:\xC3\x85");
+/// repr(0, "i0e");
+/// repr(-15, "i-15e");
+/// repr(1.0f32, b"4:\x3F\x80\x00\x00");
+/// repr(1.0f64, b"8:\x3F\xF0\x00\x00\x00\x00\x00\x00");
+///
+/// let none: Option<i32> = None;
+/// repr(none, "le");
+/// repr(Some(0), "li0ee");
+///
+/// let mut map = HashMap::new();
+/// map.insert("foo", 1);
+/// map.insert("bar", 2);
+/// repr(map, "d3:bari2e3:fooi1ee");
+///
+/// #[derive(Serialize)]
+/// struct Unit;
+/// repr(Unit, "le");
+///
+/// #[derive(Serialize)]
+/// struct Newtype(String);
+/// repr(Newtype("foo".into()), "3:foo");
+///
+/// #[derive(Serialize)]
+/// struct Tuple(bool, i32);
+/// repr(Tuple(false, 100), "li0ei100ee");
+///
+/// #[derive(Serialize)]
+/// struct Record {
+///     a: String,
+///     b: bool,
+/// }
+///
+/// repr(
+///     Record {
+///         a: "hello".into(),
+///         b: false,
+///     },
+///     "d1:a5:hello1:bi0ee",
+/// );
+///
+/// #[derive(Serialize)]
+/// enum Enum {
+///     Unit,
+///     Newtype(i32),
+///     Tuple(bool, i32),
+///     Struct { a: char, b: bool },
+/// }
+///
+/// repr(Enum::Unit, "4:Unit");
+/// repr(Enum::Newtype(-1), "d7:Newtypei-1ee");
+/// repr(Enum::Tuple(true, 10), "d5:Tupleli1ei10eee");
+/// repr(Enum::Struct { a: 'x', b: true }, "d6:Structd1:a1:x1:bi1eee");
+///
+/// #[serde(untagged)]
+/// #[derive(Serialize)]
+/// enum Untagged {
+///     Foo { x: i32 },
+///     Bar { y: char },
+/// }
+///
+/// repr(Untagged::Foo { x: -1 }, "d1:xi-1ee");
+/// repr(Untagged::Bar { y: 'z' }, "d1:y1:ze");
+/// ```
 mod common;
 
 pub mod de;
@@ -30,7 +133,7 @@ pub use ser::{to_bytes, Serializer};
 mod tests {
     use super::common::*;
 
-    use std::collections::BTreeMap;
+    use std::collections::HashMap;
 
     use super::{de::from_bytes, ser::to_bytes};
 
@@ -100,6 +203,8 @@ mod tests {
 
     #[test]
     fn scalar() {
+        case(false, "i0e");
+        case(true, "i1e");
         case(0u8, "i0e");
         case(1u8, "i1e");
         case(0u16, "i0e");
@@ -130,6 +235,47 @@ mod tests {
         case(0isize, "i0e");
         case(1isize, "i1e");
         case(-1isize, "i-1e");
+    }
+
+    #[test]
+    fn f32() {
+        let value = 100.100f32;
+        let bytes = value.to_bits().to_be_bytes();
+        let mut bencode: Vec<u8> = Vec::new();
+        bencode.extend(b"4:");
+        bencode.extend(&bytes);
+        case(value, bencode);
+    }
+
+    #[test]
+    fn f64() {
+        let value = 100.100f64;
+        let bytes = value.to_bits().to_be_bytes();
+        let mut bencode: Vec<u8> = Vec::new();
+        bencode.extend(b"8:");
+        bencode.extend(&bytes);
+        case(value, bencode);
+    }
+
+    #[test]
+    fn unit() {
+        case((), "le");
+    }
+
+    #[test]
+    fn none() {
+        case::<Option<u8>, &str>(None, "le");
+    }
+
+    #[test]
+    fn some() {
+        case(Some(0), "li0ee");
+    }
+
+    #[test]
+    fn char() {
+        case('a', "1:a");
+        case('\u{1F9D0}', "4:\u{1F9D0}");
     }
 
     #[test]
@@ -175,6 +321,29 @@ mod tests {
     }
 
     #[test]
+    fn map() {
+        let mut map = HashMap::new();
+        map.insert("foo".to_owned(), 1);
+        map.insert("bar".to_owned(), 2);
+        case(map, "d3:bari2e3:fooi1ee");
+    }
+
+    #[test]
+    fn map_non_byte_key() {
+        let mut map = HashMap::new();
+        map.insert(1, 1);
+        map.insert(2, 2);
+        assert_matches!(to_bytes(&map), Err(Error::ArbitraryMapKeysUnsupported));
+    }
+
+    #[test]
+    fn unit_struct() {
+        #[derive(Debug, Serialize, Deserialize, PartialEq)]
+        struct Foo;
+        case(Foo, "le");
+    }
+
+    #[test]
     fn newtype_struct() {
         #[derive(Debug, Serialize, Deserialize, PartialEq)]
         struct Foo(u8);
@@ -195,7 +364,7 @@ mod tests {
     }
 
     #[test]
-    fn struct_test() {
+    fn record_struct() {
         #[derive(Serialize, Deserialize, Debug, PartialEq)]
         struct Foo {
             a: u8,
@@ -227,125 +396,70 @@ mod tests {
     }
 
     #[test]
-    fn unsupported_bool_serialize() {
-        assert_matches!(to_bytes(&true), Err(Error::UnsupportedType("bool")));
-    }
-
-    #[test]
-    fn unsupported_bool_deserialize() {
-        assert_matches!(from_bytes::<bool>(b""), Err(Error::UnsupportedType("bool")));
-    }
-
-    #[test]
-    fn unsupported_f32_deserialize() {
-        assert_matches!(from_bytes::<f32>(b""), Err(Error::UnsupportedType("f32")));
-    }
-
-    #[test]
-    fn unsupported_f32_serialize() {
-        assert_matches!(to_bytes(&0f32), Err(Error::UnsupportedType("f32")));
-    }
-
-    #[test]
-    fn unsupported_f64_deserialize() {
-        assert_matches!(from_bytes::<f64>(b""), Err(Error::UnsupportedType("f64")));
-    }
-
-    #[test]
-    fn unsupported_f64_serialize() {
-        assert_matches!(to_bytes(&0f64), Err(Error::UnsupportedType("f64")));
-    }
-
-    #[test]
-    fn unsupported_option_deserialize() {
-        assert_matches!(
-            from_bytes::<Option<u8>>(b""),
-            Err(Error::UnsupportedType("Option"))
-        );
-    }
-
-    #[test]
-    fn unsupported_some_serialize() {
-        assert_matches!(to_bytes(&Some(0)), Err(Error::UnsupportedType("Option")));
-    }
-
-    #[test]
-    fn unsupported_none_serialize() {
-        assert_matches!(
-            to_bytes::<Option<u8>>(&None),
-            Err(Error::UnsupportedType("Option"))
-        );
-    }
-
-    #[test]
-    fn unsupported_unit_deserialize() {
-        assert_matches!(from_bytes::<()>(b""), Err(Error::UnsupportedType("()")));
-    }
-
-    #[test]
-    fn unsupported_unit_serialize() {
-        assert_matches!(to_bytes(&()), Err(Error::UnsupportedType("()")));
-    }
-
-    #[test]
-    fn unsupported_unit_struct_deserialize() {
-        #[derive(Deserialize, Debug)]
-        struct Foo;
-        assert_matches!(
-            from_bytes::<Foo>(b""),
-            Err(Error::UnsupportedType("unit struct"))
-        );
-    }
-
-    #[test]
-    fn unsupported_unit_struct_serialize() {
-        #[derive(Serialize)]
-        struct Foo;
-        assert_matches!(to_bytes(&Foo), Err(Error::UnsupportedType("unit struct")));
-    }
-
-    #[test]
-    fn unsupported_char_deserialize() {
-        assert_matches!(from_bytes::<char>(b""), Err(Error::UnsupportedType("char")));
-    }
-
-    #[test]
-    fn unsupported_char_serialize() {
-        assert_matches!(to_bytes(&'a'), Err(Error::UnsupportedType("char")));
-    }
-
-    #[test]
-    fn unsupported_map_deserialize() {
-        assert_matches!(
-            from_bytes::<BTreeMap<u8, u8>>(b""),
-            Err(Error::UnsupportedType("map"))
-        );
-    }
-
-    #[test]
-    fn unsupported_map_serialize() {
-        let map: BTreeMap<u8, u8> = BTreeMap::new();
-        assert_matches!(to_bytes(&map), Err(Error::UnsupportedType("map")));
-    }
-
-    #[test]
-    fn unsupported_enum_deserialize() {
-        #[derive(Deserialize, Debug)]
-        enum Foo {}
-        assert_matches!(from_bytes::<Foo>(b""), Err(Error::UnsupportedType("enum")));
-    }
-
-    #[test]
-    fn unsupported_any_deserialize() {
-        #[serde(untagged)]
-        #[derive(Deserialize, Debug)]
-        pub(crate) enum Foo {
-            A { _x: char },
-            B { _x: String },
+    fn enum_tests() {
+        #[derive(Serialize, Deserialize, Debug, PartialEq)]
+        enum Enum {
+            Unit,
+            Newtype(i32),
+            Tuple(bool, i32),
+            Struct { a: char, b: bool },
         }
+
+        case(Enum::Unit, "4:Unit");
+        case(Enum::Newtype(-1), "d7:Newtypei-1ee");
+        case(Enum::Tuple(true, 10), "d5:Tupleli1ei10eee");
+        case(Enum::Struct { a: 'x', b: true }, "d6:Structd1:a1:x1:bi1eee");
+    }
+
+    #[test]
+    fn untagged_enum() {
+        #[serde(untagged)]
+        #[derive(Serialize, Deserialize, Debug, PartialEq)]
+        enum Untagged {
+            Foo { x: i32 },
+            Bar { y: String },
+        }
+
+        case(Untagged::Foo { x: -1 }, "d1:xi-1ee");
+        case(Untagged::Bar { y: "z".into() }, "d1:y1:ze");
+    }
+
+    #[test]
+    fn flatten() {
+        #[derive(Serialize, Deserialize, Debug, PartialEq)]
+        struct Foo {
+            #[serde(flatten)]
+            bar: Bar,
+        }
+
+        #[derive(Serialize, Deserialize, Debug, PartialEq)]
+        struct Bar {
+            x: i32,
+        }
+
+        case(Foo { bar: Bar { x: 1 } }, "d1:xi1ee");
+    }
+
+    #[test]
+    fn invalid_bool() {
         assert_matches!(
-            from_bytes::<Foo>(b""),
-            Err(Error::UnsupportedSelfDescribing)
+            from_bytes::<bool>(b"i100e"),
+            Err(Error::InvalidBool(ref value)) if value == "100"
         );
+    }
+
+    #[test]
+    fn invalid_f32() {
+        assert_matches!(from_bytes::<f32>(b"8:10000000"), Err(Error::InvalidF32(8)));
+    }
+
+    #[test]
+    fn invalid_f64() {
+        assert_matches!(from_bytes::<f64>(b"4:1000"), Err(Error::InvalidF64(4)));
+    }
+
+    #[test]
+    fn invalid_char() {
+        assert_matches!(from_bytes::<char>(b"2:00"), Err(Error::InvalidChar(2)));
     }
 }

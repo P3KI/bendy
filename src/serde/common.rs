@@ -1,5 +1,6 @@
 /// Standard library
 pub(crate) use std::{
+    convert::TryInto,
     fmt::{self, Debug, Display, Formatter},
     iter::Peekable,
     num::ParseIntError,
@@ -8,7 +9,9 @@ pub(crate) use std::{
 
 /// Dependencies
 pub(crate) use serde::{
-    de::{DeserializeSeed, EnumAccess, MapAccess, SeqAccess, VariantAccess, Visitor},
+    de::{
+        DeserializeSeed, EnumAccess, IntoDeserializer, MapAccess, SeqAccess, VariantAccess, Visitor,
+    },
     ser::{
         Serialize, SerializeMap, SerializeSeq, SerializeStruct, SerializeStructVariant,
         SerializeTuple, SerializeTupleStruct, SerializeTupleVariant,
