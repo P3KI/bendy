@@ -142,7 +142,10 @@ mod tests {
 
     use std::{collections::HashMap, fmt::Debug};
 
-    use super::{de::from_bytes, ser::to_bytes};
+    use super::{
+        de::{from_bytes, Deserializer},
+        ser::to_bytes,
+    };
 
     use serde::{de::DeserializeOwned, ser::Serialize};
     use serde_derive::{Deserialize, Serialize};
@@ -479,5 +482,23 @@ mod tests {
     #[test]
     fn invalid_char() {
         assert_matches!(from_bytes::<char>(b"2:00"), Err(Error::InvalidChar(2)));
+    }
+
+    #[test]
+    fn trailing_bytes_forbid() {
+        assert_matches!(
+            Deserializer::from_bytes(b"i1ei1e")
+                .with_forbid_trailing_bytes(true)
+                .deserialize::<u32>(),
+            Err(Error::TrailingBytes)
+        );
+    }
+
+    #[test]
+    fn trailing_bytes_allow() {
+        assert_matches!(
+            Deserializer::from_bytes(b"i1ei1e").deserialize::<u32>(),
+            Ok(1)
+        );
     }
 }

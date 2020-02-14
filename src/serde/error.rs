@@ -24,6 +24,9 @@ pub enum Error {
     /// Error that occurs if a char is deserialized from a string containing more
     /// than one character
     InvalidChar(usize),
+    /// Error that occurs if trailing bytes remain after deserialization, if the
+    /// deserializer is configured to forbid trailing bytes
+    TrailingBytes,
     /// Error that occurs if a serde-related error occurs during serialization
     CustomEncode(String),
     /// Error that occurs if a serde-related error occurs during deserialization
@@ -90,6 +93,7 @@ impl Display for Error {
             Error::InvalidChar(length) => {
                 write!(f, "Invalid length string value for char: {}", length)
             },
+            Error::TrailingBytes => write!(f, "Trailing bytes remain after deserializing value"),
             Error::ArbitraryMapKeysUnsupported => write!(
                 f,
                 "Maps with key types that do not serialize to byte strings are unsupported",
