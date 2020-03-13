@@ -18,7 +18,7 @@ license = "BSD-3-Clause"
 readme = "README.md"
 
 keywords = ["bencode", "serialization", "deserialization", "bittorent"]
-categories = ["encoding", "decoding", "no-std"]
+categories = ["encoding", "no-std"]
 
 [badges]
 maintenance = {status = "actively-developed"}
