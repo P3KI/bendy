@@ -12,6 +12,7 @@ where
 
 /// Bencode deserializer
 pub struct Deserializer<'de> {
+    forbid_trailing_bytes: bool,
     tokens: Peekable<Tokens<'de>>,
 }
 
@@ -19,8 +20,15 @@ impl<'de> Deserializer<'de> {
     /// Create a new `Deserializer` with the give byte slice
     pub fn from_bytes(input: &'de [u8]) -> Self {
         Deserializer {
+            forbid_trailing_bytes: false,
             tokens: Decoder::new(input).tokens().peekable(),
         }
+    }
+
+    /// Return an error if trailing bytes remain after deserialization
+    pub fn with_forbid_trailing_bytes(mut self, forbid_trailing_bytes: bool) -> Self {
+        self.forbid_trailing_bytes = forbid_trailing_bytes;
+        self
     }
 
     /// Consume the deserializer, producing an instance of `T`
@@ -28,7 +36,15 @@ impl<'de> Deserializer<'de> {
     where
         T: Deserialize<'de>,
     {
-        T::deserialize(&mut self)
+        let t = T::deserialize(&mut self)?;
+
+        if self.forbid_trailing_bytes {
+            if let Some(_) = self.tokens.next() {
+                return Err(Error::TrailingBytes);
+            }
+        }
+
+        Ok(t)
     }
 }
 
