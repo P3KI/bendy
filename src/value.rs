@@ -60,7 +60,9 @@ impl<'a> Value<'a> {
 }
 
 impl<'a> ToBencode for Value<'a> {
-    const MAX_DEPTH: usize = usize::max_value();
+    // This leaves some room for external containers.
+    // TODO(#38): Change this to 0 for v0.4
+    const MAX_DEPTH: usize = usize::max_value() / 4;
 
     fn encode(&self, encoder: SingleItemEncoder) -> Result<(), crate::encoding::Error> {
         match self {
@@ -73,6 +75,8 @@ impl<'a> ToBencode for Value<'a> {
 }
 
 impl<'a> FromBencode for Value<'a> {
+    const EXPECTED_RECURSION_DEPTH: usize = <Self as ToBencode>::MAX_DEPTH;
+    
     fn decode_bencode_object(object: Object) -> Result<Self, crate::decoding::Error> {
         match object {
             Object::Bytes(bytes) => Ok(Value::Bytes(Cow::Owned(bytes.to_owned()))),
