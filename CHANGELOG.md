@@ -4,6 +4,15 @@ All notable changes to this project will be documented in this file.
 
 ## Unreleased
 
+## 0.3.1 (2020/05/07)
+
+- Bugfix release allowing generic values to be contained within lists or maps
+
+## 0.3.0 (2020/03/13)
+
+- Added serde support
+- Added generic value type that can represent any Bencode value
+
 ## 0.2.2 (2020/01/29)
 
 - Make the `no_std` api match the `std` api a little bit more closely.
