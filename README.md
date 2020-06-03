@@ -601,6 +601,40 @@ the parser enters a nested bencode element (i.e. list, dictionary) and decrement
 soon as the related element ends. Therefore any values decoded as bencode strings
 or integers do not affect the nesting limit.
 
+### Serde Support
+
+Bendy supports serde when the `serde` feature is enabled:
+
+```toml
+[dependencies]
+bendy = { version = "^0.3", features = ["std", "serde"] }
+serde = { version = "1.0", features = ["derive"] }
+```
+
+With the feature enabled, values can be serialized to and deserialized from
+bencode with `bendy::serde::from_bytes` and `bendy::serde::to_bytes`
+respectively:
+
+
+```rust
+use serde::{Deserialize, Serialize};
+
+#[derive(Serialize, Deserialize, PartialEq, Debug)]
+struct Foo {
+    bar: String,
+}
+
+fn main() {
+    let value = Foo {
+        bar: "hello".into(),
+    };
+    let bencode = bendy::serde::to_bytes(&value).unwrap();
+    assert_eq!(bencode, b"d3:bar5:helloe");
+    let deserialized = bendy::serde::from_bytes::<Foo>(&bencode).unwrap();
+    assert_eq!(deserialized, value);
+}
+```
+
 ## Usage of unsafe code
 The parser would not require any unsafe code to work but it still contains a single unsafe call
 to `str::from_utf8_unchecked`. This call is used to avoid a duplicated UTF-8 check when the
