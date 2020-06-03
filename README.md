@@ -109,7 +109,7 @@ fn encode_vector() -> Result<(), Error> {
 ### Implementing `ToBencode`
 
 In most cases it should be enough to overwrite the associated `encode` function
-and keep the default implementation of `to_bencode`. 
+and keep the default implementation of `to_bencode`.
 
 The function will provide you with a `SingleItemEncoder` which must be used to
 emit any relevant components of the current object. As long as these implement
@@ -137,7 +137,7 @@ impl ToBencode for IntegerWrapper {
 
     fn encode(&self, encoder: SingleItemEncoder) -> Result<(), Error> {
         encoder.emit_int(self.0)
-    } 
+    }
 }
 
 fn main() {}
@@ -145,13 +145,13 @@ fn main() {}
 #[test]
 fn encode_integer() -> Result<(), Error> {
     let example = IntegerWrapper(21);
-    
+
     let encoded = example.to_bencode()?;
     assert_eq!(b"i21e", encoded.as_slice());
-    
+
     let encoded = 21.to_bencode()?;
     assert_eq!(b"i21e", encoded.as_slice());
-    
+
     Ok(())
 }
 ```
@@ -171,7 +171,7 @@ impl ToBencode for StringWrapper {
 
     fn encode(&self, encoder: SingleItemEncoder) -> Result<(), Error> {
         encoder.emit_str(&self.0)
-    } 
+    }
 }
 
 fn main() {}
@@ -182,10 +182,10 @@ fn encode_string() -> Result<(), Error> {
 
     let encoded = example.to_bencode()?;
     assert_eq!(b"7:content", encoded.as_slice());
-    
+
     let encoded = "content".to_bencode()?;
     assert_eq!(b"7:content", encoded.as_slice());
-    
+
     Ok(())
 }
 ```
@@ -206,7 +206,7 @@ impl ToBencode for ByteStringWrapper {
     fn encode(&self, encoder: SingleItemEncoder) -> Result<(), Error> {
         let content = AsString(&self.0);
         encoder.emit(&content)
-    } 
+    }
 }
 
 fn main() {}
@@ -214,13 +214,13 @@ fn main() {}
 #[test]
 fn encode_byte_string() -> Result<(), Error> {
     let example = ByteStringWrapper(b"content".to_vec());
-    
+
     let encoded = example.to_bencode()?;
     assert_eq!(b"7:content", encoded.as_slice());
-    
+
     let encoded = AsString(b"content").to_bencode()?;
     assert_eq!(b"7:content", encoded.as_slice());
-    
+
     Ok(())
 }
 ```
@@ -252,7 +252,7 @@ impl ToBencode for Example {
         encoder.emit_dict(|mut e| {
             e.emit_pair(b"counter", &self.counter)?;
             e.emit_pair(b"label", &self.label)?;
-            
+
             Ok(())
         })
     }
@@ -263,10 +263,10 @@ fn main() {}
 #[test]
 fn encode_dictionary() -> Result<(), Error> {
     let example = Example { label: "Example".to_string(), counter: 0 };
-    
+
     let encoded = example.to_bencode()?;
     assert_eq!(b"d7:counteri0e5:label7:Examplee", encoded.as_slice());
-    
+
     Ok(())
 }
 ```
@@ -301,7 +301,7 @@ fn encode_list() -> Result<(), Error> {
 
     let encoded = example.to_bencode()?;
     assert_eq!(b"li2ei3ee", encoded.as_slice());
-    
+
     Ok(())
 }
 ```
@@ -320,7 +320,7 @@ fn main() {}
 fn decode_vector() -> Result<(), Error> {
     let encoded = b"l5:hello5:worlde".to_vec();
     let decoded = Vec::<String>::from_bencode(&encoded)?;
-    
+
     assert_eq!(vec!["hello", "world"], decoded);
     Ok(())
 }
@@ -378,13 +378,13 @@ fn main() {}
 #[test]
 fn decode_integer() -> Result<(), Error> {
     let encoded = b"i21e".to_vec();
-    
+
     let example = IntegerWrapper::from_bencode(&encoded)?;
     assert_eq!(IntegerWrapper(21), example);
-    
+
     let example = i64::from_bencode(&encoded)?;
     assert_eq!(21, example);
-    
+
     Ok(())
 }
 ```
@@ -409,7 +409,7 @@ impl FromBencode for StringWrapper {
         // to call  `String::decode_bencode_object(object)` directly.
         let content = object.try_into_bytes()?;
         let content = String::from_utf8(content.to_vec())?;
-        
+
         Ok(StringWrapper(content))
     }
 }
@@ -419,13 +419,13 @@ fn main() {}
 #[test]
 fn decode_string() -> Result<(), Error> {
     let encoded = b"7:content".to_vec();
-    
+
     let example = StringWrapper::from_bencode(&encoded)?;
     assert_eq!(StringWrapper("content".to_string()), example);
-    
+
     let example = String::from_bencode(&encoded)?;
     assert_eq!("content".to_string(), example);
-    
+
     Ok(())
 }
 ```
@@ -457,13 +457,13 @@ fn main() {}
 #[test]
 fn decode_byte_string() -> Result<(), Error> {
     let encoded = b"7:content".to_vec();
-    
+
     let example = ByteStringWrapper::from_bencode(&encoded)?;
     assert_eq!(ByteStringWrapper(b"content".to_vec()), example);
-    
+
     let example = AsString::from_bencode(&encoded)?;
     assert_eq!(b"content".to_vec(), example.0);
-    
+
     Ok(())
 }
 ```
@@ -493,7 +493,7 @@ impl FromBencode for Example {
     fn decode_bencode_object(object: Object) -> Result<Self, Error> {
         let mut counter = None;
         let mut label = None;
-        
+
         let mut dict = object.try_into_dictionary()?;
         while let Some(pair) = dict.next_pair()? {
             match pair {
@@ -514,7 +514,7 @@ impl FromBencode for Example {
                 },
             }
         }
-        
+
         let counter = counter.ok_or_else(|| Error::missing_field("counter"))?;
         let label= label.ok_or_else(|| Error::missing_field("label"))?;
 
@@ -528,10 +528,10 @@ fn main() {}
 fn decode_dictionary() -> Result<(), Error> {
     let encoded = b"d7:counteri0e5:label7:Examplee".to_vec();
     let expected = Example { label: "Example".to_string(), counter: 0 };
-    
+
     let example = Example::from_bencode(&encoded)?;
     assert_eq!(expected, example);
-    
+
     Ok(())
 }
 ```
@@ -552,10 +552,10 @@ impl FromBencode for Location {
 
     fn decode_bencode_object(object: Object) -> Result<Self, Error> {
         let mut list = object.try_into_list()?;
-        
+
         let x = list.next_object()?.ok_or(Error::missing_field("x"))?;
         let x = i64::decode_bencode_object(x)?;
-        
+
         let y = list.next_object()?.ok_or(Error::missing_field("y"))?;
         let y = i64::decode_bencode_object(y)?;
 
@@ -572,7 +572,7 @@ fn decode_list() -> Result<(), Error> {
 
     let example = Location::from_bencode(&encoded)?;
     assert_eq!(expected, example);
-    
+
     Ok(())
 }
 ```
