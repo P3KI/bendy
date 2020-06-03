@@ -83,7 +83,7 @@ First you need to add bendy as a project dependency:
 
 ```toml
 [dependencies]
-bendy = "^0.2"
+bendy = "^0.3"
 ```
 
 ### Encoding with `ToBencode`
