@@ -635,6 +635,9 @@ fn main() {
 }
 ```
 
+Information on how Rust types are represented in bencode is available in the
+[serde module documentation](https://docs.rs/bendy/*/bendy/serde/index.html).
+
 ## Usage of unsafe code
 The parser would not require any unsafe code to work but it still contains a single unsafe call
 to `str::from_utf8_unchecked`. This call is used to avoid a duplicated UTF-8 check when the
