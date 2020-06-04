@@ -501,4 +501,22 @@ mod tests {
             Ok(1)
         );
     }
+
+    #[test]
+    fn borrowed_value() {
+        use std::borrow::Cow;
+        use crate::value::Value;
+
+        #[derive(Debug, Deserialize, PartialEq, Eq)]
+        #[serde(crate = "serde_")]
+        struct Dict<'a> {
+            #[serde(borrow)]
+            v: Value<'a>,
+        }
+
+        assert_eq!(
+            Deserializer::from_bytes(b"d1:v3:\x01\x02\x03e").deserialize::<Dict<'_>>().unwrap(),
+            Dict { v: Value::Bytes(Cow::Owned(vec![1, 2, 3]))},
+        );
+    }
 }

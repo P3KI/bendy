@@ -14,6 +14,7 @@ use alloc::{
 use std::{
     convert::TryInto,
     fmt::{self, Formatter},
+    marker::PhantomData,
 };
 
 #[cfg(feature = "serde")]
@@ -135,19 +136,19 @@ mod serde_impls {
         }
     }
 
-    impl<'a> serde::de::Deserialize<'a> for Value<'a> {
+    impl<'de: 'a, 'a> serde::de::Deserialize<'de> for Value<'a> {
         #[inline]
         fn deserialize<D>(deserializer: D) -> Result<Value<'a>, D::Error>
         where
-            D: serde::de::Deserializer<'a>,
+            D: serde::de::Deserializer<'de>,
         {
-            deserializer.deserialize_any(Visitor)
+            deserializer.deserialize_any(Visitor(PhantomData))
         }
     }
 
-    struct Visitor;
+    struct Visitor<'a>(PhantomData<&'a ()>);
 
-    impl<'a> serde::de::Visitor<'a> for Visitor {
+    impl<'de: 'a, 'a> serde::de::Visitor<'de> for Visitor<'a> {
         type Value = Value<'a>;
 
         fn expecting(&self, formatter: &mut Formatter) -> fmt::Result {
@@ -162,14 +163,14 @@ mod serde_impls {
             Ok(Value::Integer(value.try_into().unwrap()))
         }
 
-        fn visit_borrowed_bytes<E>(self, value: &'a [u8]) -> Result<Value<'a>, E>
+        fn visit_borrowed_bytes<E>(self, value: &'de [u8]) -> Result<Value<'a>, E>
         where
             E: serde::de::Error,
         {
             Ok(Value::Bytes(Cow::Borrowed(value)))
         }
 
-        fn visit_borrowed_str<E>(self, value: &'a str) -> Result<Value<'a>, E>
+        fn visit_borrowed_str<E>(self, value: &'de str) -> Result<Value<'a>, E>
         where
             E: serde::de::Error,
         {
@@ -186,7 +187,7 @@ mod serde_impls {
 
         fn visit_seq<V>(self, mut access: V) -> Result<Value<'a>, V::Error>
         where
-            V: serde::de::SeqAccess<'a>,
+            V: serde::de::SeqAccess<'de>,
         {
             let mut list = Vec::new();
             while let Some(e) = access.next_element()? {
@@ -197,7 +198,7 @@ mod serde_impls {
 
         fn visit_map<V>(self, mut access: V) -> Result<Value<'a>, V::Error>
         where
-            V: serde::de::MapAccess<'a>,
+            V: serde::de::MapAccess<'de>,
         {
             let mut map = BTreeMap::new();
             while let Some((k, v)) = access.next_entry::<&Bytes, _>()? {
