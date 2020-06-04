@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 
 ## Unreleased
 
+## 0.3.2 (2020/06/04)
+
+- Fix lifetime on Deserializer implementation for Value (thanks @euclio)
+- Many documentation fixes (thanks @casey)
+
 ## 0.3.1 (2020/05/07)
 
 - Bugfix release allowing generic values to be contained within lists or maps
