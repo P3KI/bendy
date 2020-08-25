@@ -1,4 +1,29 @@
-//! Serde bencode serialization and deserialization.
+//! Serde Serialization and Deserialization
+//! =======================================
+//!
+//! Values can be serialized to bencode with `bende::serde::to_bytes`, and
+//! deserialized from bencode with `bende::serde::from_bytes`:
+//!
+//! ```
+//! use bendy::serde::{to_bytes, from_bytes};
+//! use serde_ as serde;
+//! use serde_derive::{Serialize, Deserialize};
+//!
+//! assert_eq!(to_bytes(&10).unwrap(), b"i10e");
+//! assert_eq!(from_bytes::<u64>(b"i10e").unwrap(), 10);
+//!
+//! #[serde(crate = "serde_")]
+//! #[derive(Serialize, Deserialize, Debug, PartialEq)]
+//! struct Foo {
+//!     bar: bool,
+//! }
+//!
+//! assert_eq!(to_bytes(&Foo { bar: true }).unwrap(), b"d3:bari1ee");
+//! assert_eq!(from_bytes::<Foo>(b"d3:bari1ee").unwrap(), Foo { bar: true });
+//! ```
+//!
+//! Bencode Representations
+//! -----------------------
 //!
 //! Rust types and values are represented in bencode as follows:
 //!
@@ -41,91 +66,93 @@
 //!
 //! Example Representations
 //! -----------------------
-/// ```
-/// use bendy::serde::to_bytes;
-/// use serde::Serialize;
-/// use serde_ as serde;
-/// use serde_derive::Serialize;
-/// use std::collections::HashMap;
-///
-/// fn repr(value: impl Serialize, bencode: impl AsRef<[u8]>) {
-///     assert_eq!(to_bytes(&value).unwrap(), bencode.as_ref());
-/// }
-///
-/// repr(true, "i1e");
-/// repr(false, "i0e");
-/// repr((), "le");
-/// repr('a', "1:a");
-/// repr('Å', b"2:\xC3\x85");
-/// repr(0, "i0e");
-/// repr(-15, "i-15e");
-/// repr(1.0f32, b"4:\x3F\x80\x00\x00");
-/// repr(1.0f64, b"8:\x3F\xF0\x00\x00\x00\x00\x00\x00");
-///
-/// let none: Option<i32> = None;
-/// repr(none, "le");
-/// repr(Some(0), "li0ee");
-///
-/// let mut map = HashMap::new();
-/// map.insert("foo", 1);
-/// map.insert("bar", 2);
-/// repr(map, "d3:bari2e3:fooi1ee");
-///
-/// #[serde(crate = "serde_")]
-/// #[derive(Serialize)]
-/// struct Unit;
-/// repr(Unit, "le");
-///
-/// #[serde(crate = "serde_")]
-/// #[derive(Serialize)]
-/// struct Newtype(String);
-/// repr(Newtype("foo".into()), "3:foo");
-///
-/// #[serde(crate = "serde_")]
-/// #[derive(Serialize)]
-/// struct Tuple(bool, i32);
-/// repr(Tuple(false, 100), "li0ei100ee");
-///
-/// #[serde(crate = "serde_")]
-/// #[derive(Serialize)]
-/// struct Record {
-///     a: String,
-///     b: bool,
-/// }
-///
-/// repr(
-///     Record {
-///         a: "hello".into(),
-///         b: false,
-///     },
-///     "d1:a5:hello1:bi0ee",
-/// );
-///
-/// #[serde(crate = "serde_")]
-/// #[derive(Serialize)]
-/// enum Enum {
-///     Unit,
-///     Newtype(i32),
-///     Tuple(bool, i32),
-///     Struct { a: char, b: bool },
-/// }
-///
-/// repr(Enum::Unit, "4:Unit");
-/// repr(Enum::Newtype(-1), "d7:Newtypei-1ee");
-/// repr(Enum::Tuple(true, 10), "d5:Tupleli1ei10eee");
-/// repr(Enum::Struct { a: 'x', b: true }, "d6:Structd1:a1:x1:bi1eee");
-///
-/// #[serde(untagged)]
-/// #[serde(crate = "serde_")]
-/// #[derive(Serialize)]
-/// enum Untagged {
-///     Foo { x: i32 },
-///     Bar { y: char },
-/// }
-///
-/// repr(Untagged::Foo { x: -1 }, "d1:xi-1ee");
-/// repr(Untagged::Bar { y: 'z' }, "d1:y1:ze");
-/// ```
+//!
+//! ```
+//! use bendy::serde::to_bytes;
+//! use serde::Serialize;
+//! use serde_ as serde;
+//! use serde_derive::Serialize;
+//! use std::collections::HashMap;
+//!
+//! fn repr(value: impl Serialize, bencode: impl AsRef<[u8]>) {
+//!     assert_eq!(to_bytes(&value).unwrap(), bencode.as_ref());
+//! }
+//!
+//! repr(true, "i1e");
+//! repr(false, "i0e");
+//! repr((), "le");
+//! repr('a', "1:a");
+//! repr('Å', b"2:\xC3\x85");
+//! repr(0, "i0e");
+//! repr(-15, "i-15e");
+//! repr(1.0f32, b"4:\x3F\x80\x00\x00");
+//! repr(1.0f64, b"8:\x3F\xF0\x00\x00\x00\x00\x00\x00");
+//!
+//! let none: Option<i32> = None;
+//! repr(none, "le");
+//! repr(Some(0), "li0ee");
+//!
+//! let mut map = HashMap::new();
+//! map.insert("foo", 1);
+//! map.insert("bar", 2);
+//! repr(map, "d3:bari2e3:fooi1ee");
+//!
+//! #[serde(crate = "serde_")]
+//! #[derive(Serialize)]
+//! struct Unit;
+//! repr(Unit, "le");
+//!
+//! #[serde(crate = "serde_")]
+//! #[derive(Serialize)]
+//! struct Newtype(String);
+//! repr(Newtype("foo".into()), "3:foo");
+//!
+//! #[serde(crate = "serde_")]
+//! #[derive(Serialize)]
+//! struct Tuple(bool, i32);
+//! repr(Tuple(false, 100), "li0ei100ee");
+//!
+//! #[serde(crate = "serde_")]
+//! #[derive(Serialize)]
+//! struct Record {
+//!     a: String,
+//!     b: bool,
+//! }
+//!
+//! repr(
+//!     Record {
+//!         a: "hello".into(),
+//!         b: false,
+//!     },
+//!     "d1:a5:hello1:bi0ee",
+//! );
+//!
+//! #[serde(crate = "serde_")]
+//! #[derive(Serialize)]
+//! enum Enum {
+//!     Unit,
+//!     Newtype(i32),
+//!     Tuple(bool, i32),
+//!     Struct { a: char, b: bool },
+//! }
+//!
+//! repr(Enum::Unit, "4:Unit");
+//! repr(Enum::Newtype(-1), "d7:Newtypei-1ee");
+//! repr(Enum::Tuple(true, 10), "d5:Tupleli1ei10eee");
+//! repr(Enum::Struct { a: 'x', b: true }, "d6:Structd1:a1:x1:bi1eee");
+//!
+//! #[serde(untagged)]
+//! #[serde(crate = "serde_")]
+//! #[derive(Serialize)]
+//! enum Untagged {
+//!     Foo { x: i32 },
+//!     Bar { y: char },
+//! }
+//!
+//! repr(Untagged::Foo { x: -1 }, "d1:xi-1ee");
+//! repr(Untagged::Bar { y: 'z' }, "d1:y1:ze");
+//! ```
+
 mod common;
 
 pub mod de;
