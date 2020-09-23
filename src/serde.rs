@@ -1,8 +1,8 @@
 //! Serde Serialization and Deserialization
 //! =======================================
 //!
-//! Values can be serialized to bencode with `bende::serde::to_bytes`, and
-//! deserialized from bencode with `bende::serde::from_bytes`:
+//! Values can be serialized to bencode with `bendy::serde::to_bytes`, and
+//! deserialized from bencode with `bendy::serde::from_bytes`:
 //!
 //! ```
 //! use bendy::serde::{to_bytes, from_bytes};
