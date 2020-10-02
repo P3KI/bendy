@@ -77,7 +77,7 @@ impl<'a> ToBencode for Value<'a> {
 
 impl<'a> FromBencode for Value<'a> {
     const EXPECTED_RECURSION_DEPTH: usize = <Self as ToBencode>::MAX_DEPTH;
-    
+
     fn decode_bencode_object(object: Object) -> Result<Self, crate::decoding::Error> {
         match object {
             Object::Bytes(bytes) => Ok(Value::Bytes(Cow::Owned(bytes.to_owned()))),

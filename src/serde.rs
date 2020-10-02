@@ -531,8 +531,8 @@ mod tests {
 
     #[test]
     fn borrowed_value() {
-        use std::borrow::Cow;
         use crate::value::Value;
+        use std::borrow::Cow;
 
         #[derive(Debug, Deserialize, PartialEq, Eq)]
         #[serde(crate = "serde_")]
@@ -542,8 +542,12 @@ mod tests {
         }
 
         assert_eq!(
-            Deserializer::from_bytes(b"d1:v3:\x01\x02\x03e").deserialize::<Dict<'_>>().unwrap(),
-            Dict { v: Value::Bytes(Cow::Owned(vec![1, 2, 3]))},
+            Deserializer::from_bytes(b"d1:v3:\x01\x02\x03e")
+                .deserialize::<Dict<'_>>()
+                .unwrap(),
+            Dict {
+                v: Value::Bytes(Cow::Owned(vec![1, 2, 3]))
+            },
         );
     }
 }
