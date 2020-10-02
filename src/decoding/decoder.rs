@@ -3,7 +3,7 @@ use core::str;
 
 use crate::{
     decoding::{Error, Object},
-    state_tracker::{StrictTracker, StructureError, Token},
+    state_tracker::{StateTracker, StrictTracker, StructureError, Token},
 };
 
 /// A bencode decoder

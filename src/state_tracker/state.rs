@@ -3,6 +3,34 @@ use alloc::vec::Vec;
 
 use crate::state_tracker::{Stack, StructureError, Token};
 
+//------------------------------------------------------------------------------
+// StateTracker
+//------------------------------------------------------------------------------
+
+/// Used to validate that a structure is valid
+pub(crate) trait StateTracker<S, E> {
+    fn new() -> Self;
+
+    fn set_max_depth(&mut self, new_max_depth: usize);
+
+    fn remaining_depth(&self) -> usize;
+
+    /// Observe that an EOF was seen. This function is idempotent.
+    fn observe_eof(&mut self) -> Result<(), E>;
+
+    fn observe_token<'a>(&mut self, token: &Token<'a>) -> Result<(), E>
+    where
+        S: From<&'a [u8]>;
+
+    fn latch_err<T>(&mut self, result: Result<T, E>) -> Result<T, E>;
+
+    fn check_error(&self) -> Result<(), E>;
+}
+
+//------------------------------------------------------------------------------
+// State
+//------------------------------------------------------------------------------
+
 /// The state of current level of the decoder
 #[derive(Clone, Ord, PartialOrd, Eq, PartialEq, Debug)]
 enum State<S: AsRef<[u8]>, E> {
@@ -15,6 +43,10 @@ enum State<S: AsRef<[u8]>, E> {
     /// Received an error while decoding
     Failed(E),
 }
+
+//------------------------------------------------------------------------------
+// StrictTracker
+//------------------------------------------------------------------------------
 
 /// Used to validate that a structure is valid
 #[derive(Debug)]
@@ -32,25 +64,25 @@ impl<S: AsRef<[u8]>, E> Default for StrictTracker<S, E> {
     }
 }
 
-impl<S: AsRef<[u8]>, E> StrictTracker<S, E>
+impl<S, E> StateTracker<S, E> for StrictTracker<S, E>
 where
     S: AsRef<[u8]>,
     E: From<StructureError> + Clone,
 {
-    pub fn new() -> Self {
+    fn new() -> Self {
         <Self as Default>::default()
     }
 
-    pub fn set_max_depth(&mut self, new_max_depth: usize) {
+    fn set_max_depth(&mut self, new_max_depth: usize) {
         self.max_depth = new_max_depth
     }
 
-    pub fn remaining_depth(&self) -> usize {
+    fn remaining_depth(&self) -> usize {
         self.max_depth - self.state.len()
     }
 
     /// Observe that an EOF was seen. This function is idempotent.
-    pub fn observe_eof(&mut self) -> Result<(), E> {
+    fn observe_eof(&mut self) -> Result<(), E> {
         self.check_error()?;
 
         if self.state.is_empty() {
@@ -61,7 +93,7 @@ where
     }
 
     #[allow(clippy::match_same_arms)]
-    pub fn observe_token<'a>(&mut self, token: &Token<'a>) -> Result<(), E>
+    fn observe_token<'a>(&mut self, token: &Token<'a>) -> Result<(), E>
     where
         S: From<&'a [u8]>,
     {
@@ -141,7 +173,7 @@ where
         Ok(())
     }
 
-    pub fn latch_err<T>(&mut self, result: Result<T, E>) -> Result<T, E> {
+    fn latch_err<T>(&mut self, result: Result<T, E>) -> Result<T, E> {
         self.check_error()?;
         if let Err(ref err) = result {
             self.state.push(State::Failed(err.clone()))
@@ -149,7 +181,7 @@ where
         result
     }
 
-    pub fn check_error(&self) -> Result<(), E> {
+    fn check_error(&self) -> Result<(), E> {
         if let Some(&State::Failed(ref error)) = self.state.peek() {
             Err(error.clone())
         } else {

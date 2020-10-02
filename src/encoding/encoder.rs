@@ -11,7 +11,7 @@ use std::{collections::BTreeMap, vec::Vec};
 
 use crate::{
     encoding::{Error, PrintableInteger, ToBencode},
-    state_tracker::{StrictTracker, StructureError, Token},
+    state_tracker::{StateTracker, StrictTracker, StructureError, Token},
 };
 
 /// The actual encoder. Unlike the decoder, this is not zero-copy, as that would
