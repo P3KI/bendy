@@ -3,7 +3,7 @@ use core::str;
 
 use crate::{
     decoding::{Error, Object},
-    state_tracker::{StateTracker, StructureError, Token},
+    state_tracker::{StrictTracker, StructureError, Token},
 };
 
 /// A bencode decoder
@@ -14,7 +14,7 @@ use crate::{
 pub struct Decoder<'a> {
     source: &'a [u8],
     offset: usize,
-    state: StateTracker<&'a [u8], Error>,
+    state: StrictTracker<&'a [u8], Error>,
 }
 
 impl<'ser> Decoder<'ser> {
@@ -23,7 +23,7 @@ impl<'ser> Decoder<'ser> {
         Decoder {
             source: buffer,
             offset: 0,
-            state: StateTracker::new(),
+            state: StrictTracker::new(),
         }
     }
 

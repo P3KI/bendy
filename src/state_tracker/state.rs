@@ -18,21 +18,21 @@ enum State<S: AsRef<[u8]>, E> {
 
 /// Used to validate that a structure is valid
 #[derive(Debug)]
-pub struct StateTracker<S: AsRef<[u8]>, E = StructureError> {
+pub struct StrictTracker<S: AsRef<[u8]>, E = StructureError> {
     state: Vec<State<S, E>>,
     max_depth: usize,
 }
 
-impl<S: AsRef<[u8]>, E> Default for StateTracker<S, E> {
+impl<S: AsRef<[u8]>, E> Default for StrictTracker<S, E> {
     fn default() -> Self {
-        StateTracker {
+        StrictTracker {
             state: Vec::new(),
             max_depth: 2048,
         }
     }
 }
 
-impl<S: AsRef<[u8]>, E> StateTracker<S, E>
+impl<S: AsRef<[u8]>, E> StrictTracker<S, E>
 where
     S: AsRef<[u8]>,
     E: From<StructureError> + Clone,
