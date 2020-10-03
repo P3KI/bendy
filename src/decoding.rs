@@ -4,7 +4,7 @@
 //! For any decoding process, first we need to create a decoder:
 //!
 //! ```
-//! # use bendy::decoding::{Decoder};
+//! # use bendy::decoding::StrictDecoder as Decoder;
 //! #
 //! # let buf: &[u8] = b"d3:fooi1ee";
 //! let _decoder = Decoder::new(buf);
@@ -16,7 +16,7 @@
 //! attacker can cause your program to use, so we recommend setting the bounds tightly:
 //!
 //! ```
-//! # use bendy::decoding::{Decoder};
+//! # use bendy::decoding::StrictDecoder as Decoder;
 //! #
 //! # let buf: &[u8] = b"d3:fooi1ee";
 //! let _decoder = Decoder::new(buf).with_max_depth(3);
@@ -28,10 +28,10 @@
 //! Now, you can start reading objects:
 //!
 //! ```
-//! # use bendy::decoding::{Decoder,Object};
+//! # use bendy::decoding::{StrictDecoder as Decoder, StrictObject as Object};
 //! #
-//! # fn decode_list(_: bendy::decoding::ListDecoder) {}
-//! # fn decode_dict(_: bendy::decoding::DictDecoder) {}
+//! # fn decode_list(_: bendy::decoding::StrictListDecoder) {}
+//! # fn decode_dict(_: bendy::decoding::StrictDictDecoder) {}
 //! #
 //! # let buf: &[u8] = b"d3:fooi1ee";
 //! # let mut decoder = Decoder::new(buf);
@@ -52,7 +52,7 @@
 //! of an input object without fully decoding it:
 //!
 //! ```
-//! # use bendy::decoding::Decoder;
+//! # use bendy::decoding::StrictDecoder as Decoder;
 //! #
 //! fn syntax_check(buf: &[u8]) -> bool {
 //!     let mut decoder = Decoder::new(buf);
@@ -69,8 +69,11 @@ mod from_bencode;
 mod object;
 
 pub use self::{
-    decoder::{Decoder, DictDecoder, ListDecoder, Tokens},
+    decoder::{
+        Decoder, DictDecoder, ListDecoder, StrictDecoder, StrictDictDecoder, StrictListDecoder,
+        Tokens,
+    },
     error::{Error, ErrorKind, ResultExt},
     from_bencode::FromBencode,
-    object::Object,
+    object::{Object, StrictObject},
 };

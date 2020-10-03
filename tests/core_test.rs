@@ -7,7 +7,7 @@ extern crate alloc;
 use alloc::collections::BTreeMap;
 
 use bendy::{
-    decoding::{Error as DecodingError, FromBencode, Object},
+    decoding::{Error as DecodingError, FromBencode, Object, StrictObject},
     encoding::{Error as EncodingError, SingleItemEncoder, ToBencode},
 };
 
@@ -371,7 +371,7 @@ where
 }
 
 impl FromBencode for Something {
-    fn decode_bencode_object(object: Object) -> Result<Self, DecodingError>
+    fn decode_bencode_object(object: StrictObject) -> Result<Self, DecodingError>
     where
         Self: Sized,
     {

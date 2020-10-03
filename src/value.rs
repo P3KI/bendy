@@ -27,7 +27,7 @@ use serde::{
 };
 
 use crate::{
-    decoding::{FromBencode, Object},
+    decoding::{FromBencode, Object, StrictObject},
     encoding::{SingleItemEncoder, ToBencode},
 };
 
@@ -77,8 +77,8 @@ impl<'a> ToBencode for Value<'a> {
 
 impl<'a> FromBencode for Value<'a> {
     const EXPECTED_RECURSION_DEPTH: usize = <Self as ToBencode>::MAX_DEPTH;
-    
-    fn decode_bencode_object(object: Object) -> Result<Self, crate::decoding::Error> {
+
+    fn decode_bencode_object(object: StrictObject) -> Result<Self, crate::decoding::Error> {
         match object {
             Object::Bytes(bytes) => Ok(Value::Bytes(Cow::Owned(bytes.to_owned()))),
             Object::Dict(mut decoder) => {

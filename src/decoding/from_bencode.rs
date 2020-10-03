@@ -9,13 +9,14 @@ use std::{
 };
 
 use crate::{
-    decoding::{Decoder, Error, Object},
+    decoding::{Decoder, Error, Object, StrictObject},
     encoding::AsString,
     state_tracker::StructureError,
+    StrictByteTracker,
 };
 
 ///Basic trait for bencode based value deserialization.
-pub trait FromBencode {
+pub trait FromBencode<StateTrackerT = StrictByteTracker<'static>> {
     /// Maximum allowed depth of nested structures before the decoding should be aborted.
     const EXPECTED_RECURSION_DEPTH: usize = 2048;
 
@@ -34,7 +35,7 @@ pub trait FromBencode {
     }
 
     /// Deserialize an object from its intermediate bencode representation.
-    fn decode_bencode_object(object: Object) -> Result<Self, Error>
+    fn decode_bencode_object(object: StrictObject) -> Result<Self, Error>
     where
         Self: Sized;
 }
@@ -44,7 +45,7 @@ macro_rules! impl_from_bencode_for_integer {
         impl FromBencode for $type {
             const EXPECTED_RECURSION_DEPTH: usize = 0;
 
-            fn decode_bencode_object(object: Object) -> Result<Self, Error>
+            fn decode_bencode_object(object: StrictObject) -> Result<Self, Error>
             where
                 Self: Sized,
             {
@@ -59,10 +60,13 @@ macro_rules! impl_from_bencode_for_integer {
 
 impl_from_bencode_for_integer!(u8 u16 u32 u64 u128 usize i8 i16 i32 i64 i128 isize);
 
-impl<ContentT: FromBencode> FromBencode for Vec<ContentT> {
+impl<ContentT> FromBencode for Vec<ContentT>
+where
+    ContentT: FromBencode,
+{
     const EXPECTED_RECURSION_DEPTH: usize = ContentT::EXPECTED_RECURSION_DEPTH + 1;
 
-    fn decode_bencode_object(object: Object) -> Result<Self, Error>
+    fn decode_bencode_object(object: StrictObject) -> Result<Self, Error>
     where
         Self: Sized,
     {
@@ -81,7 +85,7 @@ impl<ContentT: FromBencode> FromBencode for Vec<ContentT> {
 impl FromBencode for String {
     const EXPECTED_RECURSION_DEPTH: usize = 0;
 
-    fn decode_bencode_object(object: Object) -> Result<Self, Error>
+    fn decode_bencode_object(object: StrictObject) -> Result<Self, Error>
     where
         Self: Sized,
     {
@@ -99,7 +103,7 @@ where
 {
     const EXPECTED_RECURSION_DEPTH: usize = V::EXPECTED_RECURSION_DEPTH + 1;
 
-    fn decode_bencode_object(object: Object) -> Result<Self, Error>
+    fn decode_bencode_object(object: StrictObject) -> Result<Self, Error>
     where
         Self: Sized,
     {
@@ -126,7 +130,7 @@ where
 {
     const EXPECTED_RECURSION_DEPTH: usize = V::EXPECTED_RECURSION_DEPTH + 1;
 
-    fn decode_bencode_object(object: Object) -> Result<Self, Error>
+    fn decode_bencode_object(object: StrictObject) -> Result<Self, Error>
     where
         Self: Sized,
     {
@@ -147,7 +151,7 @@ where
 impl<T: FromBencode> FromBencode for Rc<T> {
     const EXPECTED_RECURSION_DEPTH: usize = T::EXPECTED_RECURSION_DEPTH;
 
-    fn decode_bencode_object(object: Object) -> Result<Self, Error>
+    fn decode_bencode_object(object: StrictObject) -> Result<Self, Error>
     where
         Self: Sized,
     {
@@ -158,7 +162,7 @@ impl<T: FromBencode> FromBencode for Rc<T> {
 impl FromBencode for AsString<Vec<u8>> {
     const EXPECTED_RECURSION_DEPTH: usize = 0;
 
-    fn decode_bencode_object(object: Object) -> Result<Self, Error>
+    fn decode_bencode_object(object: StrictObject) -> Result<Self, Error>
     where
         Self: Sized,
     {

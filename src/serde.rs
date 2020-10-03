@@ -5,9 +5,9 @@
 //! deserialized from bencode with `bendy::serde::from_bytes`:
 //!
 //! ```
-//! use bendy::serde::{to_bytes, from_bytes};
+//! use bendy::serde::{from_bytes, to_bytes};
 //! use serde_ as serde;
-//! use serde_derive::{Serialize, Deserialize};
+//! use serde_derive::{Deserialize, Serialize};
 //!
 //! assert_eq!(to_bytes(&10).unwrap(), b"i10e");
 //! assert_eq!(from_bytes::<u64>(b"i10e").unwrap(), 10);
@@ -531,8 +531,8 @@ mod tests {
 
     #[test]
     fn borrowed_value() {
-        use std::borrow::Cow;
         use crate::value::Value;
+        use std::borrow::Cow;
 
         #[derive(Debug, Deserialize, PartialEq, Eq)]
         #[serde(crate = "serde_")]
@@ -542,8 +542,12 @@ mod tests {
         }
 
         assert_eq!(
-            Deserializer::from_bytes(b"d1:v3:\x01\x02\x03e").deserialize::<Dict<'_>>().unwrap(),
-            Dict { v: Value::Bytes(Cow::Owned(vec![1, 2, 3]))},
+            Deserializer::from_bytes(b"d1:v3:\x01\x02\x03e")
+                .deserialize::<Dict<'_>>()
+                .unwrap(),
+            Dict {
+                v: Value::Bytes(Cow::Owned(vec![1, 2, 3]))
+            },
         );
     }
 }
