@@ -15,7 +15,7 @@
 //! ```
 
 use bendy::{
-    decoding::{Error, FromBencode, Object, ResultExt},
+    decoding::{Error, FromBencode, ResultExt, StrictObject},
     encoding::AsString,
 };
 
@@ -80,7 +80,7 @@ impl FromBencode for MetaInfo {
     /// non-optional and optional fields. Missing optional fields are ignored
     /// but any other missing fields result in stopping the decoding and in
     /// spawning [`DecodingError::MissingField`].
-    fn decode_bencode_object(object: Object) -> Result<Self, Error>
+    fn decode_bencode_object(object: StrictObject) -> Result<Self, Error>
     where
         Self: Sized,
     {
@@ -146,7 +146,7 @@ impl FromBencode for Info {
     /// On success the dictionary is parsed for the fields of info which are
     /// necessary for torrent. Any missing field will result in a missing field
     /// error which will stop the decoding.
-    fn decode_bencode_object(object: Object) -> Result<Self, Error>
+    fn decode_bencode_object(object: StrictObject) -> Result<Self, Error>
     where
         Self: Sized,
     {

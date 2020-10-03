@@ -1,21 +1,29 @@
 use crate::{
     decoding::{DictDecoder, Error, ListDecoder},
-    state_tracker::Token,
+    state_tracker::{StateTracker, StrictTracker, Token},
 };
 
+pub type StrictObject<'obj, 'ser> = Object<'obj, 'ser, StrictTracker<&'ser [u8], Error>>;
+
 /// An object read from a decoder
-pub enum Object<'obj, 'ser: 'obj> {
+pub enum Object<'obj, 'ser: 'obj, StateTrackerT>
+where
+    StateTrackerT: StateTracker<&'ser [u8], Error>,
+{
     /// A list of arbitrary objects
-    List(ListDecoder<'obj, 'ser>),
+    List(ListDecoder<'obj, 'ser, StateTrackerT>),
     /// A map of string-valued keys to arbitrary objects
-    Dict(DictDecoder<'obj, 'ser>),
+    Dict(DictDecoder<'obj, 'ser, StateTrackerT>),
     /// An unparsed integer
     Integer(&'ser str),
     /// A byte string
     Bytes(&'ser [u8]),
 }
 
-impl<'obj, 'ser: 'obj> Object<'obj, 'ser> {
+impl<'obj, 'ser: 'obj, StateTrackerT> Object<'obj, 'ser, StateTrackerT>
+where
+    StateTrackerT: StateTracker<&'ser [u8], Error>,
+{
     pub fn into_token(self) -> Token<'ser> {
         match self {
             Object::List(_) => Token::List,
@@ -39,7 +47,7 @@ impl<'obj, 'ser: 'obj> Object<'obj, 'ser> {
     /// # Examples
     ///
     /// ```
-    /// use bendy::decoding::Object;
+    /// use bendy::decoding::StrictObject as Object;
     ///
     /// let x = Object::Bytes(b"foo");
     /// assert_eq!(Ok(&b"foo"[..]), x.bytes_or(Err("failure")));
@@ -66,7 +74,7 @@ impl<'obj, 'ser: 'obj> Object<'obj, 'ser> {
     /// # Examples
     ///
     /// ```
-    /// use bendy::decoding::Object;
+    /// use bendy::decoding::StrictObject as Object;
     ///
     /// let x = Object::Bytes(b"foo");
     /// assert_eq!(
@@ -100,7 +108,7 @@ impl<'obj, 'ser: 'obj> Object<'obj, 'ser> {
     /// # Examples
     ///
     /// ```
-    /// use bendy::decoding::Object;
+    /// use bendy::decoding::StrictObject as Object;
     ///
     /// let x = Object::Bytes(b"foo");
     /// assert_eq!(b"foo", x.try_into_bytes().unwrap());
@@ -127,7 +135,7 @@ impl<'obj, 'ser: 'obj> Object<'obj, 'ser> {
     /// # Examples
     ///
     /// ```
-    /// use bendy::decoding::Object;
+    /// use bendy::decoding::StrictObject as Object;
     ///
     /// let x = Object::Integer("123");
     /// assert_eq!(Ok(&"123"[..]), x.integer_or(Err("failure")));
@@ -155,7 +163,7 @@ impl<'obj, 'ser: 'obj> Object<'obj, 'ser> {
     /// # Examples
     ///
     /// ```
-    /// use bendy::decoding::Object;
+    /// use bendy::decoding::StrictObject as Object;
     ///
     /// let x = Object::Integer("123");
     /// assert_eq!(
@@ -190,7 +198,7 @@ impl<'obj, 'ser: 'obj> Object<'obj, 'ser> {
     /// # Examples
     ///
     /// ```
-    /// use bendy::decoding::Object;
+    /// use bendy::decoding::StrictObject as Object;
     ///
     /// let x = Object::Integer("123");
     /// assert_eq!("123", x.try_into_integer().unwrap());
@@ -217,7 +225,7 @@ impl<'obj, 'ser: 'obj> Object<'obj, 'ser> {
     /// # Examples
     ///
     /// ```
-    /// use bendy::decoding::{Decoder, Object};
+    /// use bendy::decoding::{StrictDecoder as Decoder, StrictObject as Object};
     ///
     /// let mut list_decoder = Decoder::new(b"le");
     /// let x = list_decoder.next_object().unwrap().unwrap();
@@ -229,8 +237,8 @@ impl<'obj, 'ser: 'obj> Object<'obj, 'ser> {
     /// ```
     pub fn list_or<ErrorT>(
         self,
-        default: Result<ListDecoder<'obj, 'ser>, ErrorT>,
-    ) -> Result<ListDecoder<'obj, 'ser>, ErrorT> {
+        default: Result<ListDecoder<'obj, 'ser, StateTrackerT>, ErrorT>,
+    ) -> Result<ListDecoder<'obj, 'ser, StateTrackerT>, ErrorT> {
         match self {
             Object::List(content) => Ok(content),
             _ => default,
@@ -247,7 +255,7 @@ impl<'obj, 'ser: 'obj> Object<'obj, 'ser> {
     /// # Examples
     ///
     /// ```
-    /// use bendy::decoding::{Decoder, Object};
+    /// use bendy::decoding::{StrictDecoder as Decoder, StrictObject as Object};
     ///
     /// let mut list_decoder = Decoder::new(b"le");
     /// let x = list_decoder.next_object().unwrap().unwrap();
@@ -263,8 +271,8 @@ impl<'obj, 'ser: 'obj> Object<'obj, 'ser> {
     /// ```
     pub fn list_or_else<ErrorT>(
         self,
-        op: impl FnOnce(Self) -> Result<ListDecoder<'obj, 'ser>, ErrorT>,
-    ) -> Result<ListDecoder<'obj, 'ser>, ErrorT> {
+        op: impl FnOnce(Self) -> Result<ListDecoder<'obj, 'ser, StateTrackerT>, ErrorT>,
+    ) -> Result<ListDecoder<'obj, 'ser, StateTrackerT>, ErrorT> {
         match self {
             Object::List(content) => Ok(content),
             _ => op(self),
@@ -282,7 +290,7 @@ impl<'obj, 'ser: 'obj> Object<'obj, 'ser> {
     /// # Examples
     ///
     /// ```
-    /// use bendy::decoding::{Decoder, Object};
+    /// use bendy::decoding::{StrictDecoder as Decoder, StrictObject as Object};
     ///
     /// let mut list_decoder = Decoder::new(b"le");
     /// let x = list_decoder.next_object().unwrap().unwrap();
@@ -292,7 +300,7 @@ impl<'obj, 'ser: 'obj> Object<'obj, 'ser> {
     /// let x = Object::Bytes(b"foo");
     /// assert!(x.try_into_list().is_err());
     /// ```
-    pub fn try_into_list(self) -> Result<ListDecoder<'obj, 'ser>, Error> {
+    pub fn try_into_list(self) -> Result<ListDecoder<'obj, 'ser, StateTrackerT>, Error> {
         self.list_or_else(|obj| Err(Error::unexpected_token("List", obj.into_token().name())))
     }
 
@@ -311,7 +319,7 @@ impl<'obj, 'ser: 'obj> Object<'obj, 'ser> {
     /// # Examples
     ///
     /// ```
-    /// use bendy::decoding::{Decoder, Object};
+    /// use bendy::decoding::{StrictDecoder as Decoder, StrictObject as Object};
     ///
     /// let mut dict_decoder = Decoder::new(b"de");
     /// let x = dict_decoder.next_object().unwrap().unwrap();
@@ -323,8 +331,8 @@ impl<'obj, 'ser: 'obj> Object<'obj, 'ser> {
     /// ```
     pub fn dictionary_or<ErrorT>(
         self,
-        default: Result<DictDecoder<'obj, 'ser>, ErrorT>,
-    ) -> Result<DictDecoder<'obj, 'ser>, ErrorT> {
+        default: Result<DictDecoder<'obj, 'ser, StateTrackerT>, ErrorT>,
+    ) -> Result<DictDecoder<'obj, 'ser, StateTrackerT>, ErrorT> {
         match self {
             Object::Dict(content) => Ok(content),
             _ => default,
@@ -341,7 +349,7 @@ impl<'obj, 'ser: 'obj> Object<'obj, 'ser> {
     /// # Examples
     ///
     /// ```
-    /// use bendy::decoding::{Decoder, Object};
+    /// use bendy::decoding::{StrictDecoder as Decoder, StrictObject as Object};
     ///
     /// let mut dict_decoder = Decoder::new(b"de");
     /// let x = dict_decoder.next_object().unwrap().unwrap();
@@ -359,8 +367,8 @@ impl<'obj, 'ser: 'obj> Object<'obj, 'ser> {
     /// ```
     pub fn dictionary_or_else<ErrorT>(
         self,
-        op: impl FnOnce(Self) -> Result<DictDecoder<'obj, 'ser>, ErrorT>,
-    ) -> Result<DictDecoder<'obj, 'ser>, ErrorT> {
+        op: impl FnOnce(Self) -> Result<DictDecoder<'obj, 'ser, StateTrackerT>, ErrorT>,
+    ) -> Result<DictDecoder<'obj, 'ser, StateTrackerT>, ErrorT> {
         match self {
             Object::Dict(content) => Ok(content),
             _ => op(self),
@@ -378,7 +386,7 @@ impl<'obj, 'ser: 'obj> Object<'obj, 'ser> {
     /// # Examples
     ///
     /// ```
-    /// use bendy::decoding::{Decoder, Object};
+    /// use bendy::decoding::{StrictDecoder as Decoder, StrictObject as Object};
     ///
     /// let mut dict_decoder = Decoder::new(b"de");
     /// let x = dict_decoder.next_object().unwrap().unwrap();
@@ -388,7 +396,7 @@ impl<'obj, 'ser: 'obj> Object<'obj, 'ser> {
     /// let x = Object::Bytes(b"foo");
     /// assert!(x.try_into_dictionary().is_err());
     /// ```
-    pub fn try_into_dictionary(self) -> Result<DictDecoder<'obj, 'ser>, Error> {
+    pub fn try_into_dictionary(self) -> Result<DictDecoder<'obj, 'ser, StateTrackerT>, Error> {
         self.dictionary_or_else(|obj| Err(Error::unexpected_token("Dict", obj.into_token().name())))
     }
 }

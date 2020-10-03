@@ -4,26 +4,37 @@ use core::str;
 use crate::{
     decoding::{Error, Object},
     state_tracker::{StateTracker, StrictTracker, StructureError, Token},
+    StrictByteTracker,
 };
+
+pub type StrictDecoder<'ser> = Decoder<'ser, StrictByteTracker<'ser>>;
+pub type StrictListDecoder<'obj, 'ser> = ListDecoder<'obj, 'ser, StrictByteTracker<'ser>>;
+pub type StrictDictDecoder<'obj, 'ser> = DictDecoder<'obj, 'ser, StrictByteTracker<'ser>>;
 
 /// A bencode decoder
 ///
 /// This can be used to either get a stream of tokens (using the [`Decoder::tokens()`] method) or to
 /// read a complete object at a time (using the [`Decoder::next_object()`]) method.
 #[derive(Debug)]
-pub struct Decoder<'a> {
-    source: &'a [u8],
+pub struct Decoder<'ser, StateTrackerT = StrictTracker<&'ser [u8], Error>>
+where
+    StateTrackerT: StateTracker<&'ser [u8], Error>,
+{
+    source: &'ser [u8],
     offset: usize,
-    state: StrictTracker<&'a [u8], Error>,
+    state: StateTrackerT,
 }
 
-impl<'ser> Decoder<'ser> {
+impl<'ser, StateTrackerT> Decoder<'ser, StateTrackerT>
+where
+    StateTrackerT: StateTracker<&'ser [u8], Error>,
+{
     /// Create a new decoder from the given byte array
     pub fn new(buffer: &'ser [u8]) -> Self {
         Decoder {
             source: buffer,
             offset: 0,
-            state: StrictTracker::new(),
+            state: StateTrackerT::new(),
         }
     }
 
@@ -181,16 +192,21 @@ impl<'ser> Decoder<'ser> {
 
     /// Iterate over the tokens in the input stream. This guarantees that the resulting stream
     /// of tokens constitutes a valid bencoded structure.
-    pub fn tokens(self) -> Tokens<'ser> {
+    pub fn tokens(self) -> Tokens<'ser, StateTrackerT> {
         Tokens(self)
     }
 }
 
 /// Iterator over the tokens in the input stream. This guarantees that the resulting stream
 /// of tokens constitutes a valid bencoded structure.
-pub struct Tokens<'a>(Decoder<'a>);
+pub struct Tokens<'a, StateTrackerT>(Decoder<'a, StateTrackerT>)
+where
+    StateTrackerT: StateTracker<&'a [u8], Error>;
 
-impl<'a> Iterator for Tokens<'a> {
+impl<'a, StateTrackerT> Iterator for Tokens<'a, StateTrackerT>
+where
+    StateTrackerT: StateTracker<&'a [u8], Error>,
+{
     type Item = Result<Token<'a>, Error>;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -208,7 +224,10 @@ impl<'a> Iterator for Tokens<'a> {
 
 // High level interface
 
-impl<'ser> Decoder<'ser> {
+impl<'ser, StateTrackerT> Decoder<'ser, StateTrackerT>
+where
+    StateTrackerT: StateTracker<&'ser [u8], Error>,
+{
     /// Read the next object from the encoded stream
     ///
     /// If the beginning of an object was successfully read, returns `Ok(Some(object))`.
@@ -218,7 +237,9 @@ impl<'ser> Decoder<'ser> {
     /// Note that complex objects (lists and dicts) are not fully validated before being
     /// returned from this method, so you may still get an error while decoding the contents
     /// of the object
-    pub fn next_object<'obj>(&'obj mut self) -> Result<Option<Object<'obj, 'ser>>, Error> {
+    pub fn next_object<'obj>(
+        &'obj mut self,
+    ) -> Result<Option<Object<'obj, 'ser, StateTrackerT>>, Error> {
         use self::Token::*;
         Ok(match self.next_token()? {
             None | Some(End) => None,
@@ -232,22 +253,31 @@ impl<'ser> Decoder<'ser> {
 
 /// A dictionary read from the input stream
 #[derive(Debug)]
-pub struct DictDecoder<'obj, 'ser: 'obj> {
-    decoder: &'obj mut Decoder<'ser>,
+pub struct DictDecoder<'obj, 'ser: 'obj, StateTrackerT>
+where
+    StateTrackerT: StateTracker<&'ser [u8], Error>,
+{
+    decoder: &'obj mut Decoder<'ser, StateTrackerT>,
     finished: bool,
     start_point: usize,
 }
 
 /// A list read from the input stream
 #[derive(Debug)]
-pub struct ListDecoder<'obj, 'ser: 'obj> {
-    decoder: &'obj mut Decoder<'ser>,
+pub struct ListDecoder<'obj, 'ser: 'obj, StateTrackerT>
+where
+    StateTrackerT: StateTracker<&'ser [u8], Error>,
+{
+    decoder: &'obj mut Decoder<'ser, StateTrackerT>,
     finished: bool,
     start_point: usize,
 }
 
-impl<'obj, 'ser: 'obj> DictDecoder<'obj, 'ser> {
-    fn new(decoder: &'obj mut Decoder<'ser>) -> Self {
+impl<'obj, 'ser: 'obj, StateTrackerT> DictDecoder<'obj, 'ser, StateTrackerT>
+where
+    StateTrackerT: StateTracker<&'ser [u8], Error>,
+{
+    fn new(decoder: &'obj mut Decoder<'ser, StateTrackerT>) -> Self {
         let offset = decoder.offset - 1;
         DictDecoder {
             decoder,
@@ -260,7 +290,7 @@ impl<'obj, 'ser: 'obj> DictDecoder<'obj, 'ser> {
     /// at the end of the dictionary
     pub fn next_pair<'item>(
         &'item mut self,
-    ) -> Result<Option<(&'ser [u8], Object<'item, 'ser>)>, Error> {
+    ) -> Result<Option<(&'ser [u8], Object<'item, 'ser, StateTrackerT>)>, Error> {
         if self.finished {
             return Ok(None);
         }
@@ -297,15 +327,21 @@ impl<'obj, 'ser: 'obj> DictDecoder<'obj, 'ser> {
     }
 }
 
-impl<'obj, 'ser: 'obj> Drop for DictDecoder<'obj, 'ser> {
+impl<'obj, 'ser: 'obj, StateTrackerT> Drop for DictDecoder<'obj, 'ser, StateTrackerT>
+where
+    StateTrackerT: StateTracker<&'ser [u8], Error>,
+{
     fn drop(&mut self) {
         // we don't care about errors in drop; they'll be reported again in the parent
         self.consume_all().ok();
     }
 }
 
-impl<'obj, 'ser: 'obj> ListDecoder<'obj, 'ser> {
-    fn new(decoder: &'obj mut Decoder<'ser>) -> Self {
+impl<'obj, 'ser: 'obj, StateTrackerT> ListDecoder<'obj, 'ser, StateTrackerT>
+where
+    StateTrackerT: StateTracker<&'ser [u8], Error>,
+{
+    fn new(decoder: &'obj mut Decoder<'ser, StateTrackerT>) -> Self {
         let offset = decoder.offset - 1;
         ListDecoder {
             decoder,
@@ -315,7 +351,9 @@ impl<'obj, 'ser: 'obj> ListDecoder<'obj, 'ser> {
     }
 
     /// Get the next item from the list. Returns `Ok(None)` at the end of the list
-    pub fn next_object<'item>(&'item mut self) -> Result<Option<Object<'item, 'ser>>, Error> {
+    pub fn next_object<'item>(
+        &'item mut self,
+    ) -> Result<Option<Object<'item, 'ser, StateTrackerT>>, Error> {
         if self.finished {
             return Ok(None);
         }
@@ -347,7 +385,10 @@ impl<'obj, 'ser: 'obj> ListDecoder<'obj, 'ser> {
     }
 }
 
-impl<'obj, 'ser: 'obj> Drop for ListDecoder<'obj, 'ser> {
+impl<'obj, 'ser: 'obj, StateTrackerT> Drop for ListDecoder<'obj, 'ser, StateTrackerT>
+where
+    StateTrackerT: StateTracker<&'ser [u8], Error>,
+{
     fn drop(&mut self) {
         // we don't care about errors in drop; they'll be reported again in the parent
         self.consume_all().ok();
@@ -361,14 +402,15 @@ mod test {
     use alloc::{vec, vec::Vec};
     use core::iter;
 
-    use regex;
-
     use super::*;
+    use crate::decoding::object::StrictObject as Object;
+
+    use regex;
 
     static SIMPLE_MSG: &'static [u8] = b"d3:bari1e3:fooli2ei3eee";
 
     fn decode_tokens(msg: &[u8]) -> Vec<Token> {
-        let tokens: Vec<Result<Token, Error>> = Decoder::new(msg).tokens().collect();
+        let tokens: Vec<Result<Token, Error>> = StrictDecoder::new(msg).tokens().collect();
         if tokens.iter().all(Result::is_ok) {
             tokens.into_iter().map(Result::unwrap).collect()
         } else {
@@ -380,7 +422,7 @@ mod test {
     }
 
     fn decode_err(msg: &[u8], err_regex: &str) {
-        let mut tokens: Vec<Result<Token, Error>> = Decoder::new(msg).tokens().collect();
+        let mut tokens: Vec<Result<Token, Error>> = StrictDecoder::new(msg).tokens().collect();
         if tokens.iter().all(Result::is_ok) {
             panic!("Unexpected parse success: {:?}", tokens);
         } else {
@@ -486,13 +528,13 @@ mod test {
     #[test]
     fn recursion_bounds_should_be_tight() {
         let test_msg = b"lllleeee";
-        assert!(Decoder::new(test_msg)
+        assert!(StrictDecoder::new(test_msg)
             .with_max_depth(4)
             .tokens()
             .last()
             .unwrap()
             .is_ok());
-        assert!(Decoder::new(test_msg)
+        assert!(StrictDecoder::new(test_msg)
             .with_max_depth(3)
             .tokens()
             .last()
@@ -502,7 +544,7 @@ mod test {
 
     #[test]
     fn dict_drop_should_consume_struct() {
-        let mut decoder = Decoder::new(b"d3:fooi1e3:quxi2eei1000e");
+        let mut decoder = StrictDecoder::new(b"d3:fooi1e3:quxi2eei1000e");
         drop(decoder.next_object());
 
         let token = decoder.tokens().next().unwrap().unwrap();
@@ -511,7 +553,7 @@ mod test {
 
     #[test]
     fn list_drop_should_consume_struct() {
-        let mut decoder = Decoder::new(b"li1ei2ei3eei1000e");
+        let mut decoder = StrictDecoder::new(b"li1ei2ei3eei1000e");
         drop(decoder.next_object());
 
         let token = decoder.tokens().next().unwrap().unwrap();
@@ -533,7 +575,7 @@ mod test {
             Object::Integer("123").bytes_or(Err("failure"))
         );
 
-        let mut list_decoder = Decoder::new(b"le");
+        let mut list_decoder = StrictDecoder::new(b"le");
         assert_eq!(
             Err("failure"),
             list_decoder
@@ -542,7 +584,7 @@ mod test {
                 .unwrap()
                 .bytes_or(Err("failure"))
         );
-        let mut dict_decoder = Decoder::new(b"de");
+        let mut dict_decoder = StrictDecoder::new(b"de");
         assert_eq!(
             Err("failure"),
             dict_decoder
@@ -567,7 +609,7 @@ mod test {
             Err("failure"),
             Object::Integer("123").bytes_or_else(|_| Err("failure"))
         );
-        let mut list_decoder = Decoder::new(b"le");
+        let mut list_decoder = StrictDecoder::new(b"le");
         assert_eq!(
             Err("failure"),
             list_decoder
@@ -576,7 +618,7 @@ mod test {
                 .unwrap()
                 .bytes_or_else(|_| Err("failure"))
         );
-        let mut dict_decoder = Decoder::new(b"de");
+        let mut dict_decoder = StrictDecoder::new(b"de");
         assert_eq!(
             Err("failure"),
             dict_decoder
@@ -601,7 +643,7 @@ mod test {
             Err("failure"),
             Object::Bytes(b"foo").integer_or(Err("failure"))
         );
-        let mut list_decoder = Decoder::new(b"le");
+        let mut list_decoder = StrictDecoder::new(b"le");
         assert_eq!(
             Err("failure"),
             list_decoder
@@ -610,7 +652,7 @@ mod test {
                 .unwrap()
                 .integer_or(Err("failure"))
         );
-        let mut dict_decoder = Decoder::new(b"de");
+        let mut dict_decoder = StrictDecoder::new(b"de");
         assert_eq!(
             Err("failure"),
             dict_decoder
@@ -635,7 +677,7 @@ mod test {
             Err("failure"),
             Object::Bytes(b"foo").integer_or_else(|_| Err("failure"))
         );
-        let mut list_decoder = Decoder::new(b"le");
+        let mut list_decoder = StrictDecoder::new(b"le");
         assert_eq!(
             Err("failure"),
             list_decoder
@@ -644,7 +686,7 @@ mod test {
                 .unwrap()
                 .integer_or_else(|_| Err("failure"))
         );
-        let mut dict_decoder = Decoder::new(b"de");
+        let mut dict_decoder = StrictDecoder::new(b"de");
         assert_eq!(
             Err("failure"),
             dict_decoder
@@ -657,7 +699,7 @@ mod test {
 
     #[test]
     fn list_or_should_work_on_list() {
-        let mut list_decoder = Decoder::new(b"le");
+        let mut list_decoder = StrictDecoder::new(b"le");
         assert!(list_decoder
             .next_object()
             .unwrap()
@@ -676,7 +718,7 @@ mod test {
             Object::Integer("foo").list_or(Err("failure")).unwrap_err()
         );
 
-        let mut dict_decoder = Decoder::new(b"de");
+        let mut dict_decoder = StrictDecoder::new(b"de");
         assert_eq!(
             "failure",
             dict_decoder
@@ -690,7 +732,7 @@ mod test {
 
     #[test]
     fn list_or_else_should_work_on_list() {
-        let mut list_decoder = Decoder::new(b"le");
+        let mut list_decoder = StrictDecoder::new(b"le");
         assert!(list_decoder
             .next_object()
             .unwrap()
@@ -713,7 +755,7 @@ mod test {
                 .unwrap_err()
         );
 
-        let mut dict_decoder = Decoder::new(b"de");
+        let mut dict_decoder = StrictDecoder::new(b"de");
         assert_eq!(
             "failure",
             dict_decoder
@@ -727,7 +769,7 @@ mod test {
 
     #[test]
     fn dictionary_or_should_work_on_dict() {
-        let mut dict_decoder = Decoder::new(b"de");
+        let mut dict_decoder = StrictDecoder::new(b"de");
         assert!(dict_decoder
             .next_object()
             .unwrap()
@@ -751,7 +793,7 @@ mod test {
                 .unwrap_err()
         );
 
-        let mut list_decoder = Decoder::new(b"le");
+        let mut list_decoder = StrictDecoder::new(b"le");
         assert_eq!(
             "failure",
             list_decoder
@@ -765,7 +807,7 @@ mod test {
 
     #[test]
     fn dictionary_or_else_should_work_on_dict() {
-        let mut dict_decoder = Decoder::new(b"de");
+        let mut dict_decoder = StrictDecoder::new(b"de");
         assert!(dict_decoder
             .next_object()
             .unwrap()
@@ -789,7 +831,7 @@ mod test {
                 .unwrap_err()
         );
 
-        let mut list_decoder = Decoder::new(b"le");
+        let mut list_decoder = StrictDecoder::new(b"le");
         assert_eq!(
             "failure",
             list_decoder

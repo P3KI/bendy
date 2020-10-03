@@ -21,3 +21,11 @@ pub mod state_tracker;
 pub mod serde;
 
 pub mod value;
+
+//------------------------------------------------------------------------------
+// Helper
+//------------------------------------------------------------------------------
+
+use self::{decoding::Error, state_tracker::StrictTracker};
+
+type StrictByteTracker<'ser> = StrictTracker<&'ser [u8], Error>;

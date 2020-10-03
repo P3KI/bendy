@@ -1,5 +1,5 @@
 use bendy::{
-    decoding::{Error as DecodingError, FromBencode, Object},
+    decoding::{Error as DecodingError, FromBencode, StrictObject},
     encoding::{Error as EncodingError, SingleItemEncoder, ToBencode},
 };
 
@@ -23,7 +23,7 @@ impl ToBencode for Example {
 impl FromBencode for Example {
     const EXPECTED_RECURSION_DEPTH: usize = 2;
 
-    fn decode_bencode_object(object: Object) -> Result<Self, DecodingError>
+    fn decode_bencode_object(object: StrictObject) -> Result<Self, DecodingError>
     where
         Self: Sized,
     {

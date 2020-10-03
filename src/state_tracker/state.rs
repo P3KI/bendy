@@ -8,7 +8,7 @@ use crate::state_tracker::{Stack, StructureError, Token};
 //------------------------------------------------------------------------------
 
 /// Used to validate that a structure is valid
-pub(crate) trait StateTracker<S, E> {
+pub trait StateTracker<S, E = StructureError> {
     fn new() -> Self;
 
     fn set_max_depth(&mut self, new_max_depth: usize);

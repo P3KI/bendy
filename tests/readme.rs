@@ -174,7 +174,7 @@ mod decoding_1 {
 }
 
 mod decoding_2 {
-    use bendy::decoding::{Error, FromBencode, Object};
+    use bendy::decoding::{Error, FromBencode, StrictObject};
 
     #[derive(Debug, Eq, PartialEq)]
     struct IntegerWrapper(i64);
@@ -182,7 +182,7 @@ mod decoding_2 {
     impl FromBencode for IntegerWrapper {
         const EXPECTED_RECURSION_DEPTH: usize = 0;
 
-        fn decode_bencode_object(object: Object) -> Result<Self, Error> {
+        fn decode_bencode_object(object: StrictObject) -> Result<Self, Error> {
             // This is an example for content handling. It would also be possible
             // to call  `i64::decode_bencode_object(object)` directly.
             let content = object.try_into_integer()?;
@@ -207,7 +207,7 @@ mod decoding_2 {
 }
 
 mod decoding_3 {
-    use bendy::decoding::{Error, FromBencode, Object};
+    use bendy::decoding::{Error, FromBencode, StrictObject};
 
     #[derive(Debug, Eq, PartialEq)]
     struct StringWrapper(String);
@@ -215,7 +215,7 @@ mod decoding_3 {
     impl FromBencode for StringWrapper {
         const EXPECTED_RECURSION_DEPTH: usize = 0;
 
-        fn decode_bencode_object(object: Object) -> Result<Self, Error> {
+        fn decode_bencode_object(object: StrictObject) -> Result<Self, Error> {
             // This is an example for content handling. It would also be possible
             // to call  `String::decode_bencode_object(object)` directly.
             let content = object.try_into_bytes()?;
@@ -241,7 +241,7 @@ mod decoding_3 {
 
 mod decoding_4 {
     use bendy::{
-        decoding::{Error, FromBencode, Object},
+        decoding::{Error, FromBencode, StrictObject},
         encoding::AsString,
     };
 
@@ -251,7 +251,7 @@ mod decoding_4 {
     impl FromBencode for ByteStringWrapper {
         const EXPECTED_RECURSION_DEPTH: usize = 0;
 
-        fn decode_bencode_object(object: Object) -> Result<Self, Error> {
+        fn decode_bencode_object(object: StrictObject) -> Result<Self, Error> {
             let content = AsString::decode_bencode_object(object)?;
             Ok(ByteStringWrapper(content.0))
         }
@@ -272,7 +272,7 @@ mod decoding_4 {
 }
 
 mod decoding_5 {
-    use bendy::decoding::{Error, FromBencode, Object, ResultExt};
+    use bendy::decoding::{Error, FromBencode, ResultExt, StrictObject};
 
     #[derive(Debug, Eq, PartialEq)]
     struct Example {
@@ -283,7 +283,7 @@ mod decoding_5 {
     impl FromBencode for Example {
         const EXPECTED_RECURSION_DEPTH: usize = 1;
 
-        fn decode_bencode_object(object: Object) -> Result<Self, Error> {
+        fn decode_bencode_object(object: StrictObject) -> Result<Self, Error> {
             let mut counter = None;
             let mut label = None;
 
@@ -331,7 +331,7 @@ mod decoding_5 {
 }
 
 mod decoding_6 {
-    use bendy::decoding::{Error, FromBencode, Object};
+    use bendy::decoding::{Error, FromBencode, StrictObject};
 
     #[derive(Debug, PartialEq, Eq)]
     struct Location(i64, i64);
@@ -339,7 +339,7 @@ mod decoding_6 {
     impl FromBencode for Location {
         const EXPECTED_RECURSION_DEPTH: usize = 1;
 
-        fn decode_bencode_object(object: Object) -> Result<Self, Error> {
+        fn decode_bencode_object(object: StrictObject) -> Result<Self, Error> {
             let mut list = object.try_into_list()?;
 
             let x = list.next_object()?.ok_or(Error::missing_field("x"))?;

@@ -5,9 +5,9 @@
 //! deserialized from bencode with `bendy::serde::from_bytes`:
 //!
 //! ```
-//! use bendy::serde::{to_bytes, from_bytes};
+//! use bendy::serde::{from_bytes, to_bytes};
 //! use serde_ as serde;
-//! use serde_derive::{Serialize, Deserialize};
+//! use serde_derive::{Deserialize, Serialize};
 //!
 //! assert_eq!(to_bytes(&10).unwrap(), b"i10e");
 //! assert_eq!(from_bytes::<u64>(b"i10e").unwrap(), 10);
