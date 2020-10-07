@@ -94,10 +94,7 @@ it is enough to import the trait and call the `to_bencode()` function on the obj
 ```rust
 use bendy::encoding::{ToBencode, Error};
 
-fn main() {}
-
-#[test]
-fn encode_vector() -> Result<(), Error> {
+fn main() -> Result<(), Error> {
     let my_data = vec!["hello", "world"];
     let encoded = my_data.to_bencode()?;
 
@@ -140,10 +137,7 @@ impl ToBencode for IntegerWrapper {
     }
 }
 
-fn main() {}
-
-#[test]
-fn encode_integer() -> Result<(), Error> {
+fn main() -> Result<(), Error> {
     let example = IntegerWrapper(21);
 
     let encoded = example.to_bencode()?;
@@ -174,10 +168,7 @@ impl ToBencode for StringWrapper {
     }
 }
 
-fn main() {}
-
-#[test]
-fn encode_string() -> Result<(), Error> {
+fn main() -> Result<(), Error> {
     let example = StringWrapper("content".to_string());
 
     let encoded = example.to_bencode()?;
@@ -209,10 +200,7 @@ impl ToBencode for ByteStringWrapper {
     }
 }
 
-fn main() {}
-
-#[test]
-fn encode_byte_string() -> Result<(), Error> {
+fn main() -> Result<(), Error> {
     let example = ByteStringWrapper(b"content".to_vec());
 
     let encoded = example.to_bencode()?;
@@ -258,10 +246,7 @@ impl ToBencode for Example {
     }
 }
 
-fn main() {}
-
-#[test]
-fn encode_dictionary() -> Result<(), Error> {
+fn main() -> Result<(), Error> {
     let example = Example { label: "Example".to_string(), counter: 0 };
 
     let encoded = example.to_bencode()?;
@@ -293,10 +278,7 @@ impl ToBencode for Location {
     }
 }
 
-fn main() {}
-
-#[test]
-fn encode_list() -> Result<(), Error> {
+fn main() -> Result<(), Error> {
     let example = Location(2, 3);
 
     let encoded = example.to_bencode()?;
@@ -314,10 +296,7 @@ it is enough to import the trait and call the `from_bencode()` function on the o
 ```rust
 use bendy::decoding::{FromBencode, Error};
 
-fn main() {}
-
-#[test]
-fn decode_vector() -> Result<(), Error> {
+fn main() -> Result<(), Error> {
     let encoded = b"l5:hello5:worlde".to_vec();
     let decoded = Vec::<String>::from_bencode(&encoded)?;
 
@@ -373,10 +352,7 @@ impl FromBencode for IntegerWrapper {
     }
 }
 
-fn main() {}
-
-#[test]
-fn decode_integer() -> Result<(), Error> {
+fn main() -> Result<(), Error> {
     let encoded = b"i21e".to_vec();
 
     let example = IntegerWrapper::from_bencode(&encoded)?;
@@ -414,10 +390,7 @@ impl FromBencode for StringWrapper {
     }
 }
 
-fn main() {}
-
-#[test]
-fn decode_string() -> Result<(), Error> {
+fn main() -> Result<(), Error> {
     let encoded = b"7:content".to_vec();
 
     let example = StringWrapper::from_bencode(&encoded)?;
@@ -452,10 +425,7 @@ impl FromBencode for ByteStringWrapper {
     }
 }
 
-fn main() {}
-
-#[test]
-fn decode_byte_string() -> Result<(), Error> {
+fn main() -> Result<(), Error> {
     let encoded = b"7:content".to_vec();
 
     let example = ByteStringWrapper::from_bencode(&encoded)?;
@@ -522,10 +492,7 @@ impl FromBencode for Example {
     }
 }
 
-fn main() {}
-
-#[test]
-fn decode_dictionary() -> Result<(), Error> {
+fn main() -> Result<(), Error> {
     let encoded = b"d7:counteri0e5:label7:Examplee".to_vec();
     let expected = Example { label: "Example".to_string(), counter: 0 };
 
@@ -563,10 +530,7 @@ impl FromBencode for Location {
     }
 }
 
-fn main() {}
-
-#[test]
-fn decode_list() -> Result<(), Error> {
+fn main() -> Result<(), Error> {
     let encoded = b"li2ei3ee".to_vec();
     let expected = Location(2, 3);
 
@@ -625,14 +589,16 @@ struct Foo {
     bar: String,
 }
 
-fn main() {
+fn main() -> bendy::serde::Result<()> {
     let value = Foo {
         bar: "hello".into(),
     };
-    let bencode = bendy::serde::to_bytes(&value).unwrap();
+    let bencode = bendy::serde::to_bytes(&value)?;
     assert_eq!(bencode, b"d3:bar5:helloe");
-    let deserialized = bendy::serde::from_bytes::<Foo>(&bencode).unwrap();
+    let deserialized = bendy::serde::from_bytes::<Foo>(&bencode)?;
     assert_eq!(deserialized, value);
+
+    Ok(())
 }
 ```
 
