@@ -284,7 +284,7 @@ impl<'obj, 'ser: 'obj> DictDecoder<'obj, 'ser> {
     /// dictionary. This method should be used to check for encoding errors if
     /// [`DictDecoder::next_pair`] is not called until it returns `Ok(None)`.
     pub fn consume_all(&mut self) -> Result<(), Error> {
-        while let Some(_) = self.next_pair()? {
+        while self.next_pair()?.is_some() {
             // just drop the items
         }
         Ok(())
@@ -334,7 +334,7 @@ impl<'obj, 'ser: 'obj> ListDecoder<'obj, 'ser> {
     ///
     /// [`Ok(())`]: https://doc.rust-lang.org/std/result/enum.Result.html#variant.Ok
     pub fn consume_all(&mut self) -> Result<(), Error> {
-        while let Some(_) = self.next_object()? {
+        while self.next_object()?.is_some() {
             // just drop the items
         }
         Ok(())

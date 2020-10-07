@@ -1,0 +1,68 @@
+name: Build
+
+on:
+  push:
+    branches:
+    - master
+    tags:
+    - '*'
+  pull_request:
+    branches:
+    - master
+
+jobs:
+  all:
+    name: All
+
+    runs-on: ubuntu-latest
+
+    env:
+      RUSTFLAGS: "-D warnings"
+
+    steps:
+    - uses: actions/checkout@v2
+
+    - name: Cache cargo registry
+      uses: actions/cache@v1
+      with:
+        path: ~/.cargo/registry
+        key: cargo-registry
+
+    - name: Cache cargo index
+      uses: actions/cache@v1
+      with:
+        path: ~/.cargo/git
+        key: cargo-index
+
+    - name: Cache cargo build
+      uses: actions/cache@v1
+      with:
+        path: target
+        key: cargo-build
+
+    - name: Install Rust Toolchain
+      uses: actions-rs/toolchain@v1
+      with:
+        toolchain: stable
+        target: ${{matrix.target}}
+        profile: minimal
+        components: clippy
+        override: true
+
+    - name: Info
+      run: |
+        rustup --version
+        cargo --version
+        cargo clippy --version
+
+    - name: Test - Default features
+      run: cargo test --all --verbose
+
+    - name: Test - No default features
+      run: cargo test --all --verbose --no-default-features
+
+    - name: Test - Serde Feature
+      run: cargo test --all --verbose --features serde
+
+    - name: Clippy
+      run: cargo clippy --all
