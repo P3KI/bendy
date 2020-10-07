@@ -11,14 +11,14 @@ use std::{collections::BTreeMap, vec::Vec};
 
 use crate::{
     encoding::{Error, PrintableInteger, ToBencode},
-    state_tracker::{StateTracker, StructureError, Token},
+    state_tracker::{StateTracker, StrictTracker, StructureError, Token},
 };
 
 /// The actual encoder. Unlike the decoder, this is not zero-copy, as that would
 /// result in a horrible interface
 #[derive(Default, Debug)]
 pub struct Encoder {
-    state: StateTracker<Vec<u8>, Error>,
+    state: StrictTracker<Vec<u8>, Error>,
     output: Vec<u8>,
 }
 
