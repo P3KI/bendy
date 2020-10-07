@@ -44,7 +44,6 @@ jobs:
       uses: actions-rs/toolchain@v1
       with:
         toolchain: stable
-        target: ${{matrix.target}}
         profile: minimal
         components: clippy
         override: true
@@ -66,3 +65,13 @@ jobs:
 
     - name: Clippy
       run: cargo clippy --all
+
+    - name: Install Nightly
+      uses: actions-rs/toolchain@v1
+      with:
+        toolchain: nightly
+        profile: minimal
+        components: rustfmt
+
+    - name: Check Formatting
+      run: cargo +nightly fmt --all -- --check
