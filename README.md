@@ -617,8 +617,9 @@ respectively:
 
 
 ```rust
-use serde::{Deserialize, Serialize};
+use serde_derive::{Deserialize, Serialize};
 
+#[serde(crate = "serde_")]
 #[derive(Serialize, Deserialize, PartialEq, Debug)]
 struct Foo {
     bar: String,

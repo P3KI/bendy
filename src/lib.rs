@@ -21,3 +21,6 @@ pub mod state_tracker;
 pub mod serde;
 
 pub mod value;
+
+#[cfg(doctest)]
+doc_comment::doctest!("../README.md");
