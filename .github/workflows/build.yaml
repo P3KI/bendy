@@ -44,7 +44,7 @@ jobs:
             ~/.cargo/git
           key: ${{ matrix.os }}-bendy-${{ hashFiles('**/Cargo.lock') }}
 
-      - run: cargo +nightly clippy --all
+      - run: cargo clippy --all
 
   test:
     name: Test Rust ${{ matrix.rust }} on ${{ matrix.os }}
