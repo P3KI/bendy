@@ -1,77 +1,108 @@
-name: Build
+name: CI
 
-on:
-  push:
-    branches:
-    - master
-    tags:
-    - '*'
-  pull_request:
-    branches:
-    - master
+on: [pull_request, push]
+
+env:
+  RUSTFLAGS: -D warnings
+  RUST_LOG: info
+  RUST_BACKTRACE: short
 
 jobs:
-  all:
-    name: All
-
+  format:
+    name: Check Formatting
     runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
 
-    env:
-      RUSTFLAGS: "-D warnings"
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: nightly
+          profile: minimal
+          components: rustfmt
+          override: true
+
+      - run: cargo +nightly fmt --all -- --check
+
+  linting:
+    name: Run Clippy
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          profile: minimal
+          components: clippy
+          override: true
+
+      - name: Cache Cargo
+        uses: actions/cache@v2
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+          key: ${{ matrix.os }}-bendy-${{ hashFiles('**/Cargo.lock') }}
+
+      - run: cargo +nightly clippy --all
+
+  test:
+    name: Test Rust ${{ matrix.rust }} on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+          - ubuntu-latest
+          - windows-latest
+          - macos-latest
+        rust:
+          - stable
+          - beta
+          - nightly
+          - 1.36.0                                # MSRV (stable alloc)
+        exclude:
+          - { rust: 1.36.0, os: windows-latest }  # Backtrace on Windows Requires 1.38.0
 
     steps:
-    - uses: actions/checkout@v2
+      - name: Checkout Repository
+        uses: actions/checkout@v2
 
-    - name: Cache cargo registry
-      uses: actions/cache@v1
-      with:
-        path: ~/.cargo/registry
-        key: cargo-registry
+      - name: Cache Cargo
+        uses: actions/cache@v2
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+          key: ${{ matrix.os }}-bendy-${{ hashFiles('**/Cargo.lock') }}
 
-    - name: Cache cargo index
-      uses: actions/cache@v1
-      with:
-        path: ~/.cargo/git
-        key: cargo-index
+      - name: Cache Target Directory
+        uses: actions/cache@v2
+        with:
+          path: target
+          key: ${{ matrix.os }}-bendy-${{ matrix.rust }}-${{ hashFiles('**/Cargo.lock') }}
 
-    - name: Cache cargo build
-      uses: actions/cache@v1
-      with:
-        path: target
-        key: cargo-build
+      - name: Install Rust ${{ matrix.rust }}
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: ${{ matrix.rust }}
+          profile: minimal
+          components: clippy
+          override: true
 
-    - name: Install Rust Toolchain
-      uses: actions-rs/toolchain@v1
-      with:
-        toolchain: stable
-        profile: minimal
-        components: clippy
-        override: true
+      - name: Info
+        run: |
+          rustup --version
+          cargo --version
+          cargo clippy --version
 
-    - name: Info
-      run: |
-        rustup --version
-        cargo --version
-        cargo clippy --version
+      - name: Test - No default features
+        run: cargo test --all --verbose --no-default-features
 
-    - name: Test - Default features
-      run: cargo test --all --verbose
+      - name: Test - Default Features
+        run: cargo test --all --verbose
 
-    - name: Test - No default features
-      run: cargo test --all --verbose --no-default-features
+      - name: Test - Serde Feature
+        run: cargo test --all --verbose --features serde
 
-    - name: Test - Serde Feature
-      run: cargo test --all --verbose --features serde
-
-    - name: Clippy
-      run: cargo clippy --all
-
-    - name: Install Nightly
-      uses: actions-rs/toolchain@v1
-      with:
-        toolchain: nightly
-        profile: minimal
-        components: rustfmt
-
-    - name: Check Formatting
-      run: cargo +nightly fmt --all -- --check
