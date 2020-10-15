@@ -1,0 +1,134 @@
+name: CI
+
+on: [pull_request, push]
+
+env:
+  RUSTFLAGS: -D warnings
+  RUST_LOG: info
+  RUST_BACKTRACE: short
+
+jobs:
+  formating:
+    name: Check Formatting
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: nightly
+          profile: minimal
+          components: rustfmt
+          override: true
+
+      - run: cargo fmt --all -- --check
+
+  linting:
+    name: Run Clippy
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          profile: minimal
+          components: clippy
+          override: true
+
+      - name: Cache Cargo
+        uses: actions/cache@v2
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+          key: ${{ matrix.os }}-bendy-${{ hashFiles('**/Cargo.lock') }}
+
+      - run: cargo clippy --all
+
+  test:
+    name: Test Rust ${{ matrix.rust }} on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+          - ubuntu-latest
+          - windows-latest
+          - macos-latest
+        rust:
+          - stable
+          - beta
+          - nightly
+          - 1.36.0                                # MSRV (stable alloc)
+        include:
+          - { rust: 1.38.0, os: windows-latest }
+        exclude:
+          - { rust: 1.36.0, os: windows-latest }  # Backtrace on Windows Requires 1.38.0
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v2
+
+      - name: Cache Cargo
+        uses: actions/cache@v2
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+          key: ${{ matrix.os }}-bendy-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Cache Target Directory
+        uses: actions/cache@v2
+        with:
+          path: target
+          key: ${{ matrix.os }}-bendy-${{ matrix.rust }}-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Install Rust ${{ matrix.rust }}
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: ${{ matrix.rust }}
+          profile: minimal
+          components: clippy
+          override: true
+
+      - name: Info
+        run: |
+          rustup --version
+          cargo --version
+          cargo clippy --version
+
+      - name: Test - No default features
+        run: cargo test --all --verbose --no-default-features
+
+      - name: Test - Default Features
+        run: cargo test --all --verbose
+
+      - name: Test - Serde Feature
+        run: cargo test --all --verbose --features serde
+
+  embedded:
+    name: Check Embedded
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: 1.36.0
+          profile: minimal
+          override: true
+          target: thumbv7m-none-eabi
+
+      - name: Cache Cargo
+        uses: actions/cache@v2
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+          key: ${{ matrix.os }}-bendy-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Build with Rust 1.36.0 for an embedded target
+        run: cargo build --all --no-default-features --target=thumbv7m-none-eabi
+
