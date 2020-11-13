@@ -1,6 +1,6 @@
 unstable_features = true
 
-required_version = "1.4.22"
+required_version = "1.4.24"
 edition = "2018"
 
 format_code_in_doc_comments = true

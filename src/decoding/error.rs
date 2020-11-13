@@ -37,7 +37,9 @@ pub enum ErrorKind {
 
     /// Error in the bencode structure (e.g. a missing field and seperator).
     #[snafu(display("bencode encoding corrupted ({})", source))]
-    StructureError { source: state_tracker::StructureError },
+    StructureError {
+        source: state_tracker::StructureError,
+    },
 
     /// Error that occurs if the serialized structure contains an unexpected field.
     #[snafu(display("unexpected field: {}", field))]
@@ -71,7 +73,7 @@ impl Error {
     #[cfg(feature = "std")]
     pub fn malformed_content<SourceT>(source: SourceT) -> Self
     where
-        SourceT: std::error::Error + Send + Sync + 'static
+        SourceT: std::error::Error + Send + Sync + 'static,
     {
         let error = Arc::new(source);
         ErrorKind::MalformedContent { source: error }.into()
