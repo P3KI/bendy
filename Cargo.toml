@@ -37,6 +37,7 @@ serde_bytes = { version = "^0.11.3", optional = true }
 snafu = { version = "^0.6.9", default_features = false }
 
 [dev-dependencies]
+anyhow = "^1.0"
 regex = "^1.0"
 serde_derive = "^1.0"
 
@@ -47,7 +48,7 @@ default = ["std"]
 
 # Provide implementations for common standard library types like `Vec<T>` and
 # `HashMap<K, V>`. Requires a dependency on the Rust standard library.
-std = ["failure/std", "snafu/std"]
+std = ["snafu/std"]
 
 # Support serde serialization to and deserialization from bencode
 serde = ["serde_", "serde_bytes"]

@@ -15,8 +15,8 @@
 
 use std::io::Write;
 
+use anyhow::Result;
 use bendy::encoding::{AsString, Error as EncodingError, SingleItemEncoder, ToBencode};
-use failure::Error;
 
 /// Main struct containing all required information.
 ///
@@ -91,7 +91,7 @@ impl ToBencode for Info {
     }
 }
 
-fn main() -> Result<(), Error> {
+fn main() -> Result<()> {
     let torrent = MetaInfo {
         announce: "http://bttracker.debian.org:6969/announce".to_owned(),
         comment: Some("\"Debian CD from cdimage.debian.org\"".to_owned()),
