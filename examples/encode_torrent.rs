@@ -15,8 +15,7 @@
 
 use std::io::Write;
 
-use anyhow::Result;
-use bendy::encoding::{AsString, Error as EncodingError, SingleItemEncoder, ToBencode};
+use bendy::encoding::{AsString, Error, SingleItemEncoder, ToBencode};
 
 /// Main struct containing all required information.
 ///
@@ -50,7 +49,7 @@ impl ToBencode for MetaInfo {
     // around the info struct.
     const MAX_DEPTH: usize = Info::MAX_DEPTH + 1;
 
-    fn encode(&self, encoder: SingleItemEncoder) -> Result<(), EncodingError> {
+    fn encode(&self, encoder: SingleItemEncoder) -> Result<(), Error> {
         encoder.emit_dict(|mut e| {
             e.emit_pair(b"announce", &self.announce)?;
 
@@ -80,7 +79,7 @@ impl ToBencode for Info {
     // as flat values, i.e. strings or integers.
     const MAX_DEPTH: usize = 1;
 
-    fn encode(&self, encoder: SingleItemEncoder) -> Result<(), EncodingError> {
+    fn encode(&self, encoder: SingleItemEncoder) -> Result<(), Error> {
         encoder.emit_dict(|mut e| {
             e.emit_pair(b"length", &self.file_length)?;
             e.emit_pair(b"name", &self.name)?;
@@ -91,7 +90,7 @@ impl ToBencode for Info {
     }
 }
 
-fn main() -> Result<()> {
+fn main() -> Result<(), Box<dyn std::error::Error>> {
     let torrent = MetaInfo {
         announce: "http://bttracker.debian.org:6969/announce".to_owned(),
         comment: Some("\"Debian CD from cdimage.debian.org\"".to_owned()),

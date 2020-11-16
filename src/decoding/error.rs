@@ -18,7 +18,7 @@ pub struct Error {
     source: ErrorKind,
 }
 
-// An enumeration of potential errors that apepar during bencode deserialization.
+// An enumeration of potential errors that appear during bencode deserialization.
 #[derive(Debug, Clone, Snafu)]
 pub enum ErrorKind {
     /// Error that occurs if the serialized structure contains invalid semantics.
