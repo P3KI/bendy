@@ -558,6 +558,8 @@ respectively:
 
 
 ```rust
+# #[cfg(not(feature = "serde"))]
+# fn main() {}
 # #[cfg(feature = "serde")]
 # fn main() -> Result<(), bendy::serde::Error> {
 
