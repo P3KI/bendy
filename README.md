@@ -558,6 +558,9 @@ respectively:
 
 
 ```rust
+# #[cfg(feature = "serde")]
+# fn main() -> Result<(), bendy::serde::Error> {
+
 use serde_derive::{Deserialize, Serialize};
 
 #[serde(crate = "serde_")]
@@ -576,7 +579,9 @@ assert_eq!(bencode, b"d3:bar5:helloe");
 let deserialized = bendy::serde::from_bytes::<Foo>(&bencode)?;
 assert_eq!(deserialized, value);
 
-Ok::<(), bendy::serde::Error>(())
+Ok(())
+
+# }
 ```
 
 Information on how Rust types are represented in bencode is available in the
