@@ -8,7 +8,7 @@ env:
   RUST_BACKTRACE: short
 
 jobs:
-  formating:
+  formatting:
     name: Check Formatting
     runs-on: ubuntu-latest
     steps:
@@ -36,13 +36,21 @@ jobs:
           components: clippy
           override: true
 
+      # An issue with BSD Tar causes sporadic failures on macOS.
+      # c.f https://github.com/actions/cache/issues/403
+      - name: Install GNU Tar
+        if: matrix.os == 'macos-latest'
+        run: |
+          brew install gnu-tar
+          echo "::add-path::/usr/local/opt/gnu-tar/libexec/gnubin"
+
       - name: Cache Cargo
         uses: actions/cache@v2
         with:
           path: |
             ~/.cargo/registry
             ~/.cargo/git
-          key: ${{ matrix.os }}-bendy-${{ hashFiles('**/Cargo.lock') }}
+          key: 0-${{ matrix.os }}-bendy-${{ hashFiles('**/Cargo.lock') }}
 
       - run: cargo clippy --all
 
@@ -71,19 +79,27 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v2
 
+      # An issue with BSD Tar causes sporadic failures on macOS.
+      # c.f https://github.com/actions/cache/issues/403
+      - name: Install GNU Tar
+        if: matrix.os == 'macos-latest'
+        run: |
+          brew install gnu-tar
+          echo "::add-path::/usr/local/opt/gnu-tar/libexec/gnubin"
+
       - name: Cache Cargo
         uses: actions/cache@v2
         with:
           path: |
             ~/.cargo/registry
             ~/.cargo/git
-          key: ${{ matrix.os }}-bendy-${{ hashFiles('**/Cargo.lock') }}
+          key: 0-${{ matrix.os }}-bendy-${{ hashFiles('**/Cargo.lock') }}
 
       - name: Cache Target Directory
         uses: actions/cache@v2
         with:
           path: target
-          key: ${{ matrix.os }}-bendy-${{ matrix.rust }}-${{ hashFiles('**/Cargo.lock') }}
+          key: 0-${{ matrix.os }}-bendy-${{ matrix.rust }}-${{ hashFiles('**/Cargo.lock') }}
 
       - name: Install Rust ${{ matrix.rust }}
         uses: actions-rs/toolchain@v1
@@ -121,14 +137,21 @@ jobs:
           override: true
           target: thumbv7m-none-eabi
 
+      # An issue with BSD Tar causes sporadic failures on macOS.
+      # c.f https://github.com/actions/cache/issues/403
+      - name: Install GNU Tar
+        if: matrix.os == 'macos-latest'
+        run: |
+          brew install gnu-tar
+          echo "::add-path::/usr/local/opt/gnu-tar/libexec/gnubin"
+
       - name: Cache Cargo
         uses: actions/cache@v2
         with:
           path: |
             ~/.cargo/registry
             ~/.cargo/git
-          key: ${{ matrix.os }}-bendy-${{ hashFiles('**/Cargo.lock') }}
+          key: 0-${{ matrix.os }}-bendy-${{ hashFiles('**/Cargo.lock') }}
 
       - name: Build with Rust 1.36.0 for an embedded target
         run: cargo build --all --no-default-features --target=thumbv7m-none-eabi
-
