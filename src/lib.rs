@@ -22,9 +22,8 @@ pub mod serde;
 
 pub mod value;
 
-#[cfg(doctest)]
 #[rustversion::since(1.40)]
-mod doctest {
-  use super::*;
-  doc_comment::doctest!("../README.md");
-}
+const _: () = {
+    #[cfg(doctest)]
+    doc_comment::doctest!("../README.md");
+};
