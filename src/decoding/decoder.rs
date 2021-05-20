@@ -76,7 +76,7 @@ impl<'ser> Decoder<'ser> {
                         state = State::Sign;
                     } else if c == '0' {
                         state = State::Zero;
-                    } else if c >= '1' && c <= '9' {
+                    } else if ('1'..='9').contains(&c) {
                         state = State::Digits;
                     } else {
                         return Err(StructureError::unexpected("'-' or '0'..'9'", c, curpos));
@@ -95,14 +95,14 @@ impl<'ser> Decoder<'ser> {
                     }
                 },
                 State::Sign => {
-                    if c >= '1' && c <= '9' {
+                    if ('1'..='9').contains(&c) {
                         state = State::Digits;
                     } else {
                         return Err(StructureError::unexpected("'1'..'9'", c, curpos));
                     }
                 },
                 State::Digits => {
-                    if c >= '0' && c <= '9' {
+                    if ('0'..='9').contains(&c) {
                         // do nothing, this is ok
                     } else if c == expected_terminator {
                         success = true;
@@ -141,15 +141,14 @@ impl<'ser> Decoder<'ser> {
             'l' => Token::List,
             'd' => Token::Dict,
             'i' => Token::Num(self.take_int('e')?),
-            c if c >= '0' && c <= '9' => {
+            c if ('0'..='9').contains(&c) => {
                 self.offset -= 1;
 
                 let curpos = self.offset;
                 let ival = self.take_int(':')?;
-                let len =
-                    usize::from_str_radix(ival, 10).map_err(|_| StructureError::SyntaxError {
-                        unexpected: format!("Invalid integer at offset {}", curpos),
-                    })?;
+                let len: usize = str::parse(ival).map_err(|_| StructureError::SyntaxError {
+                    unexpected: format!("Invalid integer at offset {}", curpos),
+                })?;
                 Token::String(self.take_chunk(len).ok_or(StructureError::UnexpectedEof)?)
             },
             tok => {
