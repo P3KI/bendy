@@ -458,8 +458,8 @@ mod tests {
 
     #[test]
     fn untagged_enum() {
-        #[serde(untagged)]
         #[derive(Serialize, Deserialize, Debug, PartialEq)]
+        #[serde(untagged)]
         #[serde(crate = "serde_")]
         enum Untagged {
             Foo { x: i32 },

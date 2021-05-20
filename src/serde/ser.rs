@@ -19,6 +19,7 @@ where
 }
 
 /// A serde Bencode serializer
+#[derive(Default)]
 pub struct Serializer {
     encoder: Encoder,
 }
@@ -26,9 +27,7 @@ pub struct Serializer {
 impl Serializer {
     /// Create a new `Serializer`
     pub fn new() -> Self {
-        Serializer {
-            encoder: Encoder::new(),
-        }
+        <Self as Default>::default()
     }
 
     /// Create a new `Serializer` with a given maximum serialization depth

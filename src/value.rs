@@ -177,6 +177,13 @@ mod serde_impls {
             Ok(Value::Bytes(Cow::Borrowed(value.as_bytes())))
         }
 
+        fn visit_str<E>(self, value: &str) -> Result<Value<'a>, E>
+        where
+            E: serde::de::Error,
+        {
+            Ok(Value::Bytes(Cow::Owned(value.as_bytes().to_vec())))
+        }
+
         fn visit_string<E>(self, value: String) -> Result<Value<'a>, E> {
             Ok(Value::Bytes(Cow::Owned(value.into_bytes())))
         }
