@@ -146,17 +146,20 @@ impl<'ser> Decoder<'ser> {
 
                 let curpos = self.offset;
                 let ival = self.take_int(':')?;
-                let len = usize::from_str_radix(ival, 10).map_err(|_| {
-                    StructureError::SyntaxError(format!("Invalid integer at offset {}", curpos))
-                })?;
+                let len =
+                    usize::from_str_radix(ival, 10).map_err(|_| StructureError::SyntaxError {
+                        unexpected: format!("Invalid integer at offset {}", curpos),
+                    })?;
                 Token::String(self.take_chunk(len).ok_or(StructureError::UnexpectedEof)?)
             },
             tok => {
-                return Err(Error::from(StructureError::SyntaxError(format!(
-                    "Invalid token starting with {:?} at offset {}",
-                    tok,
-                    self.offset - 1
-                ))));
+                return Err(Error::from(StructureError::SyntaxError {
+                    unexpected: format!(
+                        "Invalid token starting with {:?} at offset {}",
+                        tok,
+                        self.offset - 1
+                    ),
+                }));
             },
         };
 
