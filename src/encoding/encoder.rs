@@ -389,9 +389,9 @@ impl UnsortedDictEncoder {
         }
 
         if !value_written {
-            self.error = Err(Error::from(StructureError::InvalidState(
-                "No value was emitted".to_owned(),
-            )));
+            self.error = Err(Error::from(StructureError::InvalidState {
+                state: "No value was emitted".to_owned(),
+            }));
         } else {
             self.error = encoder.state.observe_eof().map_err(Error::from);
         }
@@ -429,10 +429,12 @@ impl UnsortedDictEncoder {
         let vacancy = match self.content.entry(unencoded_key.to_owned()) {
             Entry::Vacant(vacancy) => vacancy,
             Entry::Occupied(occupation) => {
-                self.error = Err(Error::from(StructureError::InvalidState(format!(
-                    "Duplicate key {}",
-                    String::from_utf8_lossy(occupation.key())
-                ))));
+                self.error = Err(Error::from(StructureError::InvalidState {
+                    state: format!(
+                        "Duplicate key {}",
+                        String::from_utf8_lossy(occupation.key())
+                    ),
+                }));
                 return self.error.clone();
             },
         };
