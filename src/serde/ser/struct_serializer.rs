@@ -11,7 +11,7 @@ impl<'outer> StructSerializer<'outer> {
         outer: &'outer mut Encoder,
         encoder: UnsortedDictEncoder,
     ) -> StructSerializer<'outer> {
-        StructSerializer { encoder, outer }
+        StructSerializer { outer, encoder }
     }
 
     fn save_field<T>(&mut self, key: &'static str, value: &T) -> Result<()>

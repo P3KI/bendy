@@ -38,10 +38,8 @@ impl<'de> Deserializer<'de> {
     {
         let t = T::deserialize(&mut self)?;
 
-        if self.forbid_trailing_bytes {
-            if let Some(_) = self.tokens.next() {
-                return Err(Error::TrailingBytes);
-            }
+        if self.forbid_trailing_bytes && self.tokens.next().is_some() {
+            return Err(Error::TrailingBytes);
         }
 
         Ok(t)
