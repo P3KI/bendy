@@ -69,11 +69,7 @@ jobs:
           - stable
           - beta
           - nightly
-          - 1.36.0                                # MSRV (stable alloc)
-        include:
-          - { rust: 1.38.0, os: windows-latest }
-        exclude:
-          - { rust: 1.36.0, os: windows-latest }  # Backtrace on Windows Requires 1.38.0
+          - 1.40.0                                # MSRV (non_exhaustive)
 
     steps:
       - name: Checkout Repository
