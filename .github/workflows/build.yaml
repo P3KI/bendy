@@ -128,7 +128,7 @@ jobs:
 
       - uses: actions-rs/toolchain@v1
         with:
-          toolchain: 1.36.0
+          toolchain: 1.40.0
           profile: minimal
           override: true
           target: thumbv7m-none-eabi
@@ -149,5 +149,5 @@ jobs:
             ~/.cargo/git
           key: 0-${{ matrix.os }}-bendy-${{ hashFiles('**/Cargo.lock') }}
 
-      - name: Build with Rust 1.36.0 for an embedded target
+      - name: Build with Rust 1.40.0 for an embedded target
         run: cargo build --all --no-default-features --target=thumbv7m-none-eabi
