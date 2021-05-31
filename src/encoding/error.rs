@@ -5,15 +5,10 @@ use snafu::Snafu;
 
 use crate::state_tracker;
 
-#[derive(Debug, Clone, Snafu)]
-#[snafu(display("encoding failed: {}", source))]
-pub struct Error {
-    pub source: ErrorKind,
-}
-
 /// An enumeration of potential errors that appear during bencode encoding.
 #[derive(Debug, Clone, Snafu)]
-pub enum ErrorKind {
+#[non_exhaustive]
+pub enum Error {
     /// Error that occurs if the serialized structure contains invalid semantics.
     #[cfg(feature = "std")]
     #[snafu(display("malformed content discovered: {}", source))]
@@ -45,7 +40,7 @@ impl Error {
         SourceT: std::error::Error + Send + Sync + 'static,
     {
         let error = Arc::new(source);
-        ErrorKind::MalformedContent { source: error }.into()
+        Error::MalformedContent { source: error }
     }
 
     #[cfg(not(feature = "std"))]
@@ -56,12 +51,6 @@ impl Error {
 
 impl From<state_tracker::StructureError> for Error {
     fn from(error: state_tracker::StructureError) -> Self {
-        Self::from(ErrorKind::StructureError { source: error })
-    }
-}
-
-impl From<ErrorKind> for Error {
-    fn from(kind: ErrorKind) -> Self {
-        Self { source: kind }
+        Error::StructureError { source: error }
     }
 }

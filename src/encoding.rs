@@ -123,7 +123,7 @@ mod to_bencode;
 
 pub use self::{
     encoder::{Encoder, SingleItemEncoder, SortedDictEncoder, UnsortedDictEncoder},
-    error::{Error, ErrorKind},
+    error::Error,
     printable_integer::PrintableInteger,
     to_bencode::{AsString, ToBencode},
 };
