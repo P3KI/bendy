@@ -45,7 +45,7 @@ impl Error {
 
     #[cfg(not(feature = "std"))]
     pub fn malformed_content<T>(_cause: T) -> Self {
-        Self::from(ErrorKind::MalformedContent)
+        Error::MalformedContent
     }
 }
 
