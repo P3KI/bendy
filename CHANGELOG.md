@@ -4,6 +4,13 @@ All notable changes to this project will be documented in this file.
 
 ## Unreleased
 
+## 0.4.0-beta.1 (2021/05/31)
+- Finally retired the use of the failure crate
+- Various internal cleanups
+
+## 0.3.3 (2020/11/17)
+- Improved documentation of serde support (thanks @casey)
+
 ## 0.3.2 (2020/06/04)
 
 - Fix lifetime on Deserializer implementation for Value (thanks @euclio)
