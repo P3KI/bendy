@@ -24,7 +24,7 @@ pub enum ErrorKind {
     /// Error that occurs if the serialized structure contains invalid semantics.
     #[cfg(feature = "std")]
     #[snafu(display("malformed content discovered: {}", source))]
-    MalformedContent { source: Arc<dyn std::error::Error> },
+    MalformedContent { source: Arc<dyn std::error::Error + Send + Sync> },
 
     /// Error that occurs if the serialized structure contains invalid semantics.
     #[cfg(not(feature = "std"))]
@@ -144,4 +144,15 @@ impl<T> ResultExt for Result<T, Error> {
     fn context(self, context: impl Display) -> Self {
         self.map_err(|err| err.context(context))
     }
+}
+
+#[test]
+fn decoding_errors_are_sync_send() {
+    use crate::decoding::error::{ ErrorKind, Error };
+    fn is_send<T: Send>() {}
+    fn is_sync<T: Sync>() {}
+    is_send::<Error>();
+    is_send::<ErrorKind>();
+    is_sync::<Error>();
+    is_sync::<ErrorKind>();
 }

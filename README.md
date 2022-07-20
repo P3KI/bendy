@@ -595,7 +595,7 @@ to `str::from_utf8_unchecked`. This call is used to avoid a duplicated UTF-8 che
 parser converts the bytes representing an incoming integer into a `&str` after its successful
 validation.
 
-*Disclaimer: Further unsafe code may be introduced through the dependency on the `failure` crate.*
+*Disclaimer: Further unsafe code may be introduced through the dependency on the `snafu` crate.*
 
 ## Contributing
 

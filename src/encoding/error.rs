@@ -54,3 +54,12 @@ impl From<state_tracker::StructureError> for Error {
         Error::StructureError { source: error }
     }
 }
+
+#[test]
+fn encoding_errors_are_sync_send() {
+    use crate::encoding::error::Error;
+    fn is_send<T: Send>() {}
+    fn is_sync<T: Sync>() {}
+    is_send::<Error>();
+    is_sync::<Error>();
+}
