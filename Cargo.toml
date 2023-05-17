@@ -41,6 +41,7 @@ snafu = { version = "^0.7.1", default_features = false }
 doc-comment = "0.3.3"
 regex = "^1.0"
 serde_derive = "^1.0"
+timeit = "0.1.2"
 
 ### FEATURES ###################################################################
 
