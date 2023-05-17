@@ -26,7 +26,7 @@ pub struct StateTracker<S: AsRef<[u8]>, E = StructureError> {
 impl<S: AsRef<[u8]>, E> Default for StateTracker<S, E> {
     fn default() -> Self {
         StateTracker {
-            state: Vec::new(),
+            state: Vec::with_capacity(2048),
             max_depth: 2048,
         }
     }
@@ -66,77 +66,66 @@ where
         S: From<&'a [u8]>,
     {
         use self::{State::*, Token::*};
-
-        match (self.state.pop(), *token) {
+        let last_index = self.state.len().max(1) - 1;
+        let actual_len = self.state.len();
+        match (self.state.last_mut(), *token) {
             (None, End) => {
                 return self.latch_err(Err(E::from(StructureError::invalid_state(
                     "End not allowed at top level",
                 ))));
             },
-            (Some(Seq), End) => {},
-            (Some(MapKey(_)), End) => {},
+            (Some(Seq), End) | (Some(MapKey(_)), End) => {
+                self.state.pop();
+            },
             (Some(MapKey(None)), String(label)) => {
-                self.state.push(MapValue(S::from(label)));
+                self.state[last_index] = MapValue(S::from(label)); //TODO: looks similar!
             },
-            (Some(MapKey(Some(oldlabel))), String(label)) => {
-                if oldlabel.as_ref() >= label {
-                    return self.latch_err(Err(E::from(StructureError::UnsortedKeys)));
-                }
-                self.state.push(MapValue(S::from(label)));
+            (Some(MapKey(Some(oldlabel))), String(label)) if oldlabel.as_ref() >= label => {
+                self.state.pop();
+                return self.latch_err(Err(E::from(StructureError::UnsortedKeys)));
             },
-            (Some(oldstate @ MapKey(_)), _tok) => {
-                self.state.push(oldstate);
+            (Some(MapKey(Some(_oldlabel))), String(label)) => {
+                self.state[last_index] = MapValue(S::from(label));
+            },
+            (Some(_oldstate @ MapKey(_)), _tok) => {
+                self.state.pop();
                 return self.latch_err(Err(E::from(StructureError::invalid_state(
                     "Map keys must be strings",
                 ))));
             },
-            (Some(MapValue(label)), List) => {
-                self.state.push(MapKey(Some(label)));
+            (Some(MapValue(label)), List) | (Some(MapValue(label)), Dict) => {
+                let dummy: &[u8] = &[1];
+                self.state[last_index] = MapKey(Some(std::mem::replace(label, dummy.into())));
                 if self.state.len() >= self.max_depth {
                     return self.latch_err(Err(E::from(StructureError::NestingTooDeep)));
                 }
-                self.state.push(Seq);
+                self.state
+                    .push(if token == &List { Seq } else { MapKey(None) });
             },
-            (Some(MapValue(label)), Dict) => {
-                self.state.push(MapKey(Some(label)));
-                if self.state.len() >= self.max_depth {
-                    return self.latch_err(Err(E::from(StructureError::NestingTooDeep)));
-                }
-                self.state.push(MapKey(None));
-            },
-            (Some(oldstate @ MapValue(_)), End) => {
-                self.state.push(oldstate);
+            (Some(_oldstate @ MapValue(_)), End) => {
+                self.state.pop();
                 return self.latch_err(Err(E::from(StructureError::invalid_state(
                     "Missing map value",
                 ))));
             },
             (Some(MapValue(label)), _) => {
-                self.state.push(MapKey(Some(label)));
+                let dummy: &[u8] = &[1];
+                self.state[last_index] = MapKey(Some(std::mem::replace(label, dummy.into())));
             },
-            (oldstate, List) => {
-                if let Some(oldstate) = oldstate {
-                    self.state.push(oldstate);
+            (oldstate, List) | (oldstate, Dict) => {
+                if oldstate.is_none() && 0 < self.state.len() {
+                    self.state.pop();
                 }
                 if self.state.len() >= self.max_depth {
                     return self.latch_err(Err(E::from(StructureError::NestingTooDeep)));
                 }
-                self.state.push(Seq);
+                self.state
+                    .push(if token == &List { Seq } else { MapKey(None) });
             },
-            (oldstate, Dict) => {
-                if let Some(oldstate) = oldstate {
-                    self.state.push(oldstate);
-                }
-
-                if self.state.len() >= self.max_depth {
-                    return self.latch_err(Err(E::from(StructureError::NestingTooDeep)));
-                }
-                self.state.push(MapKey(None));
+            (oldstate, _) if oldstate.is_none() && 0 < actual_len => {
+                self.state.pop();
             },
-            (oldstate, _) => {
-                if let Some(oldstate) = oldstate {
-                    self.state.push(oldstate);
-                }
-            },
+            _ => {},
         }
         Ok(())
     }

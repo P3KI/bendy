@@ -66,21 +66,15 @@ impl<'ser> Decoder<'ser> {
 
         let mut curpos = self.offset;
         let mut state = State::Start;
-
         let mut success = false;
         while curpos < self.source.len() {
             let c = self.source[curpos] as char;
-            match state {
-                State::Start => {
-                    if c == '-' {
-                        state = State::Sign;
-                    } else if c == '0' {
-                        state = State::Zero;
-                    } else if ('1'..='9').contains(&c) {
-                        state = State::Digits;
-                    } else {
-                        return Err(StructureError::unexpected("'-' or '0'..'9'", c, curpos));
-                    }
+            state = match state {
+                State::Start => match c {
+                    '-' => State::Sign,
+                    '0' => State::Zero,
+                    '0'..='9' => State::Digits,
+                    _ => return Err(StructureError::unexpected("'-' or '0'..'9'", c, curpos)),
                 },
                 State::Zero => {
                     if c == expected_terminator {
@@ -94,28 +88,25 @@ impl<'ser> Decoder<'ser> {
                         ));
                     }
                 },
-                State::Sign => {
-                    if ('1'..='9').contains(&c) {
-                        state = State::Digits;
-                    } else {
-                        return Err(StructureError::unexpected("'1'..'9'", c, curpos));
-                    }
+                State::Sign => match c {
+                    '1'..='9' => State::Digits,
+                    _ => return Err(StructureError::unexpected("'1'..'9'", c, curpos)),
                 },
-                State::Digits => {
-                    if ('0'..='9').contains(&c) {
-                        // do nothing, this is ok
-                    } else if c == expected_terminator {
+                State::Digits => match c {
+                    '0'..='9' => state,
+                    x if x == expected_terminator => {
                         success = true;
                         break;
-                    } else {
+                    },
+                    _ => {
                         return Err(StructureError::unexpected(
                             &format!("{:?} or '0'..'9'", expected_terminator),
                             c,
                             curpos,
-                        ));
-                    }
+                        ))
+                    },
                 },
-            }
+            };
             curpos += 1;
         }
 
@@ -123,14 +114,14 @@ impl<'ser> Decoder<'ser> {
             return Err(StructureError::UnexpectedEof);
         }
 
-        let slice = &self.source[self.offset..curpos];
+        #[cfg(debug)]
+        let ival = istr::from_utf8(&self.source[self.offset..curpos])
+            .expect("We've already examined every byte in the string");
+
+        #[cfg(not(debug))]
+        let ival = // Avoid a second UTF-8 check here
+            unsafe { str::from_utf8_unchecked(&self.source[self.offset..curpos]) };
         self.offset = curpos + 1;
-        let ival = if cfg!(debug) {
-            str::from_utf8(slice).expect("We've already examined every byte in the string")
-        } else {
-            // Avoid a second UTF-8 check here
-            unsafe { str::from_utf8_unchecked(slice) }
-        };
 
         Ok(ival)
     }
@@ -141,9 +132,8 @@ impl<'ser> Decoder<'ser> {
             'l' => Token::List,
             'd' => Token::Dict,
             'i' => Token::Num(self.take_int('e')?),
-            c if ('0'..='9').contains(&c) => {
+            '0'..='9' => {
                 self.offset -= 1;
-
                 let curpos = self.offset;
                 let ival = self.take_int(':')?;
                 let len: usize = str::parse(ival).map_err(|_| StructureError::SyntaxError {
@@ -176,7 +166,6 @@ impl<'ser> Decoder<'ser> {
 
         let tok_result = self.raw_next_token();
         let tok = self.state.latch_err(tok_result)?;
-
         self.state.observe_token(&tok)?;
         Ok(Some(tok))
     }
