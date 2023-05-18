@@ -66,8 +66,6 @@ where
         S: From<&'a [u8]>,
     {
         use self::{State::*, Token::*};
-        let last_index = self.state.len().max(1) - 1;
-        let actual_len = self.state.len();
         match (self.state.last_mut(), *token) {
             (None, End) => {
                 return self.latch_err(Err(E::from(StructureError::invalid_state(
@@ -77,25 +75,25 @@ where
             (Some(Seq), End) | (Some(MapKey(_)), End) => {
                 self.state.pop();
             },
-            (Some(MapKey(None)), String(label)) => {
-                self.state[last_index] = MapValue(S::from(label)); //TODO: looks similar!
-            },
             (Some(MapKey(Some(oldlabel))), String(label)) if oldlabel.as_ref() >= label => {
                 self.state.pop();
                 return self.latch_err(Err(E::from(StructureError::UnsortedKeys)));
             },
             (Some(MapKey(Some(_oldlabel))), String(label)) => {
-                self.state[last_index] = MapValue(S::from(label));
+                *self.state.last_mut().unwrap() = MapValue(S::from(label));
+            },
+            (Some(MapKey(None)), String(label)) => {
+                *self.state.last_mut().unwrap() = MapValue(S::from(label));
             },
             (Some(_oldstate @ MapKey(_)), _tok) => {
-                self.state.pop();
                 return self.latch_err(Err(E::from(StructureError::invalid_state(
                     "Map keys must be strings",
                 ))));
             },
             (Some(MapValue(label)), List) | (Some(MapValue(label)), Dict) => {
-                let dummy: &[u8] = &[1];
-                self.state[last_index] = MapKey(Some(std::mem::replace(label, dummy.into())));
+                let dummy: &[u8] = &[];
+                *self.state.last_mut().unwrap() =
+                    MapKey(Some(std::mem::replace(label, dummy.into())));
                 if self.state.len() >= self.max_depth {
                     return self.latch_err(Err(E::from(StructureError::NestingTooDeep)));
                 }
@@ -109,21 +107,16 @@ where
                 ))));
             },
             (Some(MapValue(label)), _) => {
-                let dummy: &[u8] = &[1];
-                self.state[last_index] = MapKey(Some(std::mem::replace(label, dummy.into())));
+                let dummy: &[u8] = &[];
+                *self.state.last_mut().unwrap() =
+                    MapKey(Some(std::mem::replace(label, dummy.into())));
             },
-            (oldstate, List) | (oldstate, Dict) => {
-                if oldstate.is_none() && 0 < self.state.len() {
-                    self.state.pop();
-                }
+            (_oldstate, List) | (_oldstate, Dict) => {
                 if self.state.len() >= self.max_depth {
                     return self.latch_err(Err(E::from(StructureError::NestingTooDeep)));
                 }
                 self.state
                     .push(if token == &List { Seq } else { MapKey(None) });
-            },
-            (oldstate, _) if oldstate.is_none() && 0 < actual_len => {
-                self.state.pop();
             },
             _ => {},
         }
