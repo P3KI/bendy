@@ -409,6 +409,7 @@ impl ToBencode for Something {
 // Error
 // -----------------------------------------------------------------------------
 
+#[allow(dead_code)]
 #[derive(Debug)]
 enum Error {
     DecodingError(DecodingError),
