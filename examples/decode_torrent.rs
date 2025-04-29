@@ -31,6 +31,7 @@ static EXAMPLE_TORRENT: &[u8] =
 /// To keep the example simple we won't parse the integers fields
 /// into a concrete number type as the bencode integer definition
 /// is actually a `BigNum` and the content may not fit.
+#[allow(dead_code)]
 #[derive(Debug)]
 struct MetaInfo {
     pub announce: String,
@@ -41,6 +42,7 @@ struct MetaInfo {
 }
 
 /// File related information (Single-file format)
+#[allow(dead_code)]
 #[derive(Debug)]
 struct Info {
     pub piece_length: String,
