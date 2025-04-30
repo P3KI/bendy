@@ -1,7 +1,7 @@
 #[cfg(not(feature = "std"))]
 use alloc::vec::Vec;
 
-use crate::state_tracker::{Stack, StructureError, Token};
+use crate::state_tracker::{StructureError, Token};
 
 /// The state of current level of the decoder
 #[derive(Clone, Ord, PartialOrd, Eq, PartialEq, Debug)]
@@ -132,7 +132,7 @@ where
     }
 
     pub fn check_error(&self) -> Result<(), E> {
-        if let Some(&State::Failed(ref error)) = self.state.peek() {
+        if let Some(&State::Failed(ref error)) = self.state.last() {
             Err(error.clone())
         } else {
             Ok(())
