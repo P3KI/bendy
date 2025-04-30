@@ -188,17 +188,16 @@ fn mixed_use_dict_pairs() -> Result<(), Error> {
     let pairs = [
         (
             map! {
-		"hello" => list!["world!", "gaia!", "mother earth!"],
-		"Goodbye" => map! {"maps" => "that don't work", "number" => 100}
-	    },
-            "d7:Goodbyed4:maps15:that don't work6:numberi100ee5:hellol6:world!5:gaia!13:mother earth!ee"
+            "hello" => list!["world!", "gaia!", "mother earth!"],
+            "Goodbye" => map! {"maps" => "that don't work", "number" => 100}
+            },
+            "d7:Goodbyed4:maps15:that don't work6:numberi100ee5:hellol6:world!5:gaia!13:mother earth!ee",
         ),
         (
-             map! {"hello" => list!["world!", "gaia!", "mother earth!"]},
-             "d5:hellol6:world!5:gaia!13:mother earth!ee"
+            map! {"hello" => list!["world!", "gaia!", "mother earth!"]},
+            "d5:hellol6:world!5:gaia!13:mother earth!ee",
         ),
-        (
-            map! {"spam" => list!["a", "b"]}, "d4:spaml1:a1:bee"),
+        (map! {"spam" => list!["a", "b"]}, "d4:spaml1:a1:bee"),
         (
             map! {
                 "t" => "aa", "y" => "q", "q" => "ping",
@@ -211,25 +210,26 @@ fn mixed_use_dict_pairs() -> Result<(), Error> {
                 "t" => "aa", "y" => "q", "q" => "find_node",
                 "a" => map! { "id" => "abcdefghij0123456789", "target" => "mnopqrstuvwxyz123456" }
             },
-            "d1:ad2:id20:abcdefghij01234567896:target20:mnopqrstuvwxyz123456e1:q9:find_node1:t2:aa1:y1:qe"
+            "d1:ad2:id20:abcdefghij01234567896:target20:mnopqrstuvwxyz123456e1:q9:find_node1:t2:aa1:y1:qe",
         ),
         (
             map! {
                 "t" => "aa", "y" => "q", "q" => "get_peers",
                 "a" => map! { "id" => "abcdefghij0123456789", "info_hash" => "mnopqrstuvwxyz123456" }
             },
-            "d1:ad2:id20:abcdefghij01234567899:info_hash20:mnopqrstuvwxyz123456e1:q9:get_peers1:t2:aa1:y1:qe"
+            "d1:ad2:id20:abcdefghij01234567899:info_hash20:mnopqrstuvwxyz123456e1:q9:get_peers1:t2:aa1:y1:qe",
         ),
         (
             map! {
-                "t" => "aa", "y" => "r",
+                "t" => "aa",
+                "y" => "r",
                 "r" => map! {
-			"id" => "abcdefghij0123456789",
-			"token" => "aoeusnth", "values" => vec!["axje.u", "idhtnm"]
-		}
+                    "id" => "abcdefghij0123456789",
+                    "token" => "aoeusnth", "values" => vec!["axje.u", "idhtnm"]
+                }
             },
-            "d1:rd2:id20:abcdefghij01234567895:token8:aoeusnth6:valuesl6:axje.u6:idhtnmee1:t2:aa1:y1:re"
-        )
+            "d1:rd2:id20:abcdefghij01234567895:token8:aoeusnth6:valuesl6:axje.u6:idhtnmee1:t2:aa1:y1:re",
+        ),
     ];
 
     for (original, expected_encoding) in &pairs {

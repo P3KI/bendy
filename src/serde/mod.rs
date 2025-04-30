@@ -159,9 +159,9 @@ pub mod de;
 pub mod error;
 pub mod ser;
 
-pub use de::{from_bytes, Deserializer};
+pub use de::{Deserializer, from_bytes};
 pub use error::{Error, Result};
-pub use ser::{to_bytes, Serializer};
+pub use ser::{Serializer, to_bytes};
 
 #[cfg(test)]
 mod tests {
@@ -170,7 +170,7 @@ mod tests {
     use std::{collections::HashMap, fmt::Debug};
 
     use super::{
-        de::{from_bytes, Deserializer},
+        de::{Deserializer, from_bytes},
         ser::to_bytes,
     };
 

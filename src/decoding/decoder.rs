@@ -103,7 +103,7 @@ impl<'ser> Decoder<'ser> {
                             &format!("{:?} or '0'..'9'", expected_terminator),
                             c,
                             curpos,
-                        ))
+                        ));
                     },
                 },
             };
@@ -114,7 +114,7 @@ impl<'ser> Decoder<'ser> {
             return Err(StructureError::UnexpectedEof);
         }
 
-        #[cfg(feature="debug")]
+        #[cfg(feature = "debug")]
         let ival = str::from_utf8(&self.source[self.offset..curpos])
             .expect("We've already examined every byte in the string");
 
@@ -478,18 +478,22 @@ mod test {
     #[test]
     fn recursion_bounds_should_be_tight() {
         let test_msg = b"lllleeee";
-        assert!(Decoder::new(test_msg)
-            .with_max_depth(4)
-            .tokens()
-            .last()
-            .unwrap()
-            .is_ok());
-        assert!(Decoder::new(test_msg)
-            .with_max_depth(3)
-            .tokens()
-            .last()
-            .unwrap()
-            .is_err());
+        assert!(
+            Decoder::new(test_msg)
+                .with_max_depth(4)
+                .tokens()
+                .last()
+                .unwrap()
+                .is_ok()
+        );
+        assert!(
+            Decoder::new(test_msg)
+                .with_max_depth(3)
+                .tokens()
+                .last()
+                .unwrap()
+                .is_err()
+        );
     }
 
     #[test]
@@ -650,12 +654,14 @@ mod test {
     #[test]
     fn list_or_should_work_on_list() {
         let mut list_decoder = Decoder::new(b"le");
-        assert!(list_decoder
-            .next_object()
-            .unwrap()
-            .unwrap()
-            .list_or(Err("failure"))
-            .is_ok());
+        assert!(
+            list_decoder
+                .next_object()
+                .unwrap()
+                .unwrap()
+                .list_or(Err("failure"))
+                .is_ok()
+        );
     }
     #[test]
     fn list_or_should_not_work_on_other_types() {
@@ -683,12 +689,14 @@ mod test {
     #[test]
     fn list_or_else_should_work_on_list() {
         let mut list_decoder = Decoder::new(b"le");
-        assert!(list_decoder
-            .next_object()
-            .unwrap()
-            .unwrap()
-            .list_or_else(|_| Err("failure"))
-            .is_ok());
+        assert!(
+            list_decoder
+                .next_object()
+                .unwrap()
+                .unwrap()
+                .list_or_else(|_| Err("failure"))
+                .is_ok()
+        );
     }
     #[test]
     fn list_or_else_should_not_work_on_other_types() {
@@ -720,12 +728,14 @@ mod test {
     #[test]
     fn dictionary_or_should_work_on_dict() {
         let mut dict_decoder = Decoder::new(b"de");
-        assert!(dict_decoder
-            .next_object()
-            .unwrap()
-            .unwrap()
-            .dictionary_or(Err("failure"))
-            .is_ok());
+        assert!(
+            dict_decoder
+                .next_object()
+                .unwrap()
+                .unwrap()
+                .dictionary_or(Err("failure"))
+                .is_ok()
+        );
     }
 
     #[test]
@@ -758,12 +768,14 @@ mod test {
     #[test]
     fn dictionary_or_else_should_work_on_dict() {
         let mut dict_decoder = Decoder::new(b"de");
-        assert!(dict_decoder
-            .next_object()
-            .unwrap()
-            .unwrap()
-            .dictionary_or_else(|_| Err("failure"))
-            .is_ok());
+        assert!(
+            dict_decoder
+                .next_object()
+                .unwrap()
+                .unwrap()
+                .dictionary_or_else(|_| Err("failure"))
+                .is_ok()
+        );
     }
 
     #[test]

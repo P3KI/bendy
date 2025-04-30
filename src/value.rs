@@ -22,8 +22,8 @@ use serde_ as serde;
 
 #[cfg(feature = "serde")]
 use serde::{
-    ser::{SerializeMap, SerializeSeq},
     Serialize,
+    ser::{SerializeMap, SerializeSeq},
 };
 
 use crate::{

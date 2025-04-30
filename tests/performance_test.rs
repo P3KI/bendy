@@ -53,7 +53,9 @@ where
     where
         Self: Sized,
     {
-        Ok(PerformanceTestSubject { list: Vec::<Vec<T>>::decode_bencode_object(object)?, })
+        Ok(PerformanceTestSubject {
+            list: Vec::<Vec<T>>::decode_bencode_object(object)?,
+        })
         // match object {
         //     Object::List(mut encoded_list) => {
         //         let list_length = match encoded_list.next_object()?.unwrap() {

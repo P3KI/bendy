@@ -346,9 +346,10 @@ impl<'obj, 'ser: 'obj> Object<'obj, 'ser> {
     /// let mut dict_decoder = Decoder::new(b"de");
     /// let x = dict_decoder.next_object().unwrap().unwrap();
     ///
-    /// assert!(x
-    ///     .dictionary_or_else(|obj| Err(obj.into_token().name()))
-    ///     .is_ok());
+    /// assert!(
+    ///     x.dictionary_or_else(|obj| Err(obj.into_token().name()))
+    ///         .is_ok()
+    /// );
     ///
     /// let x = Object::Bytes(b"foo");
     /// assert_eq!(
