@@ -433,8 +433,14 @@ mod test {
 
     #[test]
     fn leading_zeros_are_illegal() {
+        decode_err(b"i00e", "got '0'");
+        decode_err(b"i-00e", "got '0'");
+
         decode_err(b"i01e", "got '1'");
         decode_err(b"i-01e", "got '0'");
+
+        decode_err(b"i001e", "got '0'");
+        decode_err(b"i-001e", "got '0'");
     }
 
     #[test]
