@@ -17,6 +17,9 @@ pub mod decoding;
 pub mod encoding;
 pub mod state_tracker;
 
+#[cfg(any(test, feature = "inspect"))]
+pub mod inspect;
+
 #[cfg(feature = "serde")]
 pub mod serde;
 
