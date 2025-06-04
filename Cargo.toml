@@ -1,12 +1,13 @@
 [package]
 name = "bendy"
-version = "0.4.0-beta.2"
+version = "0.4.0-beta.3"
 edition = "2024"
 
 authors = [
     "P3KI <contact@p3ki.com>",
     "TQ Hirsch <tq@p3ki.com>",
     "Bruno Kirschner <bruno@p3ki.com>",
+    "Oliver Uvman <oliveruv@p3ki.com>",
 ]
 
 description = """
