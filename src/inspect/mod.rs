@@ -5,7 +5,15 @@
 /// Use for reflection, modifying, testing, and pretty printing.
 ///
 /// Not recommended for use in production code.
-use std::borrow::Cow;
+
+#[cfg(not(feature = "std"))]
+use alloc::{
+    borrow::Cow,
+    string::{String, ToString},
+    vec::Vec,
+};
+#[cfg(feature = "std")]
+use std::{borrow::Cow, vec::Vec};
 
 use crate::{
     decoding::{Decoder, DictDecoder, Error as DecodeError, ListDecoder, Object},

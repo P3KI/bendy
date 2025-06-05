@@ -1,4 +1,4 @@
-use std::fmt::{Display, Write};
+use core::fmt::{Display, Write};
 
 use crate::inspect::*;
 
