@@ -5,6 +5,7 @@
 [![License: BSD-3-Clause](https://img.shields.io/github/license/P3KI/bendy.svg)](https://github.com/P3KI/bendy/blob/master/LICENSE-BSD3)
 
 A Rust library for encoding and decoding bencode with enforced canonicalization rules.
+It also provides some facilities for reflecting over arbitrary decoded bencode structures.
 [Bencode](https://en.wikipedia.org/wiki/Bencode) is a simple but very effective encoding
 scheme, originating with the BitTorrent peer-to-peer system.
 
@@ -15,8 +16,11 @@ You may be looking for:
 - [Known Alternatives](#known-alternatives)
 - [Why should I use it](#why-should-i-use-it)
 - [Usage](#usage)
+ - [Feature Flags](#feature-flags)
  - [Encoding](#encoding-with-tobencode)
  - [Decoding](#decoding-with-frombencode)
+ - [Serde Support](#serde-support)
+ - [Reflection](#reflection)
 - [Unsafe Code](#usage-of-unsafe-code)
 - [Contributing](#contributing)
 
@@ -85,6 +89,13 @@ First you need to add bendy as a project dependency:
 [dependencies]
 bendy = "^0.3"
 ```
+
+### Feature flags
+
+Bendy has the following feature flags:
+* `std` - Enabled by default.
+* `serde` - Support serde. Requires `std` to be enabled.
+* `inspect` - Include reflection facilities.
 
 ### Encoding with `ToBencode`
 
@@ -588,6 +599,23 @@ Ok(())
 
 Information on how Rust types are represented in bencode is available in the
 [serde module documentation](https://docs.rs/bendy/*/bendy/serde/index.html).
+
+### Reflection
+
+Bendy supports rudimentary reflection for use in testing, fuzzing, and debugging.
+We do not recommend using it in production code. To enable the feature only in
+your tests, you can include it like so:
+
+```toml
+[dependencies.bendy]
+version = "^0.4"
+
+[dev-dependencies.bendy]
+version = "^0.4"
+features = ["inspect"]
+```
+
+FIXME XXX(oliveruv): Usage examples. See src/inspect/mod.rs tests for now.
 
 ## Usage of unsafe code
 The parser would not require any unsafe code to work but it still contains a single unsafe call
