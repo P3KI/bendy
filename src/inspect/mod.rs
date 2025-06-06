@@ -15,12 +15,9 @@ use alloc::{
 #[cfg(feature = "std")]
 use std::{borrow::Cow, vec::Vec};
 
-use crate::{
-    decoding::{Decoder, DictDecoder, Error as DecodeError, ListDecoder, Object},
-    state_tracker::StructureError,
-};
-
 pub mod display;
+pub mod traverse;
+pub mod parse;
 
 /// Attempt to decode a u8 buffer into an inspectable.
 /// Panics on error. Use Inspectable::try_from for a
@@ -42,19 +39,6 @@ pub enum Inspectable<'ser> {
     Raw(Cow<'ser, [u8]>),
     Dict(InDict<'ser>),
     List(InList<'ser>),
-}
-
-impl<'ser> TryFrom<&'ser [u8]> for Inspectable<'ser> {
-    type Error = DecodeError;
-
-    /// Decodes bencode data into an Inspectable
-    fn try_from(buf: &'ser [u8]) -> Result<Inspectable<'ser>, Self::Error> {
-        let mut decoder = Decoder::new(buf);
-        let obj = decoder
-            .next_object()?
-            .ok_or_else(|| StructureError::UnexpectedEof)?;
-        Self::try_from(obj)
-    }
 }
 
 impl<'ser> Inspectable<'ser> {
@@ -136,33 +120,6 @@ where
     pub fn replace(&mut self, other: Inspectable<'other>) {
         *self = other;
     }
-}
-
-macro_rules! variant_accessors {
-    ($(($name:ident, $mutname:ident, $source:ident, $target:ty))*) => {$(
-        impl<'obj, 'ser> Inspectable<'ser> {
-            pub fn $name(&'obj self) -> &'obj $target {
-                match self {
-                    Inspectable::$source(x) => x,
-                    _ => panic!("Attempted to take non-{} Inspectable as {}", stringify!($source), stringify!($target))
-                }
-            }
-            pub fn $mutname(&'obj mut self) -> &'obj mut $target {
-                match self {
-                    Inspectable::$source(x) => x,
-                    _ => panic!("Attempted to take non-{} Inspectable as mut_{}", stringify!($source), stringify!($target))
-                }
-            }
-        }
-    )*};
-}
-
-variant_accessors! {
-    (string, string_mut, String, InString<'ser>)
-    (int, int_mut, Int, InInt<'ser>)
-    (raw, raw_mut, Raw, Cow<'ser, [u8]>)
-    (dict, dict_mut, Dict, InDict<'ser>)
-    (list, list_mut, List, InList<'ser>)
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
@@ -264,87 +221,17 @@ impl<'obj, 'ser> InList<'ser> {
     pub fn new() -> Self {
         InList { items: Vec::new() }
     }
-
-    pub fn nth(&'obj self, idx: usize) -> &'obj Inspectable<'ser> {
-        self.items.get(idx).expect("Could not access nth Inspectable in list")
-    }
-
-    pub fn nth_mut(&'obj mut self, idx: usize) -> &'obj mut Inspectable<'ser> {
-        self.items.get_mut(idx).expect("Could not mutably access nth Inspectable in list")
-    }
 }
 
 impl<'obj, 'ser> InDict<'ser> {
     pub fn new() -> Self {
         InDict { items: Vec::new() }
     }
-
-    pub fn nth(&'obj self, idx: usize) -> &'obj InTuple<'ser> {
-        self.items.get(idx).expect("Could not access nth Inspectable in list")
-    }
-
-    pub fn nth_mut(&'obj mut self, idx: usize) -> &'obj mut InTuple<'ser> {
-        self.items.get_mut(idx).expect("Could not mutably access nth Inspectable in list")
-    }
-}
-
-impl<'obj, 'ser, 'other> InDict<'ser> {
-    pub fn entry(&'obj self, name: &'other [u8]) -> &'obj InTuple<'ser> {
-        self.items.iter().find(|InTuple{key, ..}| key.bytes == name)
-            .expect("Could not find a tuple with requested key")
-    }
-
-    pub fn entry_mut(&'obj mut self, name: &'other [u8]) -> &'obj mut InTuple<'ser> {
-        self.items.iter_mut().find(|InTuple{key, ..}| key.bytes == name)
-            .expect("Could not find a tuple with requested key")
-    }
 }
 
 impl<'ser> InTuple<'ser> {
     pub fn new(key: InString<'ser>, value: Inspectable<'ser>) -> Self {
         InTuple { key, value }
-    }
-}
-
-impl<'obj, 'ser> TryFrom<Object<'obj, 'ser>> for Inspectable<'ser> {
-    type Error = DecodeError;
-
-    fn try_from(object: Object<'obj, 'ser>) -> Result<Inspectable<'ser>, DecodeError> {
-        Ok(match object {
-            Object::List(ld) => Inspectable::List(InList::try_from(ld)?),
-            Object::Dict(dd) => Inspectable::Dict(InDict::try_from(dd)?),
-            Object::Integer(i) => Inspectable::Int(InInt::new(i)),
-            Object::Bytes(b) => Inspectable::String(InString::new(b)),
-        })
-    }
-}
-
-impl<'obj, 'ser> TryFrom<ListDecoder<'obj, 'ser>> for InList<'ser> {
-    type Error = DecodeError;
-
-    fn try_from(mut ld: ListDecoder<'obj, 'ser>) -> Result<Self, Self::Error> {
-        let mut items: Vec<Inspectable<'ser>> = Vec::new();
-        while let Some(item) = ld.next_object()? {
-            items.push(item.try_into()?);
-        }
-
-        Ok(InList { items })
-    }
-}
-impl<'obj, 'ser> TryFrom<DictDecoder<'obj, 'ser>> for InDict<'ser> {
-    type Error = DecodeError;
-
-    fn try_from(mut dd: DictDecoder<'obj, 'ser>) -> Result<Self, Self::Error> {
-        let mut items: Vec<InTuple> = Vec::new();
-
-        while let Some((k, v)) = dd.next_pair()? {
-            items.push(InTuple {
-                key: InString::new(k),
-                value: v.try_into()?,
-            })
-        }
-
-        Ok(InDict { items })
     }
 }
 
