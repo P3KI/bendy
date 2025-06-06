@@ -35,7 +35,7 @@ pub fn inspect(buf: &[u8]) -> Inspectable {
 /// testing, and pretty printing.
 ///
 /// Use in production code not recommended.
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub enum Inspectable<'ser> {
     Int(InInt<'ser>),
     String(InString<'ser>),
@@ -165,31 +165,31 @@ variant_accessors! {
     (list, list_mut, List, InList<'ser>)
 }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub struct InString<'ser> {
-    bytes: Cow<'ser, [u8]>,
-    fake_length: Option<usize>,
+    pub bytes: Cow<'ser, [u8]>,
+    pub fake_length: Option<usize>,
 }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub struct InInt<'ser> {
-    bytes: Cow<'ser, str>,
+    pub bytes: Cow<'ser, str>,
 }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub struct InTuple<'ser> {
-    key: InString<'ser>,
-    value: Inspectable<'ser>,
+    pub key: InString<'ser>,
+    pub value: Inspectable<'ser>,
 }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub struct InDict<'ser> {
-    items: Vec<InTuple<'ser>>,
+    pub items: Vec<InTuple<'ser>>,
 }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub struct InList<'ser> {
-    items: Vec<Inspectable<'ser>>,
+    pub items: Vec<Inspectable<'ser>>,
 }
 
 impl<'ser> InInt<'ser> {
