@@ -59,7 +59,7 @@ impl<'obj, 'ser> TryFrom<DictDecoder<'obj, 'ser>> for InDict<'ser> {
 
         while let Some((k, v)) = dd.next_pair()? {
             items.push(InTuple {
-                key: InString::new(k),
+                key: Inspectable::String(InString::new(k)),
                 value: v.try_into()?,
             })
         }

@@ -98,7 +98,7 @@ impl<'ser> Inspectable<'ser> {
                 Inspectable::Dict(x) => {
                     out.push(b'd');
                     for InTuple { key, value } in x.items.iter() {
-                        emit_str(key, out);
+                        dispatch(key, out);
                         dispatch(value, out);
                     }
                     out.push(b'e');
@@ -135,7 +135,9 @@ pub struct InInt<'ser> {
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct InTuple<'ser> {
-    pub key: InString<'ser>,
+    /// This one must be an Inspectable::String
+    /// for the bencode to be valid
+    pub key: Inspectable<'ser>,
     pub value: Inspectable<'ser>,
 }
 
@@ -231,7 +233,7 @@ impl<'obj, 'ser> InDict<'ser> {
 
 impl<'ser> InTuple<'ser> {
     pub fn new(key: InString<'ser>, value: Inspectable<'ser>) -> Self {
-        InTuple { key, value }
+        InTuple { key: Inspectable::String(key), value }
     }
 }
 
@@ -263,9 +265,9 @@ mod tests {
         let t0 = d.nth(0);
         let t1 = d.nth(1);
         let t2 = d.entry(b"zzzzz");
-        assert_eq!(b"one".as_slice(), &*t0.key.bytes);
-        assert_eq!(b"two".as_slice(), &*t1.key.bytes);
-        assert_eq!(b"zzzzz".as_slice(), &*t2.key.bytes);
+        assert_eq!(b"one".as_slice(), &*t0.key.string().bytes);
+        assert_eq!(b"two".as_slice(), &*t1.key.string().bytes);
+        assert_eq!(b"zzzzz".as_slice(), &*t2.key.string().bytes);
         assert_eq!(11, t0.value.int().as_i64());
         assert_eq!(22, t1.value.int().as_i64());
         assert_eq!(33, t2.value.int().as_i64());
@@ -307,7 +309,7 @@ mod tests {
         e";
         let mut i = inspect(buf);
         i.list_mut().nth_mut(0).string_mut().set_fake_length(20);
-        i.list_mut().nth_mut(1).dict_mut().nth_mut(0).key.set_fake_length(0);
+        i.list_mut().nth_mut(1).dict_mut().nth_mut(0).key.string_mut().set_fake_length(0);
         assert_eq!(b"l20:hellod0:onei11eee".as_slice(), i.emit().as_slice());
         assert_eq!("l20:hellod0:onei11eee", i.to_string().as_str());
     }
@@ -327,7 +329,7 @@ mod tests {
         i.list_mut().nth_mut(0).string_mut().set_content_string("one".to_string());
         i.list_mut().nth_mut(1).string_mut().set_content_str("two");
         let tuple = i.list_mut().nth_mut(2).dict_mut().nth_mut(0);
-        tuple.key.set_content_u8(b"three");
+        tuple.key.string_mut().set_content_u8(b"three");
         tuple.value.string_mut().set_content_vec(Vec::from(b"four"));
         assert_eq!(
             b"l3:one3:twod5:three4:fouree".as_slice(),

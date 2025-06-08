@@ -50,13 +50,12 @@ impl<'obj, 'ser> InDict<'ser> {
 
 impl<'obj, 'ser, 'other> InDict<'ser> {
     pub fn entry(&'obj self, name: &'other [u8]) -> &'obj InTuple<'ser> {
-        self.items.iter().find(|InTuple{key, ..}| key.bytes == name)
+        self.items.iter().find(|InTuple{key, ..}| key.string().bytes == name)
             .expect("Could not find a tuple with requested key")
     }
 
     pub fn entry_mut(&'obj mut self, name: &'other [u8]) -> &'obj mut InTuple<'ser> {
-        self.items.iter_mut().find(|InTuple{key, ..}| key.bytes == name)
+        self.items.iter_mut().find(|InTuple{key, ..}| key.string().bytes == name)
             .expect("Could not find a tuple with requested key")
     }
 }
-
