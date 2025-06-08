@@ -55,10 +55,10 @@ impl<'obj, 'ser> TryFrom<DictDecoder<'obj, 'ser>> for InDict<'ser> {
     type Error = DecodeError;
 
     fn try_from(mut dd: DictDecoder<'obj, 'ser>) -> Result<Self, Self::Error> {
-        let mut items: Vec<InTuple> = Vec::new();
+        let mut items: Vec<InDictEntry> = Vec::new();
 
         while let Some((k, v)) = dd.next_pair()? {
-            items.push(InTuple {
+            items.push(InDictEntry {
                 key: Inspectable::String(InString::new(k)),
                 value: v.try_into()?,
             })

@@ -18,13 +18,20 @@ use std::{borrow::Cow, vec::Vec};
 pub mod display;
 pub mod traverse;
 pub mod parse;
+pub mod mutate;
 
 /// Attempt to decode a u8 buffer into an inspectable.
 /// Panics on error. Use Inspectable::try_from for a
 /// fallible alternative.
-pub fn inspect(buf: &[u8]) -> Inspectable {
+pub fn inspect<'ser>(buf: &'ser [u8]) -> Inspectable<'ser> {
     Inspectable::try_from(buf)
         .expect("Could not decode buffer into inspectable")
+}
+
+/// Builds a path that can be used to traverse from an
+/// Inspectable to a child, grandchild, etc Inspectable.
+pub fn inspect_path<'ser>() -> traverse::PathBuilder<'ser> {
+    traverse::PathBuilder::new()
 }
 
 /// An object that represents something that bencode can
@@ -97,7 +104,7 @@ impl<'ser> Inspectable<'ser> {
                 },
                 Inspectable::Dict(x) => {
                     out.push(b'd');
-                    for InTuple { key, value } in x.items.iter() {
+                    for InDictEntry { key, value } in x.items.iter() {
                         dispatch(key, out);
                         dispatch(value, out);
                     }
@@ -107,18 +114,6 @@ impl<'ser> Inspectable<'ser> {
         }
         dispatch(self, &mut res);
         res
-    }
-}
-
-impl<'ser, 'other, 'min> Inspectable<'ser>
-where
-    'other: 'ser,
-{
-    // Replaces one Inspectable with another. The replacement
-    // must have a lifetime at least as long as the one it is
-    // replacing.
-    pub fn replace(&mut self, other: Inspectable<'other>) {
-        *self = other;
     }
 }
 
@@ -134,7 +129,7 @@ pub struct InInt<'ser> {
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
-pub struct InTuple<'ser> {
+pub struct InDictEntry<'ser> {
     /// This one must be an Inspectable::String
     /// for the bencode to be valid
     pub key: Inspectable<'ser>,
@@ -143,7 +138,7 @@ pub struct InTuple<'ser> {
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct InDict<'ser> {
-    pub items: Vec<InTuple<'ser>>,
+    pub items: Vec<InDictEntry<'ser>>,
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
@@ -165,12 +160,6 @@ impl<'ser> InInt<'ser> {
         self.bytes.parse()
             .expect("Could not parse InInt as i64")
     }
-
-    /// Sets the InInt to a specified i64 value.
-    /// Allocates a String.
-    pub fn set(&mut self, value: i64) {
-        *self.bytes.to_mut() = value.to_string();
-    }
 }
 
 impl<'ser> InString<'ser> {
@@ -181,41 +170,14 @@ impl<'ser> InString<'ser> {
         }
     }
 
+    /// Returns the number of bytes in the bytestring,
+    /// or the fake length of the bytestring if set.
     pub fn len(&self) -> usize {
         self.fake_length.unwrap_or_else(|| self.bytes.len())
     }
 
     pub fn content(&self) -> &[u8] {
         &*self.bytes
-    }
-
-    pub fn set_fake_length(&mut self, length: usize) {
-        self.fake_length = Some(length);
-    }
-
-    pub fn clear_fake_length(&mut self) {
-        self.fake_length = None;
-    }
-
-    pub fn set_content_string(&mut self, other: String) {
-        self.bytes = Cow::Owned(other.into());
-    }
-
-    pub fn set_content_vec(&mut self, other: Vec<u8>) {
-        self.bytes = Cow::Owned(other);
-    }
-}
-
-impl<'me, 'other, 'ser> InString<'ser>
-where
-    'other: 'ser,
-{
-    pub fn set_content_str(&'me mut self, other: &'other str) {
-        self.bytes = Cow::from(other.as_bytes());
-    }
-
-    pub fn set_content_u8(&'me mut self, other: &'other [u8]) {
-        self.bytes = Cow::from(other);
     }
 }
 
@@ -231,9 +193,9 @@ impl<'obj, 'ser> InDict<'ser> {
     }
 }
 
-impl<'ser> InTuple<'ser> {
+impl<'ser> InDictEntry<'ser> {
     pub fn new(key: InString<'ser>, value: Inspectable<'ser>) -> Self {
-        InTuple { key: Inspectable::String(key), value }
+        InDictEntry { key: Inspectable::String(key), value }
     }
 }
 
@@ -328,9 +290,9 @@ mod tests {
         let mut i = inspect(buf);
         i.list_mut().nth_mut(0).string_mut().set_content_string("one".to_string());
         i.list_mut().nth_mut(1).string_mut().set_content_str("two");
-        let tuple = i.list_mut().nth_mut(2).dict_mut().nth_mut(0);
-        tuple.key.string_mut().set_content_u8(b"three");
-        tuple.value.string_mut().set_content_vec(Vec::from(b"four"));
+        let entry = i.list_mut().nth_mut(2).dict_mut().nth_mut(0);
+        entry.key.string_mut().set_content_u8(b"three");
+        entry.value.string_mut().set_content_vec(Vec::from(b"four"));
         assert_eq!(
             b"l3:one3:twod5:three4:fouree".as_slice(),
             i.emit().as_slice()

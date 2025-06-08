@@ -51,7 +51,7 @@ impl<'a> Display for InInt<'a> {
 impl<'a> Display for InDict<'a> {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         f.write_char('d')?;
-        for InTuple { key, value } in self.items.iter() {
+        for InDictEntry { key, value } in self.items.iter() {
             Display::fmt(key, f)?;
             Display::fmt(value, f)?;
         }
@@ -101,7 +101,7 @@ impl<'a> Inspectable<'a> {
                     out.push('d');
                     *indent += 1;
                     for i in items.iter() {
-                        let InTuple { key, value } = i;
+                        let InDictEntry { key, value } = i;
                         newline(indent, out);
                         out.push_str(key.to_string().as_str());
                         newline(indent, out);
