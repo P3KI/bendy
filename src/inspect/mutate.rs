@@ -14,10 +14,14 @@ where
     }
 }
 
-impl<'ser, 'obj> Inspectable<'ser>
-{
-    pub fn clone_and_mutate<F>(&'obj self, path: &crate::inspect::traverse::PathBuilder, f: F) -> Inspectable<'ser>
-        where F: FnOnce(&mut Inspectable<'ser>)
+impl<'ser, 'obj> Inspectable<'ser> {
+    pub fn clone_and_mutate<F>(
+        &'obj self,
+        path: &crate::inspect::traverse::PathBuilder,
+        f: F,
+    ) -> Inspectable<'ser>
+    where
+        F: FnOnce(&mut Inspectable<'ser>),
     {
         let mut c = self.clone();
         c.mutate(path, f);
@@ -25,13 +29,15 @@ impl<'ser, 'obj> Inspectable<'ser>
     }
 
     pub fn mutate<F>(&'obj mut self, path: &crate::inspect::traverse::PathBuilder, f: F)
-        where F: FnOnce(&mut Inspectable<'ser>)
+    where
+        F: FnOnce(&mut Inspectable<'ser>),
     {
         self.find_mut(path).apply(f)
     }
 
     pub fn apply<F>(&'obj mut self, f: F)
-        where F: FnOnce(&mut Inspectable<'ser>)
+    where
+        F: FnOnce(&mut Inspectable<'ser>),
     {
         f(self);
     }
@@ -40,23 +46,24 @@ impl<'ser, 'obj> Inspectable<'ser>
         match self {
             Inspectable::Dict(x) => x.remove_nth(idx),
             Inspectable::List(x) => x.remove_nth(idx),
-            _ => panic!("Remove Nth mutation only available on Dicts and Lists")
+            _ => panic!("Remove Nth mutation only available on Dicts and Lists"),
         }
     }
 
     pub fn truncate(&'obj mut self) {
         match self {
             Inspectable::String(instring) => instring.truncate(),
-            _ => panic!("Truncate mutation only available on ByteStrings")
+            _ => panic!("Truncate mutation only available on ByteStrings"),
         }
     }
 
     pub fn set_content_byterange<R>(&'obj mut self, range: R, byte: u8)
-        where R: RangeBounds<usize>,
+    where
+        R: RangeBounds<usize>,
     {
         match self {
             Inspectable::String(instring) => instring.set_content_byterange(range, byte),
-            _ => panic!("Set Content ByteRange mutation only available on ByteStrings")
+            _ => panic!("Set Content ByteRange mutation only available on ByteStrings"),
         }
     }
 
@@ -81,7 +88,7 @@ impl<'ser, 'obj, 'other> Inspectable<'ser> {
     pub fn remove_entry(&'obj mut self, dict_key: &'other [u8]) {
         match self {
             Inspectable::Dict(x) => x.remove_entry(dict_key),
-            _ => panic!("Remove Entry mutation only available on Dicts")
+            _ => panic!("Remove Entry mutation only available on Dicts"),
         }
     }
 }
@@ -108,7 +115,6 @@ impl<'ser, 'obj> InDict<'ser> {
     pub fn remove_nth(&'obj mut self, idx: usize) {
         self.items.remove(idx);
     }
-
 }
 
 impl<'ser, 'obj, 'other> InDict<'ser> {
@@ -119,7 +125,8 @@ impl<'ser, 'obj, 'other> InDict<'ser> {
     /// Assumes that all entries' keys are Byte Strings, which is
     /// also required for valid bencode.
     pub fn remove_entry(&'obj mut self, dict_key: &'other [u8]) {
-        self.items.retain(|entry| entry.key.string().bytes != dict_key);
+        self.items
+            .retain(|entry| entry.key.string().bytes != dict_key);
     }
 }
 
@@ -153,7 +160,7 @@ impl<'ser, 'obj> InString<'ser> {
     pub fn truncate(&'obj mut self) {
         let bytes = self.bytes.to_mut();
         let len = bytes.len();
-        let new_len = len/2;
+        let new_len = len / 2;
         if len <= new_len {
             bytes.clear();
             return;
@@ -166,13 +173,15 @@ impl<'ser, 'obj> InString<'ser> {
     }
 
     pub fn set_content_byterange<R>(&'obj mut self, range: R, byte: u8)
-        where R: RangeBounds<usize>,
+    where
+        R: RangeBounds<usize>,
     {
         let len = self.bytes.len();
         let (start, stop) = normalize_range(range, len);
         let bytes = self.bytes.to_mut();
         for i in start..stop {
-            let mref = bytes.get_mut(i)
+            let mref = bytes
+                .get_mut(i)
                 .expect("Tried to replace byte outside of ByteString");
             *mref = byte;
         }
@@ -193,7 +202,8 @@ where
 }
 
 fn normalize_range<R>(range: R, max_end: usize) -> (usize, usize)
-    where R: RangeBounds<usize>
+where
+    R: RangeBounds<usize>,
 {
     // Unstable for now
     // if range.is_empty() {
@@ -205,12 +215,12 @@ fn normalize_range<R>(range: R, max_end: usize) -> (usize, usize)
 
     let start = match beg {
         core::ops::Bound::Included(n) => *n,
-        core::ops::Bound::Excluded(n) => n+1, // Probably doesn't matter?
+        core::ops::Bound::Excluded(n) => n + 1, // Probably doesn't matter?
         core::ops::Bound::Unbounded => 0,
     };
 
     let stop = match end {
-        core::ops::Bound::Included(n) => *n+1,
+        core::ops::Bound::Included(n) => *n + 1,
         core::ops::Bound::Excluded(n) => *n,
         core::ops::Bound::Unbounded => max_end,
     };
@@ -269,7 +279,6 @@ mod tests {
         let mut i = inspect(b"5:AAAAA");
         i.string_mut().set_content_byterange(2..5, b'0');
         assert_eq!(b"5:AA000", i.emit().as_slice());
-
     }
 
     #[test]
@@ -292,5 +301,4 @@ mod tests {
         let mut i = inspect(b"5:AAAAA");
         i.string_mut().set_content_byterange(5..1, b'0');
     }
-
 }

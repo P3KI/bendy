@@ -12,7 +12,7 @@ pub enum Step<'a> {
     Nth(usize),
 
     /// Accesses a Dict Entry with the given key
-    Entry(&'a[u8]),
+    Entry(&'a [u8]),
 
     /// Assume current item is an Dict Entry, access the key
     Key,
@@ -41,7 +41,8 @@ pub struct PathBuilder<'a> {
 }
 
 impl<'obj, 'pb, 'step> PathBuilder<'pb>
-    where 'step : 'pb
+where
+    'step: 'pb,
 {
     pub fn new() -> Self {
         PathBuilder {
@@ -99,7 +100,8 @@ impl<'obj, 'pb, 'step> PathBuilder<'pb>
 
     /// Search for ByteStrings that are not dict keys
     pub fn into_search_bytestring(mut self, bytestring: &'step [u8]) -> PathBuilder<'pb> {
-        self.steps.push(Step::Search(Search::ByteString(bytestring)));
+        self.steps
+            .push(Step::Search(Search::ByteString(bytestring)));
         self
     }
 
@@ -135,7 +137,8 @@ impl<'obj, 'pb, 'step> PathBuilder<'pb>
 
     /// Search for an integer, this function converts an i64 to a string slice for you
     pub fn into_search_int_i64(mut self, number: i64) -> PathBuilder<'pb> {
-        self.steps.push(Step::Search(Search::Int(number.to_string().into())));
+        self.steps
+            .push(Step::Search(Search::Int(number.to_string().into())));
         self
     }
 
@@ -156,31 +159,40 @@ impl<'obj, 'ser, 'pb, 'pbobj> Inspectable<'ser> {
         }
     }
 
-    fn _find_mut(&'obj mut self, steps: &'pbobj Path<'pb>, pc: usize) -> Option<&'obj mut Inspectable<'ser>> {
-        let current_step = if let Some(x) = steps.get(pc) {x} else {
+    fn _find_mut(
+        &'obj mut self,
+        steps: &'pbobj Path<'pb>,
+        pc: usize,
+    ) -> Option<&'obj mut Inspectable<'ser>> {
+        let current_step = if let Some(x) = steps.get(pc) {
+            x
+        } else {
             return Some(self);
         };
 
-        let descend_into_entry = |entry: &'obj mut InDictEntry<'ser>| -> Option<&'obj mut Inspectable<'ser>> {
-            match steps.get(pc + 1) {
-                Some(Step::Key) => entry.key._find_mut(steps, pc + 2),
-                Some(Step::Value) => entry.value._find_mut(steps, pc + 2),
-                _ => panic!("A path that selects a dict entry must then select either its key or its value"),
-            }
-        };
+        let descend_into_entry =
+            |entry: &'obj mut InDictEntry<'ser>| -> Option<&'obj mut Inspectable<'ser>> {
+                match steps.get(pc + 1) {
+                    Some(Step::Key) => entry.key._find_mut(steps, pc + 2),
+                    Some(Step::Value) => entry.value._find_mut(steps, pc + 2),
+                    _ => panic!(
+                        "A path that selects a dict entry must then select either its key or its value"
+                    ),
+                }
+            };
 
         match (self, current_step) {
             (Inspectable::Raw(_), _) => (),
 
             (s @ Inspectable::Int(_), Step::Search(Search::Int(x))) => {
-                if *x == &* s.int_mut().bytes {
+                if *x == &*s.int_mut().bytes {
                     return Some(s);
                 }
             },
             (Inspectable::Int(_), _) => (),
 
             (s @ Inspectable::String(_), Step::Search(Search::ByteString(x))) => {
-                if *x == &* s.string_mut().bytes {
+                if *x == &*s.string_mut().bytes {
                     return Some(s);
                 }
             },
@@ -193,26 +205,31 @@ impl<'obj, 'ser, 'pb, 'pbobj> Inspectable<'ser> {
             (Inspectable::List(in_list), Step::Nth(idx)) => {
                 let item = in_list.items.get_mut(*idx)?;
                 return item._find_mut(steps, pc + 1);
-            }
+            },
             (Inspectable::List(in_list), Step::Search(_)) => {
-                return in_list.items.iter_mut().find_map(|item| item._find_mut(steps, pc))
-            }
+                return in_list
+                    .items
+                    .iter_mut()
+                    .find_map(|item| item._find_mut(steps, pc));
+            },
 
             (Inspectable::Dict(_), Step::Key) => (),
             (Inspectable::Dict(_), Step::Value) => (),
             (Inspectable::Dict(in_dict), Step::Nth(idx)) => {
                 let entry = in_dict.items.get_mut(*idx)?;
                 return descend_into_entry(entry);
-            }
+            },
             (Inspectable::Dict(in_dict), Step::Entry(key)) => {
                 let entry = in_dict.items.iter_mut().find(|entry| {
-                    let entry_key = if let Inspectable::String(x) = &entry.key { x } else {
+                    let entry_key = if let Inspectable::String(x) = &entry.key {
+                        x
+                    } else {
                         return false;
                     };
                     entry_key.bytes == *key
                 })?;
                 return descend_into_entry(entry);
-            }
+            },
             (Inspectable::Dict(in_dict), Step::Search(Search::DictKey(key))) => {
                 return in_dict.items.iter_mut().find_map(|entry| {
                     if let Inspectable::String(x) = &entry.key {
@@ -222,12 +239,13 @@ impl<'obj, 'ser, 'pb, 'pbobj> Inspectable<'ser> {
                     }
                     entry.value._find_mut(steps, pc)
                 });
-            }
+            },
             (Inspectable::Dict(in_dict), Step::Search(_)) => {
-                return in_dict.items.
-                    iter_mut().
-                    find_map(|InDictEntry{value, ..}| value._find_mut(steps, pc));
-            }
+                return in_dict
+                    .items
+                    .iter_mut()
+                    .find_map(|InDictEntry { value, .. }| value._find_mut(steps, pc));
+            },
         };
         None
     }
@@ -273,35 +291,46 @@ variant_accessors! {
     (list, list_mut, List, InList<'ser>)
 }
 
-
 impl<'obj, 'ser> InList<'ser> {
     pub fn nth(&'obj self, idx: usize) -> &'obj Inspectable<'ser> {
-        self.items.get(idx).expect("Could not access nth Inspectable in list")
+        self.items
+            .get(idx)
+            .expect("Could not access nth Inspectable in list")
     }
 
     pub fn nth_mut(&'obj mut self, idx: usize) -> &'obj mut Inspectable<'ser> {
-        self.items.get_mut(idx).expect("Could not mutably access nth Inspectable in list")
+        self.items
+            .get_mut(idx)
+            .expect("Could not mutably access nth Inspectable in list")
     }
 }
 
 impl<'obj, 'ser> InDict<'ser> {
     pub fn nth(&'obj self, idx: usize) -> &'obj InDictEntry<'ser> {
-        self.items.get(idx).expect("Could not access nth Inspectable in list")
+        self.items
+            .get(idx)
+            .expect("Could not access nth Inspectable in list")
     }
 
     pub fn nth_mut(&'obj mut self, idx: usize) -> &'obj mut InDictEntry<'ser> {
-        self.items.get_mut(idx).expect("Could not mutably access nth Inspectable in list")
+        self.items
+            .get_mut(idx)
+            .expect("Could not mutably access nth Inspectable in list")
     }
 }
 
 impl<'obj, 'ser, 'other> InDict<'ser> {
     pub fn entry(&'obj self, name: &'other [u8]) -> &'obj InDictEntry<'ser> {
-        self.items.iter().find(|InDictEntry{key, ..}| key.string().bytes == name)
+        self.items
+            .iter()
+            .find(|InDictEntry { key, .. }| key.string().bytes == name)
             .expect("Could not find a Dict Entry with requested key")
     }
 
     pub fn entry_mut(&'obj mut self, name: &'other [u8]) -> &'obj mut InDictEntry<'ser> {
-        self.items.iter_mut().find(|InDictEntry{key, ..}| key.string().bytes == name)
+        self.items
+            .iter_mut()
+            .find(|InDictEntry { key, .. }| key.string().bytes == name)
             .expect("Could not find a Dict Entry with requested key")
     }
 }

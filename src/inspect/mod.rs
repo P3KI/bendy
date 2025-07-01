@@ -16,16 +16,15 @@ use alloc::{
 use std::{borrow::Cow, vec::Vec};
 
 pub mod display;
-pub mod traverse;
-pub mod parse;
 pub mod mutate;
+pub mod parse;
+pub mod traverse;
 
 /// Attempt to decode a u8 buffer into an inspectable.
 /// Panics on error. Use Inspectable::try_from for a
 /// fallible alternative.
 pub fn inspect<'ser>(buf: &'ser [u8]) -> Inspectable<'ser> {
-    Inspectable::try_from(buf)
-        .expect("Could not decode buffer into inspectable")
+    Inspectable::try_from(buf).expect("Could not decode buffer into inspectable")
 }
 
 /// Builds a path that can be used to traverse from an
@@ -157,8 +156,7 @@ impl<'ser> InInt<'ser> {
     /// Panics if this is not possible.
     #[must_use]
     pub fn as_i64(&self) -> i64 {
-        self.bytes.parse()
-            .expect("Could not parse InInt as i64")
+        self.bytes.parse().expect("Could not parse InInt as i64")
     }
 }
 
@@ -195,7 +193,10 @@ impl<'obj, 'ser> InDict<'ser> {
 
 impl<'ser> InDictEntry<'ser> {
     pub fn new(key: InString<'ser>, value: Inspectable<'ser>) -> Self {
-        InDictEntry { key: Inspectable::String(key), value }
+        InDictEntry {
+            key: Inspectable::String(key),
+            value,
+        }
     }
 }
 
@@ -255,7 +256,13 @@ mod tests {
         e";
         let mut i = inspect(buf);
         i.list_mut().nth_mut(0).int_mut().set(2);
-        i.list_mut().nth_mut(1).dict_mut().nth_mut(0).value.int_mut().set(1);
+        i.list_mut()
+            .nth_mut(1)
+            .dict_mut()
+            .nth_mut(0)
+            .value
+            .int_mut()
+            .set(1);
         assert_eq!(b"li2ed3:onei1eee".as_slice(), i.emit().as_slice());
     }
 
@@ -271,7 +278,13 @@ mod tests {
         e";
         let mut i = inspect(buf);
         i.list_mut().nth_mut(0).string_mut().set_fake_length(20);
-        i.list_mut().nth_mut(1).dict_mut().nth_mut(0).key.string_mut().set_fake_length(0);
+        i.list_mut()
+            .nth_mut(1)
+            .dict_mut()
+            .nth_mut(0)
+            .key
+            .string_mut()
+            .set_fake_length(0);
         assert_eq!(b"l20:hellod0:onei11eee".as_slice(), i.emit().as_slice());
         assert_eq!("l20:hellod0:onei11eee", i.to_string().as_str());
     }
@@ -288,7 +301,10 @@ mod tests {
             e\
         e";
         let mut i = inspect(buf);
-        i.list_mut().nth_mut(0).string_mut().set_content_string("one".to_string());
+        i.list_mut()
+            .nth_mut(0)
+            .string_mut()
+            .set_content_string("one".to_string());
         i.list_mut().nth_mut(1).string_mut().set_content_str("two");
         let entry = i.list_mut().nth_mut(2).dict_mut().nth_mut(0);
         entry.key.string_mut().set_content_u8(b"three");

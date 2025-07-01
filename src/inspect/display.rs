@@ -26,8 +26,7 @@ impl<'a> Display for InString<'a> {
         write!(f, "{}:", self.len())?;
         if all_printable {
             for &b in bytes.iter() {
-                let c = char::from_u32(b as u32)
-                    .expect("Already ensured all chars are printable");
+                let c = char::from_u32(b as u32).expect("Already ensured all chars are printable");
                 f.write_char(c)?;
             }
             Ok(())
@@ -80,10 +79,7 @@ impl<'a> Inspectable<'a> {
 
         fn dispatch(inspectable: &Inspectable, indent: &mut usize, out: &mut String) {
             match inspectable {
-                x @ Inspectable::Raw(_)
-                    | x @ Inspectable::String(_)
-                    | x @ Inspectable::Int(_)
-                => {
+                x @ Inspectable::Raw(_) | x @ Inspectable::String(_) | x @ Inspectable::Int(_) => {
                     out.push_str(x.to_string().as_str());
                 },
                 Inspectable::List(InList { items }) => {

@@ -8,8 +8,8 @@ use std::vec::Vec;
 
 use crate::{
     decoding::{Decoder, DictDecoder, Error as DecodeError, ListDecoder, Object},
-    state_tracker::StructureError,
     inspect::*,
+    state_tracker::StructureError,
 };
 
 impl<'ser> TryFrom<&'ser [u8]> for Inspectable<'ser> {
@@ -67,4 +67,3 @@ impl<'obj, 'ser> TryFrom<DictDecoder<'obj, 'ser>> for InDict<'ser> {
         Ok(InDict { items })
     }
 }
-
