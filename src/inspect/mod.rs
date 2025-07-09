@@ -220,20 +220,20 @@ mod tests {
             e\
         e";
         let i = inspect(buf);
-        let l = i.list();
+        let l = i.list_ref();
         assert_eq!(3, l.items.len());
-        assert_eq!(99, l.nth(0).int().as_i64());
-        assert_eq!(b"hello".as_slice(), &*l.nth(1).string().bytes);
-        let d = i.list().nth(2).dict();
-        let t0 = d.nth(0);
-        let t1 = d.nth(1);
-        let t2 = d.entry(b"zzzzz");
-        assert_eq!(b"one".as_slice(), &*t0.key.string().bytes);
-        assert_eq!(b"two".as_slice(), &*t1.key.string().bytes);
-        assert_eq!(b"zzzzz".as_slice(), &*t2.key.string().bytes);
-        assert_eq!(11, t0.value.int().as_i64());
-        assert_eq!(22, t1.value.int().as_i64());
-        assert_eq!(33, t2.value.int().as_i64());
+        assert_eq!(99, l.nth_ref(0).int_ref().as_i64());
+        assert_eq!(b"hello".as_slice(), &*l.nth_ref(1).string_ref().bytes);
+        let d = i.list_ref().nth_ref(2).dict_ref();
+        let t0 = d.nth_ref(0);
+        let t1 = d.nth_ref(1);
+        let t2 = d.entry_ref(b"zzzzz");
+        assert_eq!(b"one".as_slice(), &*t0.key.string_ref().bytes);
+        assert_eq!(b"two".as_slice(), &*t1.key.string_ref().bytes);
+        assert_eq!(b"zzzzz".as_slice(), &*t2.key.string_ref().bytes);
+        assert_eq!(11, t0.value.int_ref().as_i64());
+        assert_eq!(22, t1.value.int_ref().as_i64());
+        assert_eq!(33, t2.value.int_ref().as_i64());
     }
 
     #[test]
@@ -241,7 +241,7 @@ mod tests {
         let buf = b"i64e";
         let mut i = inspect(buf);
         assert_eq!(64, i.int().as_i64());
-        i.int_mut().set(32);
+        i.int().set(32);
         assert_eq!(32, i.int().as_i64());
         assert_eq!("i32e", i.to_string().as_str());
         assert_eq!(b"i32e", i.emit().as_slice());
@@ -255,13 +255,13 @@ mod tests {
             e\
         e";
         let mut i = inspect(buf);
-        i.list_mut().nth_mut(0).int_mut().set(2);
-        i.list_mut()
-            .nth_mut(1)
-            .dict_mut()
-            .nth_mut(0)
+        i.list().nth(0).int().set(2);
+        i.list()
+            .nth(1)
+            .dict()
+            .nth(0)
             .value
-            .int_mut()
+            .int()
             .set(1);
         assert_eq!(b"li2ed3:onei1eee".as_slice(), i.emit().as_slice());
     }
@@ -277,13 +277,13 @@ mod tests {
             e\
         e";
         let mut i = inspect(buf);
-        i.list_mut().nth_mut(0).string_mut().set_fake_length(20);
-        i.list_mut()
-            .nth_mut(1)
-            .dict_mut()
-            .nth_mut(0)
+        i.list().nth(0).string().set_fake_length(20);
+        i.list()
+            .nth(1)
+            .dict()
+            .nth(0)
             .key
-            .string_mut()
+            .string()
             .set_fake_length(0);
         assert_eq!(b"l20:hellod0:onei11eee".as_slice(), i.emit().as_slice());
         assert_eq!("l20:hellod0:onei11eee", i.to_string().as_str());
@@ -301,14 +301,14 @@ mod tests {
             e\
         e";
         let mut i = inspect(buf);
-        i.list_mut()
-            .nth_mut(0)
-            .string_mut()
+        i.list()
+            .nth(0)
+            .string()
             .set_content_string("one".to_string());
-        i.list_mut().nth_mut(1).string_mut().set_content_str("two");
-        let entry = i.list_mut().nth_mut(2).dict_mut().nth_mut(0);
-        entry.key.string_mut().set_content_u8(b"three");
-        entry.value.string_mut().set_content_vec(Vec::from(b"four"));
+        i.list().nth(1).string().set_content_str("two");
+        let entry = i.list().nth(2).dict().nth(0);
+        entry.key.string().set_content_u8(b"three");
+        entry.value.string().set_content_vec(Vec::from(b"four"));
         assert_eq!(
             b"l3:one3:twod5:three4:fouree".as_slice(),
             i.emit().as_slice()
@@ -316,7 +316,7 @@ mod tests {
         assert_eq!("l3:one3:twod5:three4:fouree", i.to_string().as_str());
 
         let mut i = inspect(b"5:hello");
-        i.string_mut().set_content_u8(b"\x00\x01");
+        i.string().set_content_u8(b"\x00\x01");
         assert_eq!(b"2:\x00\x01".as_slice(), i.emit().as_slice());
         assert_eq!("2:\\x00\\x01", i.to_string().as_str());
     }
@@ -335,10 +335,10 @@ mod tests {
             e\
         e";
         let mut i = inspect(buf);
-        let l = i.list_mut();
-        l.nth_mut(0).replace(Inspectable::new_string(b"aaa"));
-        l.nth_mut(1).replace(inspect(b"li1ei2ei3ee"));
-        l.nth_mut(2).replace(Inspectable::new_int(5));
+        let l = i.list();
+        l.nth(0).replace(Inspectable::new_string(b"aaa"));
+        l.nth(1).replace(inspect(b"li1ei2ei3ee"));
+        l.nth(2).replace(Inspectable::new_int(5));
         assert_eq!(b"l3:aaali1ei2ei3eei5ee".as_slice(), i.emit().as_slice());
     }
 }

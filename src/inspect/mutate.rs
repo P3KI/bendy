@@ -32,7 +32,7 @@ impl<'ser, 'obj> Inspectable<'ser> {
     where
         F: FnOnce(&mut Inspectable<'ser>),
     {
-        self.find_mut(path).apply(f)
+        self.find(path).apply(f)
     }
 
     pub fn apply<F>(&'obj mut self, f: F)
@@ -126,7 +126,7 @@ impl<'ser, 'obj, 'other> InDict<'ser> {
     /// also required for valid bencode.
     pub fn remove_entry(&'obj mut self, dict_key: &'other [u8]) {
         self.items
-            .retain(|entry| entry.key.string().bytes != dict_key);
+            .retain(|entry| entry.key.string_ref().bytes != dict_key);
     }
 }
 
@@ -241,43 +241,43 @@ mod tests {
         let mut i = inspect(b"5:AAAAA");
         assert_eq!(5, i.string().bytes.len());
 
-        i.string_mut().set_content_byterange(.., b'0');
+        i.string().set_content_byterange(.., b'0');
         assert_eq!(b"5:00000", i.emit().as_slice());
 
         let mut i = inspect(b"5:AAAAA");
-        i.string_mut().set_content_byterange(0.., b'0');
+        i.string().set_content_byterange(0.., b'0');
         assert_eq!(b"5:00000", i.emit().as_slice());
 
         let mut i = inspect(b"5:AAAAA");
-        i.string_mut().set_content_byterange(0..=4, b'0');
+        i.string().set_content_byterange(0..=4, b'0');
         assert_eq!(b"5:00000", i.emit().as_slice());
 
         let mut i = inspect(b"5:AAAAA");
-        i.string_mut().set_content_byterange(0..5, b'0');
+        i.string().set_content_byterange(0..5, b'0');
         assert_eq!(b"5:00000", i.emit().as_slice());
 
         let mut i = inspect(b"5:AAAAA");
-        i.string_mut().set_content_byterange(0..=1, b'0');
+        i.string().set_content_byterange(0..=1, b'0');
         assert_eq!(b"5:00AAA", i.emit().as_slice());
 
         let mut i = inspect(b"5:AAAAA");
-        i.string_mut().set_content_byterange(0..2, b'0');
+        i.string().set_content_byterange(0..2, b'0');
         assert_eq!(b"5:00AAA", i.emit().as_slice());
 
         let mut i = inspect(b"5:AAAAA");
-        i.string_mut().set_content_byterange(0..3, b'0');
+        i.string().set_content_byterange(0..3, b'0');
         assert_eq!(b"5:000AA", i.emit().as_slice());
 
         let mut i = inspect(b"5:AAAAA");
-        i.string_mut().set_content_byterange(0..4, b'0');
+        i.string().set_content_byterange(0..4, b'0');
         assert_eq!(b"5:0000A", i.emit().as_slice());
 
         let mut i = inspect(b"5:AAAAA");
-        i.string_mut().set_content_byterange(2..4, b'0');
+        i.string().set_content_byterange(2..4, b'0');
         assert_eq!(b"5:AA00A", i.emit().as_slice());
 
         let mut i = inspect(b"5:AAAAA");
-        i.string_mut().set_content_byterange(2..5, b'0');
+        i.string().set_content_byterange(2..5, b'0');
         assert_eq!(b"5:AA000", i.emit().as_slice());
     }
 
@@ -285,20 +285,20 @@ mod tests {
     #[should_panic]
     fn out_of_bounds_range_inclusive() {
         let mut i = inspect(b"5:AAAAA");
-        i.string_mut().set_content_byterange(2..=5, b'0');
+        i.string().set_content_byterange(2..=5, b'0');
     }
 
     #[test]
     #[should_panic]
     fn out_of_bounds_range() {
         let mut i = inspect(b"5:AAAAA");
-        i.string_mut().set_content_byterange(2..6, b'0');
+        i.string().set_content_byterange(2..6, b'0');
     }
 
     #[test]
     #[should_panic]
     fn empty_range() {
         let mut i = inspect(b"5:AAAAA");
-        i.string_mut().set_content_byterange(5..1, b'0');
+        i.string().set_content_byterange(5..1, b'0');
     }
 }
