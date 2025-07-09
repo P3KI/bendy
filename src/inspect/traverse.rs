@@ -151,118 +151,127 @@ where
 
 impl<'obj, 'ser, 'pb, 'pbobj> Inspectable<'ser> {
     /// Gets a mutable reference to the Inspectable pointed to by the given path
+    /// Panics if no Inspectable matches the given path
     pub fn find(&'obj mut self, path: &'pbobj PathBuilder<'pb>) -> &'obj mut Inspectable<'ser> {
-        let res = self._find(&path.steps, 0);
+        let res = self.find_impl(&path.steps, 0);
         match res {
             None => panic!("Path did not resolve to an Inspectable: {:?}", path),
             Some(x) => x,
         }
     }
 
-    fn _find(
-        &'obj mut self,
-        steps: &'pbobj Path<'pb>,
-        pc: usize,
-    ) -> Option<&'obj mut Inspectable<'ser>> {
-        let current_step = if let Some(x) = steps.get(pc) {
-            x
-        } else {
-            return Some(self);
-        };
-
-        let descend_into_entry =
-            |entry: &'obj mut InDictEntry<'ser>| -> Option<&'obj mut Inspectable<'ser>> {
-                match steps.get(pc + 1) {
-                    Some(Step::Key) => entry.key._find(steps, pc + 2),
-                    Some(Step::Value) => entry.value._find(steps, pc + 2),
-                    _ => panic!(
-                        "A path that selects a dict entry must then select either its key or its value"
-                    ),
-                }
-            };
-
-        match (self, current_step) {
-            (Inspectable::Raw(_), _) => (),
-
-            (s @ Inspectable::Int(_), Step::Search(Search::Int(x))) => {
-                if *x == &*s.int_ref().bytes {
-                    return Some(s);
-                }
-            },
-            (Inspectable::Int(_), _) => (),
-
-            (s @ Inspectable::String(_), Step::Search(Search::ByteString(x))) => {
-                if *x == &*s.string_ref().bytes {
-                    return Some(s);
-                }
-            },
-            (Inspectable::String(_), Step::Search(_)) => (),
-            (Inspectable::String(_), _) => (),
-
-            (Inspectable::List(_), Step::Key) => (),
-            (Inspectable::List(_), Step::Value) => (),
-            (Inspectable::List(_), Step::Entry(_)) => (),
-            (Inspectable::List(in_list), Step::Nth(idx)) => {
-                let item = in_list.items.get_mut(*idx)?;
-                return item._find(steps, pc + 1);
-            },
-            (Inspectable::List(in_list), Step::Search(_)) => {
-                return in_list
-                    .items
-                    .iter_mut()
-                    .find_map(|item| item._find(steps, pc));
-            },
-
-            (Inspectable::Dict(_), Step::Key) => (),
-            (Inspectable::Dict(_), Step::Value) => (),
-            (Inspectable::Dict(in_dict), Step::Nth(idx)) => {
-                let entry = in_dict.items.get_mut(*idx)?;
-                return descend_into_entry(entry);
-            },
-            (Inspectable::Dict(in_dict), Step::Entry(key)) => {
-                let entry = in_dict.items.iter_mut().find(|entry| {
-                    let entry_key = if let Inspectable::String(x) = &entry.key {
-                        x
-                    } else {
-                        return false;
-                    };
-                    entry_key.bytes == *key
-                })?;
-                return descend_into_entry(entry);
-            },
-            (Inspectable::Dict(in_dict), Step::Search(Search::DictKey(key))) => {
-                return in_dict.items.iter_mut().find_map(|entry| {
-                    if let Inspectable::String(x) = &entry.key {
-                        if x.bytes == *key {
-                            return descend_into_entry(entry);
-                        }
-                    }
-                    entry.value._find(steps, pc)
-                });
-            },
-            (Inspectable::Dict(in_dict), Step::Search(_)) => {
-                return in_dict
-                    .items
-                    .iter_mut()
-                    .find_map(|InDictEntry { value, .. }| value._find(steps, pc));
-            },
-        };
-        None
+    /// Gets a reference to the Inspectable pointed to by the given path
+    /// Panics if no Inspectable matches the given path
+    pub fn find_ref(&'obj self, path: &'pbobj PathBuilder<'pb>) -> &'obj Inspectable<'ser> {
+        let res = self.find_ref_impl(&path.steps, 0);
+        match res {
+            None => panic!("Path did not resolve to an Inspectable: {:?}", path),
+            Some(x) => x,
+        }
     }
 }
 
-// macro_rules! finders {
-//     ($(($name:ident, $mutname:ident, $source:ident, $target:ty))*) => {$(
-//         impl<'obj, 'ser, 'pb, 'pbobj> Inspectable<'ser> {
-//             pub fn $mutname(&'obj mut self, path: &'pbobj PathBuilder<'pb>) -> &'obj mut  {
-//                 match self {
-//                     Inspectable::$source(x) => x,
-//                     _ => panic!("Attempted to take non-{} Inspectable as mut_{}", stringify!($source), stringify!($target))
-//                 }
-//             }
-//         }
-//     )*};
-// }
+macro_rules! finders {
+    ($(($name:ident, $get:ident, $iter:ident, $( $mutable:ident )? ))*) => {$(
+        impl<'obj, 'ser, 'pb, 'pbobj> Inspectable<'ser> {
+            fn $name(
+                &'obj $($mutable)? self,
+                steps: &'pbobj Path<'pb>,
+                pc: usize,
+            ) -> Option<&'obj $($mutable)? Inspectable<'ser>> {
+                let current_step = if let Some(x) = steps.get(pc) {
+                    x
+                } else {
+                    return Some(self);
+                };
+
+                let descend_into_entry =
+                    |entry: &'obj $($mutable)? InDictEntry<'ser>| -> Option<&'obj $($mutable)? Inspectable<'ser>> {
+                        match steps.get(pc + 1) {
+                            Some(Step::Key) => entry.key.$name(steps, pc + 2),
+                            Some(Step::Value) => entry.value.$name(steps, pc + 2),
+                            _ => panic!(
+                                "A path that selects a dict entry must then select either its key or its value"
+                            ),
+                        }
+                    };
+
+                match (self, current_step) {
+                    (Inspectable::Raw(_), _) => (),
+
+                    (s @ Inspectable::Int(_), Step::Search(Search::Int(x))) => {
+                        if *x == &*s.int_ref().bytes {
+                            return Some(s);
+                        }
+                    },
+                    (Inspectable::Int(_), _) => (),
+
+                    (s @ Inspectable::String(_), Step::Search(Search::ByteString(x))) => {
+                        if *x == &*s.string_ref().bytes {
+                            return Some(s);
+                        }
+                    },
+                    (Inspectable::String(_), Step::Search(_)) => (),
+                    (Inspectable::String(_), _) => (),
+
+                    (Inspectable::List(_), Step::Key) => (),
+                    (Inspectable::List(_), Step::Value) => (),
+                    (Inspectable::List(_), Step::Entry(_)) => (),
+                    (Inspectable::List(in_list), Step::Nth(idx)) => {
+                        let item = in_list.items.$get(*idx)?;
+                        return item.$name(steps, pc + 1);
+                    },
+                    (Inspectable::List(in_list), Step::Search(_)) => {
+                        return in_list
+                            .items
+                            .$iter()
+                            .find_map(|item| item.$name(steps, pc));
+                        },
+
+                        (Inspectable::Dict(_), Step::Key) => (),
+                        (Inspectable::Dict(_), Step::Value) => (),
+                        (Inspectable::Dict(in_dict), Step::Nth(idx)) => {
+                            let entry = in_dict.items.$get(*idx)?;
+                            return descend_into_entry(entry);
+                        },
+                        (Inspectable::Dict(in_dict), Step::Entry(key)) => {
+                            let entry = in_dict.items.$iter().find(|entry| {
+                                let entry_key = if let Inspectable::String(x) = &entry.key {
+                                    x
+                                } else {
+                                    return false;
+                                };
+                                entry_key.bytes == *key
+                            })?;
+                            return descend_into_entry(entry);
+                        },
+                        (Inspectable::Dict(in_dict), Step::Search(Search::DictKey(key))) => {
+                            return in_dict.items.$iter().find_map(|entry| {
+                                if let Inspectable::String(x) = &entry.key {
+                                    if x.bytes == *key {
+                                        return descend_into_entry(entry);
+                                    }
+                                }
+                                entry.value.$name(steps, pc)
+                            });
+                        },
+                        (Inspectable::Dict(in_dict), Step::Search(_)) => {
+                            return in_dict
+                                .items
+                                .$iter()
+                                .find_map(|InDictEntry { value, .. }| value.$name(steps, pc));
+                            },
+                };
+                None
+            }
+        }
+    )*};
+}
+
+finders!(
+    (find_impl, get_mut, iter_mut, mut)
+    (find_ref_impl, get, iter,)
+);
 
 macro_rules! variant_accessors {
     ($(($name:ident, $mutname:ident, $source:ident, $target:ty))*) => {$(
