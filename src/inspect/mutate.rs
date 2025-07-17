@@ -15,6 +15,8 @@ where
 }
 
 impl<'ser, 'obj> Inspectable<'ser> {
+
+    #[must_use]
     pub fn clone_and_mutate<F>(
         &'obj self,
         path: &crate::inspect::traverse::PathBuilder,
