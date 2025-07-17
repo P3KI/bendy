@@ -1,3 +1,7 @@
+//! Methods for mutating [`Inspectable`]s.
+//!
+//! Refer to the [documentation here][crate::inspect#mutating].
+
 use core::ops::RangeBounds;
 
 use crate::inspect::*;
@@ -15,7 +19,10 @@ where
 }
 
 impl<'ser, 'obj> Inspectable<'ser> {
-
+    /// Clones an Inspectable AST and applies the given function to
+    /// the node indicated by the given Path on the resulting clone.
+    ///
+    /// Panics if the Path fails to find a node.
     #[must_use]
     pub fn clone_and_mutate<F>(
         &'obj self,
@@ -30,6 +37,9 @@ impl<'ser, 'obj> Inspectable<'ser> {
         c
     }
 
+    /// Applies the given function to the node in the Inspectable AST indicated by the given Path.
+    ///
+    /// Panics if the Path fails to find a node.
     pub fn mutate<F>(&'obj mut self, path: &crate::inspect::traverse::PathBuilder, f: F)
     where
         F: FnOnce(&mut Inspectable<'ser>),
@@ -37,6 +47,7 @@ impl<'ser, 'obj> Inspectable<'ser> {
         self.find(path).apply(f)
     }
 
+    /// Applies the given function to the Inspectable
     pub fn apply<F>(&'obj mut self, f: F)
     where
         F: FnOnce(&mut Inspectable<'ser>),
@@ -44,6 +55,9 @@ impl<'ser, 'obj> Inspectable<'ser> {
         f(self);
     }
 
+    /// Remove the nth list item or dict entry.
+    ///
+    /// Panics if this is not an [`Inspectable::Dict`] or [`Inspectable::List`].
     pub fn remove_nth(&'obj mut self, idx: usize) {
         match self {
             Inspectable::Dict(x) => x.remove_nth(idx),
@@ -52,6 +66,9 @@ impl<'ser, 'obj> Inspectable<'ser> {
         }
     }
 
+    /// Attempts an [`InString::truncate`] operation on the Inspectable.
+    ///
+    /// Panics if this is not an [`Inspectable::String`].
     pub fn truncate(&'obj mut self) {
         match self {
             Inspectable::String(instring) => instring.truncate(),
@@ -59,6 +76,9 @@ impl<'ser, 'obj> Inspectable<'ser> {
         }
     }
 
+    /// Attempts an [`InString::set_content_byterange`] operation on the Inspectable.
+    ///
+    /// Panics if this is not an [`Inspectable::String`].
     pub fn set_content_byterange<R>(&'obj mut self, range: R, byte: u8)
     where
         R: RangeBounds<usize>,
@@ -69,6 +89,12 @@ impl<'ser, 'obj> Inspectable<'ser> {
         }
     }
 
+    /// Applies one of the following operations on the Inspectable, depending on its type:
+    /// * [`InString::clear_content`]
+    /// * [`InInt::clear_content`]
+    /// * [`Vec::clear`] for [`Inspectable::Raw`]
+    /// * [`InDict::clear_content`]
+    /// * [`InList::clear_content`]
     pub fn clear_content(&'obj mut self) {
         match self {
             Inspectable::String(x) => x.clear_content(),
@@ -102,6 +128,7 @@ impl<'ser, 'obj> InInt<'ser> {
         *self.bytes.to_mut() = value.to_string();
     }
 
+    /// Set the integer to 0.
     pub fn clear_content(&'obj mut self) {
         self.set(0);
     }
@@ -114,6 +141,7 @@ impl<'ser, 'obj> InDict<'ser> {
         self.items.clear();
     }
 
+    /// Remove the nth entry in the dict.
     pub fn remove_nth(&'obj mut self, idx: usize) {
         self.items.remove(idx);
     }
@@ -133,32 +161,44 @@ impl<'ser, 'obj, 'other> InDict<'ser> {
 }
 
 impl<'ser, 'obj> InList<'ser> {
+    /// Empties the list.
     pub fn clear_content(&'obj mut self) {
         self.items.clear();
     }
 
+    /// Removes the nth item in the list.
     pub fn remove_nth(&'obj mut self, idx: usize) {
         self.items.remove(idx);
     }
 }
 
 impl<'ser, 'obj> InString<'ser> {
+    /// Set a fake length for the bytestring. This will change
+    /// its length prefix when emitted as bencode.
     pub fn set_fake_length(&'obj mut self, length: usize) {
         self.fake_length = Some(length);
     }
 
+    /// Unset the fake length. This will cause the length
+    /// prefix to be correctly calculated and used when
+    /// emitted as bencode.
     pub fn clear_fake_length(&'obj mut self) {
         self.fake_length = None;
     }
 
+    /// Change the contents of the bytestring. Takes a string
+    /// which is coerced into a [`Vec<u8>`].
     pub fn set_content_string(&'obj mut self, other: String) {
         self.bytes = Cow::Owned(other.into());
     }
 
+    /// Change the contents of the bytestring.
     pub fn set_content_vec(&'obj mut self, other: Vec<u8>) {
         self.bytes = Cow::Owned(other);
     }
 
+    /// Truncates the bytestring to half its size. Empties it
+    /// if the bytestring is too short to be truncated.
     pub fn truncate(&'obj mut self) {
         let bytes = self.bytes.to_mut();
         let len = bytes.len();
@@ -170,10 +210,13 @@ impl<'ser, 'obj> InString<'ser> {
         bytes.truncate(new_len);
     }
 
+    /// Empties the bytestring. Unless a fake length has been set,
+    /// this will emit as the bencode `0:`.
     pub fn clear_content(&'obj mut self) {
         self.bytes.to_mut().clear();
     }
 
+    /// Set the specified [`Range`][std::ops::Range] of bytes in the bytestring to a specified byte.
     pub fn set_content_byterange<R>(&'obj mut self, range: R, byte: u8)
     where
         R: RangeBounds<usize>,
@@ -194,20 +237,26 @@ impl<'me, 'other, 'ser> InString<'ser>
 where
     'other: 'ser,
 {
+    /// Change the contents of the bytestring. Takes an [`&str`]
+    /// and stores a reference to its raw bytes in a [`Cow`].
     pub fn set_content_str(&'me mut self, other: &'other str) {
         self.bytes = Cow::from(other.as_bytes());
     }
 
+    /// Change the contents of the bytestring. Takes a
+    /// reference to raw bytes and stores them in a [`Cow`].
     pub fn set_content_u8(&'me mut self, other: &'other [u8]) {
         self.bytes = Cow::from(other);
     }
 }
 
+// Not happy about this. Couldn't find a way to get an iterator from a `RangeBounds`.
+// And the `Range` type doesn't allow e.g. `..`, `4..`, `..49`, `2..=6` etc to be used.
 fn normalize_range<R>(range: R, max_end: usize) -> (usize, usize)
 where
     R: RangeBounds<usize>,
 {
-    // Unstable for now
+    // Unstable for now. See: https://github.com/rust-lang/rust/issues/137300
     // if range.is_empty() {
     //     panic!("Can't set byterange contents with an empty range");
     // }
@@ -217,7 +266,9 @@ where
 
     let start = match beg {
         core::ops::Bound::Included(n) => *n,
-        core::ops::Bound::Excluded(n) => n + 1, // Probably doesn't matter?
+        // Excluded start bound can't be expressed using the range
+        // syntax, so I haven't tested it. Probably doesn't matter?
+        core::ops::Bound::Excluded(n) => n + 1,
         core::ops::Bound::Unbounded => 0,
     };
 
@@ -259,6 +310,14 @@ mod tests {
         assert_eq!(b"5:00000", i.emit().as_slice());
 
         let mut i = inspect(b"5:AAAAA");
+        i.string().set_content_byterange(0..=0, b'0');
+        assert_eq!(b"5:0AAAA", i.emit().as_slice());
+
+        let mut i = inspect(b"5:AAAAA");
+        i.string().set_content_byterange(0..1, b'0');
+        assert_eq!(b"5:0AAAA", i.emit().as_slice());
+
+        let mut i = inspect(b"5:AAAAA");
         i.string().set_content_byterange(0..=1, b'0');
         assert_eq!(b"5:00AAA", i.emit().as_slice());
 
@@ -285,6 +344,27 @@ mod tests {
 
     #[test]
     #[should_panic]
+    fn empty_0() {
+        let mut i = inspect(b"5:AAAAA");
+        i.string().set_content_byterange(0..0, b'0');
+    }
+
+    #[test]
+    #[should_panic]
+    fn empty_1() {
+        let mut i = inspect(b"5:AAAAA");
+        i.string().set_content_byterange(1..1, b'0');
+    }
+
+    #[test]
+    #[should_panic]
+    fn empty_reversed() {
+        let mut i = inspect(b"5:AAAAA");
+        i.string().set_content_byterange(5..1, b'0');
+    }
+
+    #[test]
+    #[should_panic]
     fn out_of_bounds_range_inclusive() {
         let mut i = inspect(b"5:AAAAA");
         i.string().set_content_byterange(2..=5, b'0');
@@ -298,9 +378,23 @@ mod tests {
     }
 
     #[test]
-    #[should_panic]
-    fn empty_range() {
-        let mut i = inspect(b"5:AAAAA");
-        i.string().set_content_byterange(5..1, b'0');
+    fn replace_test() {
+        let buf = b"\
+        l\
+            i99e\
+            5:hello\
+            d\
+                3:one\
+                i11e\
+                3:two\
+                i22e\
+            e\
+        e";
+        let mut i = inspect(buf);
+        let l = i.list();
+        l.nth(0).replace(Inspectable::new_string(b"aaa"));
+        l.nth(1).replace(inspect(b"li1ei2ei3ee"));
+        l.nth(2).replace(Inspectable::new_int(5));
+        assert_eq!(b"l3:aaali1ei2ei3eei5ee", i.emit().as_slice());
     }
 }

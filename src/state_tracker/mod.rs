@@ -1,3 +1,5 @@
+//! State tracking for decoding and encoding
+
 mod state;
 mod structure_error;
 mod token;

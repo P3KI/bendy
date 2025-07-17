@@ -62,7 +62,7 @@ pub trait ResultExt {
 impl Error {
     pub fn context(mut self, context: impl Display) -> Self {
         if let Some(current) = self.context.as_mut() {
-            *current = format!("{}.{}", context, current);
+            *current = format!("{context}.{current}");
         } else {
             self.context = Some(context.to_string());
         }

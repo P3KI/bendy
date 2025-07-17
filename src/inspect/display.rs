@@ -1,3 +1,7 @@
+//! Methods for displaying [`Inspectable`]s.
+//!
+//! Refer to the [documentation here][crate::inspect#displaying--outputting].
+
 use core::fmt::{Display, Write};
 
 use crate::inspect::*;
@@ -69,7 +73,27 @@ impl<'a> Display for InList<'a> {
 }
 
 impl<'a> Inspectable<'a> {
+    /// Pretty-print bencode in a format suitable for
+    /// copy-pasting as a Rust string literal.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use bendy::inspect::*;
+    /// let i = inspect(b"li0ei1ee");
+    /// let lit = i.as_rust_string_literal();
+    /// println!("{lit}");
+    /// // Prints:
+    /// // let pretty_bencode = b"\
+    /// // l\
+    /// //         i0e\
+    /// //         i1e\
+    /// // e\
+    /// // "
+    /// ```
     pub fn as_rust_string_literal(&self) -> String {
+        // TODO (oliveruv): Make a binary that can be used
+        // to easily pretty print given bencode.
         fn newline(indent: &usize, out: &mut String) {
             out.push_str("\\\n");
             for _ in 0..*indent {

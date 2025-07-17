@@ -132,7 +132,7 @@ where
     }
 
     pub fn check_error(&self) -> Result<(), E> {
-        if let Some(&State::Failed(ref error)) = self.state.last() {
+        if let Some(State::Failed(error)) = self.state.last() {
             Err(error.clone())
         } else {
             Ok(())

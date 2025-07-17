@@ -37,7 +37,7 @@ pub enum StructureError {
 impl StructureError {
     pub fn unexpected(expected: impl Display, got: char, offset: usize) -> Self {
         StructureError::SyntaxError {
-            unexpected: format!("Expected {}, got {:?} at offset {}", expected, got, offset),
+            unexpected: format!("Expected {expected}, got {got:?} at offset {offset}"),
         }
     }
 

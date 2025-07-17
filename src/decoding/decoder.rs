@@ -82,7 +82,7 @@ impl<'ser> Decoder<'ser> {
                         break;
                     } else {
                         return Err(StructureError::unexpected(
-                            &format!("{:?}", expected_terminator),
+                            format!("{expected_terminator:?}"),
                             c,
                             curpos,
                         ));
@@ -100,7 +100,7 @@ impl<'ser> Decoder<'ser> {
                     },
                     _ => {
                         return Err(StructureError::unexpected(
-                            &format!("{:?} or '0'..'9'", expected_terminator),
+                            format!("{expected_terminator:?} or '0'..'9'"),
                             c,
                             curpos,
                         ));
@@ -138,7 +138,7 @@ impl<'ser> Decoder<'ser> {
                 let curpos = self.offset;
                 let ival = self.take_int(':')?;
                 let len: usize = str::parse(ival).map_err(|_| StructureError::SyntaxError {
-                    unexpected: format!("Invalid integer at offset {}", curpos),
+                    unexpected: format!("Invalid integer at offset {curpos}"),
                 })?;
                 Token::String(self.take_chunk(len).ok_or(StructureError::UnexpectedEof)?)
             },

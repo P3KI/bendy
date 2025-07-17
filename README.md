@@ -27,7 +27,7 @@ You may be looking for:
 ---
 
 ## Known alternatives:
-This is not the first library to implement Bencode. In fact there's several
+This is not the first library to implement Bencode. In fact there are several
 implementations already:
 
 - Toby Padilla [serde-bencode](https://github.com/toby/serde-bencode)
@@ -87,7 +87,7 @@ First you need to add bendy as a project dependency:
 
 ```toml
 [dependencies]
-bendy = "^0.3"
+bendy = "^0.4"
 ```
 
 ### Feature flags
@@ -603,8 +603,12 @@ Information on how Rust types are represented in bencode is available in the
 ### Reflection
 
 Bendy supports rudimentary reflection for use in testing, fuzzing, and debugging.
-We do not recommend using it in production code. To enable the feature only in
-your tests, you can include it like so:
+
+> [!WARNING]
+> This feature SHOULD NOT be used in production code.
+> It is not as thoroughly tested as other parts of bendy.
+
+To enable the feature only in your tests, you can depend on bendy like so:
 
 ```toml
 [dependencies.bendy]
@@ -615,7 +619,100 @@ version = "^0.4"
 features = ["inspect"]
 ```
 
-FIXME XXX(oliveruv): Usage examples. See src/inspect/mod.rs tests for now.
+The API has been designed for convenience. It is intended to be used to construct evil data to ensure your program responds appropriately to it. One way of doing so is:
+
+1) Build a valid serializable object that your program should be able to handle.
+1) Encode the object to bencode.
+1) Ingest the resulting bytes with the `inspect::inspect` method.
+1) Use the returned `Inspectable` to make modifications that break your program's invariants.
+1) Call `.emit()` on the `Inspectable` to receive a `Vec` of bytes which represents your modified object.
+1) Attempt to deserialize the object and ensure deserialization fails if it should.
+1) Attempt to use the deserialized object and ensure your program fails in the way it ought to.
+
+One can also use the constructor methods of `Inspectable` to manually build objects, for example
+when fuzzing.
+
+The core of the API is the `Inspectable` enum, which represents the core primitives of bencode:
+numbers, bytestrings, dicts and lists. The latter two may contain other `Inspectables`,
+so this forms a rough AST-like data structure. There is also an enum variant
+`Inspectable::Raw` which can be used to inject arbitrary bytes into a structure.
+
+Inspectables have methods for traversal of the AST, rudimentary search, and mutation of nodes.
+Most methods will panic instead of returning `Results` or `Options`, since any broken assumption
+should result in a test failure.
+
+Here is an example of making some modifications to an AST.
+
+```rust
+# #[cfg(not(feature = "inspect"))]
+# fn main() {}
+# #[cfg(feature = "inspect")]
+# fn main() {
+use bendy::inspect::*;
+
+// {
+//   aaa: 10,
+//   bbb: "hello",
+//   other: [
+//     {secret: "password"},
+//   ],
+// }
+let bytes = b"\
+d\
+    3:aaa\
+    i10e\
+    3:bbb\
+    5:hello\
+    5:other\
+    l\
+        d\
+            6:secret\
+            8:password\
+        e\
+    e\
+e\
+";
+
+let mut i = inspect(bytes);
+
+println!("Pretty printed repr:\n{}", i.as_rust_string_literal());
+
+// Access list items or dict entries with `nth`
+i.dict().nth(0).value
+    .replace(Inspectable::new_raw(b"invalid"));
+
+// Dict entries can also be accessed with the `entry` method
+i.dict().entry(b"bbb").value
+    .set_content_byterange(0..2, b'X');
+
+// A Path object can be used to represent traversals.
+// This is often more convenient, and enables re-use.
+
+// Above, the `.dict()` call is used to coerce from
+// `&mut Inspectable` to `&mut InDict`. When traversing
+// deep structures, this can get quite verbose. This is
+// not needed when using Paths for traversal.
+
+// Paths can also be used to search the AST. Searches
+// can only find one occurrence of an item. The first
+// occurrence in the serialized representation will be
+// found (depth first search in the AST).
+
+i.find(&inspect_path().search_entry(b"secret").value())
+    .clear_content();
+
+// Or without search:
+i.find(&inspect_path().entry(b"other").value().nth(0).nth(0).value())
+    .clear_content();
+
+assert_eq!(
+    i.emit().as_slice(),
+    b"d3:aaainvalid3:bbb5:XXllo5:otherld6:secret0:eee"
+);
+# }
+```
+
+See the inspect module in the [docs](https://docs.rs/bendy/latest/bendy/) for the full API.
 
 ## Usage of unsafe code
 The parser would not require any unsafe code to work but it still contains a single unsafe call

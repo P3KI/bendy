@@ -29,7 +29,7 @@ pub trait ToBencode {
     /// Encode this object to a byte string
     fn to_bencode(&self) -> Result<Vec<u8>, Error> {
         let mut encoder = Encoder::new().with_max_depth(Self::MAX_DEPTH);
-        encoder.emit_with(|e| self.encode(e).map_err(Error::into))?;
+        encoder.emit_with(|e| self.encode(e))?;
 
         let bytes = encoder.get_output()?;
         Ok(bytes)
@@ -54,7 +54,7 @@ impl<E: ToBencode> ToBencode for Box<E> {
     const MAX_DEPTH: usize = E::MAX_DEPTH;
 
     fn encode(&self, encoder: SingleItemEncoder) -> Result<(), Error> {
-        E::encode(&*self, encoder)
+        E::encode(self, encoder)
     }
 }
 
@@ -62,7 +62,7 @@ impl<E: ToBencode> ToBencode for Rc<E> {
     const MAX_DEPTH: usize = E::MAX_DEPTH;
 
     fn encode(&self, encoder: SingleItemEncoder) -> Result<(), Error> {
-        E::encode(&*self, encoder)
+        E::encode(self, encoder)
     }
 }
 
@@ -70,16 +70,16 @@ impl<E: ToBencode> ToBencode for Arc<E> {
     const MAX_DEPTH: usize = E::MAX_DEPTH;
 
     fn encode(&self, encoder: SingleItemEncoder) -> Result<(), Error> {
-        E::encode(&*self, encoder)
+        E::encode(self, encoder)
     }
 }
 
 // Base type impls
-impl<'a> ToBencode for &'a str {
+impl ToBencode for &str {
     const MAX_DEPTH: usize = 0;
 
     fn encode(&self, encoder: SingleItemEncoder) -> Result<(), Error> {
-        encoder.emit_str(self).map_err(Error::from)
+        encoder.emit_str(self)
     }
 }
 
@@ -87,7 +87,7 @@ impl ToBencode for String {
     const MAX_DEPTH: usize = 0;
 
     fn encode(&self, encoder: SingleItemEncoder) -> Result<(), Error> {
-        encoder.emit_str(self).map_err(Error::from)
+        encoder.emit_str(self)
     }
 }
 
@@ -129,7 +129,7 @@ macro_rules! impl_encodable_iterable {
 
 impl_encodable_iterable!(Vec VecDeque LinkedList);
 
-impl<'a, ContentT> ToBencode for &'a [ContentT]
+impl<ContentT> ToBencode for &[ContentT]
 where
     ContentT: ToBencode,
 {

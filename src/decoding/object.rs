@@ -15,6 +15,8 @@ pub enum Object<'obj, 'ser: 'obj> {
     Bytes(&'ser [u8]),
 }
 
+// TODO(oliveruv) Docs reference non-existing Error::UnexpectedElement
+
 impl<'obj, 'ser: 'obj> Object<'obj, 'ser> {
     pub fn into_token(self) -> Token<'ser> {
         match self {

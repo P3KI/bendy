@@ -1,3 +1,5 @@
+//! Internal: Parsing bencode into a tree of [`Inspectable`] objects.
+
 #[cfg(not(feature = "std"))]
 use alloc::{
     string::{String, ToString},
@@ -15,7 +17,7 @@ use crate::{
 impl<'ser> TryFrom<&'ser [u8]> for Inspectable<'ser> {
     type Error = DecodeError;
 
-    /// Decodes bencode data into an Inspectable
+    /// Parses bencode data into an [`Inspectable`].
     fn try_from(buf: &'ser [u8]) -> Result<Inspectable<'ser>, Self::Error> {
         let mut decoder = Decoder::new(buf);
         let obj = decoder
@@ -28,6 +30,7 @@ impl<'ser> TryFrom<&'ser [u8]> for Inspectable<'ser> {
 impl<'obj, 'ser> TryFrom<Object<'obj, 'ser>> for Inspectable<'ser> {
     type Error = DecodeError;
 
+    /// Parses a [`Decoder`] provided [`Object`] into an [`Inspectable`].
     fn try_from(object: Object<'obj, 'ser>) -> Result<Inspectable<'ser>, DecodeError> {
         Ok(match object {
             Object::List(ld) => Inspectable::List(InList::try_from(ld)?),

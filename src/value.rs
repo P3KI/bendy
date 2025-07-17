@@ -63,7 +63,7 @@ impl<'a> Value<'a> {
 impl<'a> ToBencode for Value<'a> {
     // This leaves some room for external containers.
     // TODO(#38): Change this to 0 for v0.4
-    const MAX_DEPTH: usize = usize::max_value() / 4;
+    const MAX_DEPTH: usize = usize::MAX / 4;
 
     fn encode(&self, encoder: SingleItemEncoder) -> Result<(), crate::encoding::Error> {
         match self {

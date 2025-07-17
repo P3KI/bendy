@@ -393,7 +393,7 @@ impl UnsortedDictEncoder {
                 state: "No value was emitted".to_owned(),
             }));
         } else {
-            self.error = encoder.state.observe_eof().map_err(Error::from);
+            self.error = encoder.state.observe_eof();
         }
 
         if self.error.is_err() {
