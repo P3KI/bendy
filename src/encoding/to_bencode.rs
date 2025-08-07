@@ -21,6 +21,9 @@ use crate::encoding::{Encoder, Error, SingleItemEncoder};
 pub trait ToBencode {
     /// The maximum depth that this object could encode to. Leaves do not consume a level, so an
     /// `i1e` has depth 0 and `li1ee` has depth 1.
+    ///
+    /// A depth of 0 may also indicate a statically unknown depth. See the
+    /// [`encoding`][crate::encoding#dynamic-depth] module docs.
     const MAX_DEPTH: usize;
 
     /// Encode this object into the bencode stream

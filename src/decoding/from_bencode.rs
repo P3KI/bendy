@@ -14,7 +14,7 @@ use crate::{
     state_tracker::StructureError,
 };
 
-///Basic trait for bencode based value deserialization.
+/// Basic trait for bencode based value deserialization.
 pub trait FromBencode {
     /// Maximum allowed depth of nested structures before the decoding should be aborted.
     const EXPECTED_RECURSION_DEPTH: usize = 2048;

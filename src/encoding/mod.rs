@@ -14,7 +14,7 @@
 //! }
 //!
 //! impl ToBencode for Message {
-//!     // Atoms have depth one. The struct wrapper adds one level to that
+//!     // Atoms have depth zero. The struct wrapper adds one level to that
 //!     const MAX_DEPTH: usize = 1;
 //!
 //!     fn encode(&self, encoder: SingleItemEncoder) -> Result<(), Error> {
@@ -81,10 +81,13 @@
 //! To allow this to be used on limited platforms, all implementations of [`ToBencode`] include a
 //! maximum nesting depth. Atoms (integers and byte strings) are considered to have depth 0. An
 //! object (a list or dict) containing only atoms has depth 1, and in general, an object has a depth
-//! equal to the depth of its deepest member plus one. In some cases, an object doesn't have a
-//! statically known depth. For example, ASTs may be arbitrarily nested. Such objects should
-//! have their depth set to 0, and callers should construct the Encoder manually, adding an
-//! appropriate buffer for the depth:
+//! equal to the depth of its deepest member plus one.
+//!
+//! ## Dynamic depth
+//!
+//! In some cases, an object doesn't have a statically known depth. For example, ASTs may be
+//! arbitrarily nested. Such objects should have their depth set to 0, and callers should construct
+//! the Encoder manually, adding an appropriate buffer for the depth:
 //!
 //! ```
 //! # use bendy::encoding::{ToBencode, Encoder, Error};

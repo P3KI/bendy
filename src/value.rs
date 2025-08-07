@@ -61,9 +61,9 @@ impl<'a> Value<'a> {
 }
 
 impl<'a> ToBencode for Value<'a> {
-    // This leaves some room for external containers.
-    // TODO(#38): Change this to 0 for v0.4
-    const MAX_DEPTH: usize = usize::MAX / 4;
+    /// This is set to zero to indicate a statically unknown depth.
+    /// See the [`encoding`][crate::encoding#dynamic-depth] module docs.
+    const MAX_DEPTH: usize = 0;
 
     fn encode(&self, encoder: SingleItemEncoder) -> Result<(), crate::encoding::Error> {
         match self {
@@ -76,6 +76,8 @@ impl<'a> ToBencode for Value<'a> {
 }
 
 impl<'a> FromBencode for Value<'a> {
+    /// This is set to zero to indicate a statically unknown depth.
+    /// See the [`encoding`][crate::encoding#dynamic-depth] module docs.
     const EXPECTED_RECURSION_DEPTH: usize = <Self as ToBencode>::MAX_DEPTH;
 
     fn decode_bencode_object(object: Object) -> Result<Self, crate::decoding::Error> {
@@ -218,14 +220,29 @@ mod serde_impls {
 
 #[cfg(test)]
 mod tests {
+    use crate::decoding::Decoder;
+    use crate::encoding::Encoder;
+
     use super::*;
 
     use alloc::{string::String, vec};
 
+    /// Round-trip and verify encoding. Uses depth 0.
     fn case(value: Value, expected: impl AsRef<[u8]>) {
+        case_impl(value, 0, expected);
+    }
+
+    fn case_impl(value: Value, depth: usize, expected: impl AsRef<[u8]>) {
         let expected = expected.as_ref();
 
-        let encoded = match value.to_bencode() {
+        let mut encoder = Encoder::new().with_max_depth(depth);
+
+        match encoder.emit(&value) {
+            Err(err) => panic!("Failed to encode `{:?}`: {}", value, err),
+            Ok(()) => ()
+        };
+
+        let encoded = match encoder.get_output() {
             Ok(bytes) => bytes,
             Err(err) => panic!("Failed to encode `{:?}`: {}", value, err),
         };
@@ -239,7 +256,20 @@ mod tests {
             )
         }
 
-        let decoded = match Value::from_bencode(&encoded) {
+        let mut decoder = Decoder::new(&encoded).with_max_depth(depth);
+        let object = match decoder.next_object() {
+            Ok(Some(obj)) => obj,
+            Ok(None) => panic!(
+                "Failed to decode value from `{}`: Unexpected EOF.",
+                String::from_utf8_lossy(&encoded),
+            ),
+            Err(err) => panic!(
+                "Failed to decode value from `{}`: {}",
+                String::from_utf8_lossy(&encoded),
+                err,
+            ),
+        };
+        let decoded = match Value::decode_bencode_object(object) {
             Ok(decoded) => decoded,
             Err(err) => panic!(
                 "Failed to decode value from `{}`: {}",
@@ -291,12 +321,12 @@ mod tests {
 
     #[test]
     fn dict() {
-        case(Value::Dict(BTreeMap::new()), "de");
+        case_impl(Value::Dict(BTreeMap::new()), 1, "de");
 
         let mut dict = BTreeMap::new();
         dict.insert(Cow::Borrowed("foo".as_bytes()), Value::Integer(1));
         dict.insert(Cow::Borrowed("bar".as_bytes()), Value::Integer(2));
-        case(Value::Dict(dict), "d3:bari2e3:fooi1ee");
+        case_impl(Value::Dict(dict), 1, "d3:bari2e3:fooi1ee");
     }
 
     #[test]
@@ -307,12 +337,13 @@ mod tests {
 
     #[test]
     fn list() {
-        case(Value::List(Vec::new()), "le");
-        case(
+        case_impl(Value::List(Vec::new()), 1, "le");
+        case_impl(
             Value::List(vec![
                 Value::Integer(0),
                 Value::Bytes(Cow::Borrowed(&[1, 2, 3])),
             ]),
+            1,
             b"li0e3:\x01\x02\x03e",
         );
     }
