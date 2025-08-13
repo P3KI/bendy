@@ -79,6 +79,8 @@
 //!     * [`.replace`][Inspectable::replace] (all)
 //!     * [`.set_content_byterange`][Inspectable::set_content_byterange] (bytestrings only)
 //!     * [`.truncate`][Inspectable::truncate] (bytestrings only)
+//! * [`InDict`]
+//!     * [`.sort`][InDict::sort]
 //! * [`InInt`]
 //!     * [`.set`][InInt::set]
 //! * [`InString`] (bytestrings)
@@ -271,7 +273,6 @@ pub struct InDict<'ser> {
     /// The entries in the dictionary.
     /// Note that bendy will NOT decode a dict
     /// if the keys are unsorted.
-    /// TODO(oliveruv): provide sort function
     pub items: Vec<InDictEntry<'ser>>,
 }
 
@@ -332,9 +333,11 @@ impl<'obj, 'ser> InDict<'ser> {
 }
 
 impl<'ser> InDictEntry<'ser> {
-    pub fn new(key: InString<'ser>, value: Inspectable<'ser>) -> Self {
+    /// Creates a new dict entry. If the given key is not a byte string
+    /// ([`Inspectable::String`]) then bendy will not decode the resulting bencode.
+    pub fn new(key: Inspectable<'ser>, value: Inspectable<'ser>) -> Self {
         InDictEntry {
-            key: Inspectable::String(key),
+            key,
             value,
         }
     }

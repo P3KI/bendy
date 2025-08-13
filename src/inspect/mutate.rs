@@ -145,6 +145,35 @@ impl<'ser, 'obj> InDict<'ser> {
     pub fn remove_nth(&'obj mut self, idx: usize) {
         self.items.remove(idx);
     }
+
+    /// Sorts the dictionary's entries by key, so that valid bencode is
+    /// produced (assuming no other problems, like duplicate keys.)
+    ///
+    /// Assumes all entries' keys are byte strings ([`Inspectable::String`]
+    /// objects). Panics otherwise.
+    ///
+    /// # Example
+    /// ```
+    /// # use bendy::inspect::*;
+    /// let mut d = Inspectable::new_dict();
+    /// d.dict().items.push(InDictEntry::new(
+    ///     Inspectable::new_string(b"zzz"),
+    ///     Inspectable::new_int(1),
+    /// ));
+    /// d.dict().items.push(InDictEntry::new(
+    ///     Inspectable::new_string(b"aaa"),
+    ///     Inspectable::new_int(0),
+    /// ));
+    /// d.dict().sort();
+    /// assert_eq!(&d.emit(), b"d3:aaai0e3:zzzi1ee");
+    /// ```
+    pub fn sort(&'obj mut self) {
+        self.items.sort_unstable_by(|a, b| {
+            let a = &*a.key.string_ref().bytes;
+            let b = &*b.key.string_ref().bytes;
+            a.cmp(b)
+        });
+    }
 }
 
 impl<'ser, 'obj, 'other> InDict<'ser> {
