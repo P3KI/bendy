@@ -720,7 +720,11 @@ to `str::from_utf8_unchecked`. This call is used to avoid a duplicated UTF-8 che
 parser converts the bytes representing an incoming integer into a `&str` after its successful
 validation.
 
-*Disclaimer: Further unsafe code may be introduced through the dependency on the `snafu` crate.*
+Known unsafe usage from dependencies as of 2025-08-14:
+* serde and serde_bytes: Eight usages. Only a risk if the `serde` feature is enabled.
+* smallvec: Three usages. Only a risk if the `inspect` feature is enabled.
+
+*Disclaimer: Further unsafe code may be introduced through the dependency on the `thiserror` and `rustversion` crates. As of 2025-08-14 these contain no unsafe code.*
 
 ## Contributing
 

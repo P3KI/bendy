@@ -1,28 +1,28 @@
 #[cfg(feature = "std")]
 use std::sync::Arc;
 
-use snafu::Snafu;
+use thiserror::Error;
 
 use crate::state_tracker;
 
 /// An enumeration of potential errors that appear during bencode encoding.
-#[derive(Debug, Clone, Snafu)]
+#[derive(Debug, Clone, Error)]
 #[non_exhaustive]
 pub enum Error {
     /// Error that occurs if the serialized structure contains invalid semantics.
     #[cfg(feature = "std")]
-    #[snafu(display("malformed content discovered: {}", source))]
+    #[error("malformed content discovered: {source}")]
     MalformedContent {
         source: Arc<dyn std::error::Error + Send + Sync>,
     },
 
     /// Error that occurs if the serialized structure contains invalid semantics.
     #[cfg(not(feature = "std"))]
-    #[snafu(display("malformed content discovered"))]
+    #[error("malformed content discovered")]
     MalformedContent,
 
     /// Error in the bencode structure (e.g. a missing field end separator).
-    #[snafu(display("bencode encoding corrupted"))]
+    #[error("bencode encoding corrupted")]
     StructureError {
         source: state_tracker::StructureError,
     },

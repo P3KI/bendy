@@ -36,7 +36,7 @@ codegen-units = 1
 rustversion = "1.0.4"
 serde_ = { version = "^1.0" ,  optional = true, package = "serde" }
 serde_bytes = { version = "^0.11.3", optional = true }
-snafu = { version = "^0.7.1", default-features = false }
+thiserror = { version = "^2.0.14", default-features = false }
 smallvec = { version = "^1.15.1", optional = true }
 
 [dev-dependencies]
@@ -53,7 +53,7 @@ default = ["std"]
 
 # Provide implementations for common standard library types like `Vec<T>` and
 # `HashMap<K, V>`. Requires a dependency on the Rust standard library.
-std = ["snafu/std"]
+std = ["thiserror/std"]
 
 # Support serde serialization to and deserialization from bencode
 serde = ["serde_", "serde_bytes"]

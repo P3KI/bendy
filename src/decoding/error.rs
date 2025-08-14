@@ -8,47 +8,51 @@ use core::{fmt::Display, num::ParseIntError};
 #[cfg(feature = "std")]
 use std::sync::Arc;
 
-use snafu::Snafu;
+use thiserror::Error;
 
 use crate::state_tracker;
 
-#[derive(Debug, Clone, Snafu)]
+#[derive(Debug, Clone, Error)]
+#[error("{source}")]
 pub struct Error {
     context: Option<String>,
+    #[source]
     source: ErrorKind,
 }
 
 // An enumeration of potential errors that appear during bencode deserialization.
-#[derive(Debug, Clone, Snafu)]
+#[derive(Debug, Clone, Error)]
+#[non_exhaustive]
 pub enum ErrorKind {
     /// Error that occurs if the serialized structure contains invalid semantics.
     #[cfg(feature = "std")]
-    #[snafu(display("malformed content discovered: {}", source))]
+    #[error("malformed content discovered: {source}")]
     MalformedContent {
+        #[source]
         source: Arc<dyn std::error::Error + Send + Sync>,
     },
 
     /// Error that occurs if the serialized structure contains invalid semantics.
     #[cfg(not(feature = "std"))]
-    #[snafu(display("malformed content discovered"))]
+    #[error("malformed content discovered")]
     MalformedContent,
 
     /// Error that occurs if the serialized structure is incomplete.
-    #[snafu(display("missing field: {}", field))]
+    #[error("missing field: {field}")]
     MissingField { field: String },
 
     /// Error in the bencode structure (e.g. a missing field and seperator).
-    #[snafu(display("bencode encoding corrupted ({})", source))]
+    #[error("bencode encoding corrupted ({source})")]
     StructureError {
         source: state_tracker::StructureError,
     },
 
     /// Error that occurs if the serialized structure contains an unexpected field.
-    #[snafu(display("unexpected field: {}", field))]
+    #[error("unexpected field: {field}")]
     UnexpectedField { field: String },
 
     /// Error through an unexpected bencode token during deserialization.
-    #[snafu(display("discovered {} but expected {}", expected, discovered))]
+    #[error("discovered {discovered} but expected {expected}")]
     UnexpectedToken {
         expected: String,
         discovered: String,
