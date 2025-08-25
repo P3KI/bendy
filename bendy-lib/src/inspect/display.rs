@@ -92,16 +92,26 @@ impl<'a> Inspectable<'a> {
     /// // "
     /// ```
     pub fn as_rust_string_literal(&self) -> String {
-        // TODO (oliveruv): Make a binary that can be used
-        // to easily pretty print given bencode.
-        fn newline(indent: &usize, out: &mut String) {
-            out.push_str("\\\n");
-            for _ in 0..*indent {
-                out.push('\t');
-            }
-        }
+        self.internal_pretty_print(true)
+    }
 
-        fn dispatch(inspectable: &Inspectable, indent: &mut usize, out: &mut String) {
+    pub fn as_pretty_printed(&self) -> String {
+        self.internal_pretty_print(false)
+    }
+
+    pub fn internal_pretty_print(&self, as_literal: bool) -> String {
+
+        fn dispatch(inspectable: &Inspectable, indent: &mut usize, as_literal: bool, out: &mut String) {
+            let newline = |indent: &usize, out: &mut String| {
+                if as_literal {
+                    out.push('\\');
+                }
+                out.push('\n');
+                for _ in 0..*indent {
+                    out.push('\t');
+                }
+            };
+
             match inspectable {
                 x @ Inspectable::Raw(_) | x @ Inspectable::String(_) | x @ Inspectable::Int(_) => {
                     out.push_str(x.to_string().as_str());
@@ -111,7 +121,7 @@ impl<'a> Inspectable<'a> {
                     *indent += 1;
                     for i in items.iter() {
                         newline(indent, out);
-                        dispatch(i, indent, out);
+                        dispatch(i, indent, as_literal, out);
                     }
                     *indent -= 1;
                     newline(indent, out);
@@ -125,7 +135,7 @@ impl<'a> Inspectable<'a> {
                         newline(indent, out);
                         out.push_str(key.to_string().as_str());
                         newline(indent, out);
-                        dispatch(value, indent, out);
+                        dispatch(value, indent, as_literal, out);
                     }
                     *indent -= 1;
                     newline(indent, out);
@@ -137,9 +147,13 @@ impl<'a> Inspectable<'a> {
         let mut output = String::new();
         let mut indent = 0;
 
-        output.push_str("let pretty_bencode = b\"\\\n");
-        dispatch(self, &mut indent, &mut output);
-        output.push_str("\\\n\"");
+        if as_literal {
+            output.push_str("let pretty_bencode = b\"\\\n");
+        }
+        dispatch(self, &mut indent, as_literal, &mut output);
+        if as_literal {
+            output.push_str("\\\n\"");
+        }
         output
     }
 }

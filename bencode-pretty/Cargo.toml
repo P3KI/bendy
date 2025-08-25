@@ -3,4 +3,40 @@ name = "bencode-pretty"
 version = "0.1.0"
 edition = "2024"
 
+authors = [
+    "P3KI <contact@p3ki.com>",
+    "Oliver Uvman <oliveruv@p3ki.com>",
+]
+
+description = """
+A small program to pretty print data serialized in the bencode format.
+"""
+
+repository = "https://github.com/P3KI/bendy"
+license = "BSD-3-Clause"
+readme = "../README.md"
+
+keywords = ["bencode", "pretty-printing", "bittorent", "debugging", "cli"]
+categories = ["encoding", "cli"]
+
+[badges]
+maintenance = {status = "actively-developed"}
+travis-ci = { repository = "P3KI/bendy" }
+
+[profile.release]
+lto = true
+opt-level = 3
+codegen-units = 1
+
 [dependencies]
+anyhow = { version = "1.0.89", features = ["backtrace"] }
+clap = { version = "4.5.45", features = ["derive"] }
+
+[dependencies.bendy]
+path = "../bendy-lib"
+version = "0.4.0-beta.5"
+features = ["inspect", "std"]
+
+[dev-dependencies]
+assert_cmd = "2.0.17"
+assert_fs = "1.1.3"
