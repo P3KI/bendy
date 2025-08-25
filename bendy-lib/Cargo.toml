@@ -1,0 +1,81 @@
+[package]
+name = "bendy"
+version = "0.4.0-beta.5"
+edition = "2024"
+
+authors = [
+    "P3KI <contact@p3ki.com>",
+    "TQ Hirsch <tq@p3ki.com>",
+    "Bruno Kirschner <bruno@p3ki.com>",
+    "Oliver Uvman <oliveruv@p3ki.com>",
+]
+
+description = """
+A rust library for encoding and decoding bencode with enforced canonicalization rules.
+"""
+
+repository = "https://github.com/P3KI/bendy"
+license = "BSD-3-Clause"
+readme = "../README.md"
+
+keywords = ["bencode", "serialization", "deserialization", "bittorent"]
+categories = ["encoding", "no-std"]
+
+[badges]
+maintenance = {status = "actively-developed"}
+travis-ci = { repository = "P3KI/bendy" }
+
+[profile.release]
+lto = true
+opt-level = 3
+codegen-units = 1
+
+### DEPENDENCIES ###############################################################
+
+[dependencies]
+rustversion = "1.0.4"
+serde_ = { version = "^1.0" ,  optional = true, package = "serde" }
+serde_bytes = { version = "^0.11.3", optional = true }
+thiserror = { version = "^2.0.14", default-features = false }
+smallvec = { version = "^1.15.1", optional = true }
+
+[dev-dependencies]
+doc-comment = "0.3.3"
+regex = "^1.0"
+serde_derive = "^1.0"
+timeit = "0.1.2"
+smallvec = "^1.15.1"
+
+### FEATURES ###################################################################
+
+[features]
+default = ["std"]
+
+# Provide implementations for common standard library types like `Vec<T>` and
+# `HashMap<K, V>`. Requires a dependency on the Rust standard library.
+std = ["thiserror/std"]
+
+# Support serde serialization to and deserialization from bencode
+serde = ["serde_", "serde_bytes"]
+
+# Adds extra UTF-8 decode checks
+debug = []
+
+# Provide utilities for inspecting, testing, debugging bencode
+inspect = ["smallvec"]
+
+### Targets ####################################################################
+
+[[test]]
+name = "core_test"
+required-features = ["std"]
+
+[[example]]
+name = "encode_torrent"
+required-features = ["std"]
+
+### DOCS.RS ####################################################################
+
+[package.metadata.docs.rs]
+# Enable all features so docs are comprehensive
+all-features = true
