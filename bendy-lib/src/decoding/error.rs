@@ -85,12 +85,14 @@ impl Error {
         ErrorKind::MalformedContent { source: error }.into()
     }
 
+    /// Raised when there is a general error while deserializing a type.
+    /// The message should not be capitalized and should not end with a period.
     #[cfg(not(feature = "std"))]
     pub fn malformed_content<T>(_cause: T) -> Self {
         Self::from(ErrorKind::MalformedContent)
     }
 
-    // Returns a `Error::MissingField` which contains the name of the field.
+    /// Returns a `Error::MissingField` which contains the name of the field.
     pub fn missing_field(field_name: impl Display) -> Self {
         Error::from(ErrorKind::MissingField {
             field: field_name.to_string(),
@@ -104,7 +106,7 @@ impl Error {
         })
     }
 
-    /// Returns a `Error::UnexpectedElement` which contains a custom error message.
+    /// Returns a `Error::UnexpectedToken` which contains a custom error message.
     pub fn unexpected_token(expected: impl Display, discovered: impl Display) -> Self {
         Error::from(ErrorKind::UnexpectedToken {
             expected: expected.to_string(),

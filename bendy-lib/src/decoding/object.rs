@@ -15,8 +15,6 @@ pub enum Object<'obj, 'ser: 'obj> {
     Bytes(&'ser [u8]),
 }
 
-// TODO(oliveruv) Docs reference non-existing Error::UnexpectedElement
-
 impl<'obj, 'ser: 'obj> Object<'obj, 'ser> {
     pub fn into_token(self) -> Token<'ser> {
         match self {
@@ -93,11 +91,11 @@ impl<'obj, 'ser: 'obj> Object<'obj, 'ser> {
     }
 
     /// Try to treat the object as a byte string, mapping [`Object::Bytes(v)`] into
-    /// [`Ok(v)`]. Any other variant results in an [`Error::UnexpectedElement`].
+    /// [`Ok(v)`]. Any other variant results in an [`ErrorKind::UnexpectedToken`].
     ///
     /// [`Object::Bytes(v)`]: self::Object::Bytes
     /// [`Ok(v)`]: https://doc.rust-lang.org/std/result/enum.Result.html#variant.Ok
-    /// [`Error::UnexpectedElement`]: self::Error::UnexpectedElement
+    /// [`ErrorKind::UnexpectedToken`]: crate::decoding::ErrorKind::UnexpectedToken
     ///
     /// # Examples
     ///
@@ -183,11 +181,11 @@ impl<'obj, 'ser: 'obj> Object<'obj, 'ser> {
 
     /// Try to treat the object as an integer and return the internal string representation,
     /// mapping [`Object::Integer(v)`] into [`Ok(v)`]. Any other variant results in an
-    /// [`Error::UnexpectedElement`].
+    /// [`ErrorKind::UnexpectedToken`].
     ///
     /// [`Object::Integer(v)`]: self::Object::Integer
     /// [`Ok(v)`]: https://doc.rust-lang.org/std/result/enum.Result.html#variant.Ok
-    /// [`Error::UnexpectedElement`]: self::Error::UnexpectedElement
+    /// [`ErrorKind::UnexpectedToken`]: crate::decoding::ErrorKind::UnexpectedToken
     ///
     /// # Examples
     ///
@@ -275,11 +273,11 @@ impl<'obj, 'ser: 'obj> Object<'obj, 'ser> {
 
     /// Try to treat the object as a list and return the internal list content decoder,
     /// mapping [`Object::List(v)`] into [`Ok(v)`]. Any other variant results in an
-    /// [`Error::UnexpectedElement`].
+    /// [`ErrorKind::UnexpectedToken`].
     ///
     /// [`Object::List(v)`]: self::Object::List
     /// [`Ok(v)`]: https://doc.rust-lang.org/std/result/enum.Result.html#variant.Ok
-    /// [`Error::UnexpectedElement`]: self::Error::UnexpectedElement
+    /// [`ErrorKind::UnexpectedToken`]: crate::decoding::ErrorKind::UnexpectedToken
     ///
     /// # Examples
     ///
@@ -372,11 +370,11 @@ impl<'obj, 'ser: 'obj> Object<'obj, 'ser> {
 
     /// Try to treat the object as a dictionary and return the internal dictionary content
     /// decoder, mapping [`Object::Dict(v)`] into [`Ok(v)`]. Any other variant results in
-    /// an [`Error::UnexpectedElement`].
+    /// an [`ErrorKind::UnexpectedToken`].
     ///
     /// [`Object::Dict(v)`]: self::Object::Dict
     /// [`Ok(v)`]: https://doc.rust-lang.org/std/result/enum.Result.html#variant.Ok
-    /// [`Error::UnexpectedElement`]: self::Error::UnexpectedElement
+    /// [`ErrorKind::UnexpectedToken`]: crate::decoding::ErrorKind::UnexpectedToken
     ///
     /// # Examples
     ///
