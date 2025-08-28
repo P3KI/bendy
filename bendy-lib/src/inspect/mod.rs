@@ -344,10 +344,7 @@ impl<'ser> InDictEntry<'ser> {
     /// Creates a new dict entry. If the given key is not a byte string
     /// ([`Inspectable::String`]) then bendy will not decode the resulting bencode.
     pub fn new(key: Inspectable<'ser>, value: Inspectable<'ser>) -> Self {
-        InDictEntry {
-            key,
-            value,
-        }
+        InDictEntry { key, value }
     }
 }
 
@@ -407,13 +404,7 @@ mod tests {
         e";
         let mut i = inspect(buf);
         i.list().nth(0).int().set(2);
-        i.list()
-            .nth(1)
-            .dict()
-            .nth(0)
-            .value
-            .int()
-            .set(1);
+        i.list().nth(1).dict().nth(0).value.int().set(1);
         assert_eq!(b"li2ed3:onei1eee", i.emit().as_slice());
     }
 
@@ -460,10 +451,7 @@ mod tests {
         let entry = i.list().nth(2).dict().nth(0);
         entry.key.string().set_content_u8(b"three");
         entry.value.string().set_content_vec(Vec::from(b"four"));
-        assert_eq!(
-            b"l3:one3:twod5:three4:fouree",
-            i.emit().as_slice()
-        );
+        assert_eq!(b"l3:one3:twod5:three4:fouree", i.emit().as_slice());
         assert_eq!("l3:one3:twod5:three4:fouree", i.to_string().as_str());
 
         let mut i = inspect(b"5:hello");

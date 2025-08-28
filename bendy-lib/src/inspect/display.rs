@@ -100,8 +100,12 @@ impl<'a> Inspectable<'a> {
     }
 
     pub fn internal_pretty_print(&self, as_literal: bool) -> String {
-
-        fn dispatch(inspectable: &Inspectable, indent: &mut usize, as_literal: bool, out: &mut String) {
+        fn dispatch(
+            inspectable: &Inspectable,
+            indent: &mut usize,
+            as_literal: bool,
+            out: &mut String,
+        ) {
             let newline = |indent: &usize, out: &mut String| {
                 if as_literal {
                     out.push('\\');

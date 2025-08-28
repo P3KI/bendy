@@ -220,8 +220,7 @@ mod serde_impls {
 
 #[cfg(test)]
 mod tests {
-    use crate::decoding::Decoder;
-    use crate::encoding::Encoder;
+    use crate::{decoding::Decoder, encoding::Encoder};
 
     use super::*;
 
@@ -239,7 +238,7 @@ mod tests {
 
         match encoder.emit(&value) {
             Err(err) => panic!("Failed to encode `{:?}`: {}", value, err),
-            Ok(()) => ()
+            Ok(()) => (),
         };
 
         let encoded = match encoder.get_output() {
