@@ -6,7 +6,7 @@ use core::ops::RangeBounds;
 
 use crate::inspect::*;
 
-impl<'ser, 'obj, 'otherser, 'min> Inspectable<'ser>
+impl<'ser, 'obj, 'otherser> Inspectable<'ser>
 where
     'otherser: 'ser,
 {

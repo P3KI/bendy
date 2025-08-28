@@ -77,6 +77,7 @@ impl<'obj, 'pb, 'step> PathBuilder<'pb>
 where
     'step: 'pb,
 {
+    #[allow(clippy::new_without_default)]
     pub fn new() -> Self {
         PathBuilder {
             steps: Default::default(),

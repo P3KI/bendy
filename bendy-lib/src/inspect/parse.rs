@@ -22,7 +22,7 @@ impl<'ser> TryFrom<&'ser [u8]> for Inspectable<'ser> {
         let mut decoder = Decoder::new(buf);
         let obj = decoder
             .next_object()?
-            .ok_or_else(|| StructureError::UnexpectedEof)?;
+            .ok_or(StructureError::UnexpectedEof)?;
         Self::try_from(obj)
     }
 }

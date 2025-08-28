@@ -26,7 +26,7 @@ impl<'a> Display for Inspectable<'a> {
 impl<'a> Display for InString<'a> {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         let bytes = self.content();
-        let all_printable = bytes.iter().map(|b| *b).all(is_printable_byte);
+        let all_printable = bytes.iter().all(|b| is_printable_byte(*b));
         write!(f, "{}:", self.len())?;
         if all_printable {
             for &b in bytes.iter() {
@@ -46,7 +46,7 @@ impl<'a> Display for InString<'a> {
 impl<'a> Display for InInt<'a> {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         f.write_char('i')?;
-        f.write_str(&*self.bytes)?;
+        f.write_str(&self.bytes)?;
         f.write_char('e')
     }
 }
@@ -158,6 +158,7 @@ impl<'a> Inspectable<'a> {
     }
 }
 
+#[allow(clippy::manual_range_contains)]
 fn is_printable_byte(b: u8) -> bool {
     40 <= b && b < 127
 }

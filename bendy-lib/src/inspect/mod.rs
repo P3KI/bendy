@@ -198,7 +198,7 @@ impl<'ser> Inspectable<'ser> {
                     emit_str(x, out);
                 },
                 Inspectable::Raw(x) => {
-                    out.extend_from_slice(&*x);
+                    out.extend_from_slice(x);
                 },
                 Inspectable::Int(x) => {
                     out.push(b'i');
@@ -313,20 +313,28 @@ impl<'ser> InString<'ser> {
         self.fake_length.unwrap_or_else(|| self.bytes.len())
     }
 
+    /// Returns true if there are no bytes in the bytestring,
+    /// or if the fake length of the bytestring is 0 if set.
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
+
     /// Convenience method to get an immutable reference
     /// to the bytestring's contents.
     pub fn content(&self) -> &[u8] {
-        &*self.bytes
+        &self.bytes
     }
 }
 
-impl<'obj, 'ser> InList<'ser> {
+impl<'ser> InList<'ser> {
+    #[allow(clippy::new_without_default)]
     pub fn new() -> Self {
         InList { items: Vec::new() }
     }
 }
 
-impl<'obj, 'ser> InDict<'ser> {
+impl<'ser> InDict<'ser> {
+    #[allow(clippy::new_without_default)]
     pub fn new() -> Self {
         InDict { items: Vec::new() }
     }
