@@ -14,7 +14,7 @@ A small program to pretty print data serialized in the bencode format.
 
 repository = "https://github.com/P3KI/bendy"
 license = "BSD-3-Clause"
-readme = "../README.md"
+readme = "README.md"
 
 keywords = ["bencode", "pretty-printing", "bittorent", "debugging", "cli"]
 categories = ["encoding", "cli"]
