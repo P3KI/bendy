@@ -17,7 +17,7 @@ license = "BSD-3-Clause"
 readme = "README.md"
 
 keywords = ["bencode", "pretty-printing", "bittorent", "debugging", "cli"]
-categories = ["encoding", "cli"]
+categories = ["encoding", "command-line-utilities"]
 
 [badges]
 maintenance = {status = "actively-developed"}
