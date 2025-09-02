@@ -86,7 +86,7 @@
 //! ## Dynamic depth
 //!
 //! In some cases, an object doesn't have a statically known depth. For example, ASTs may be
-//! arbitrarily nested. Such objects should have their depth set to 0, and callers should construct
+//! arbitrarily nested. Such objects should have `MAX_DEPTH` set to 0, and callers should construct
 //! the Encoder manually, adding an appropriate buffer for the depth:
 //!
 //! ```
