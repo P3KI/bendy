@@ -4,6 +4,13 @@ All notable changes to this project will be documented in this file.
 
 ## Unreleased
 
+## 0.4.0 (2025/09/02)
+- Swapped dependency from snafu to thiserror
+- Added reflection capability. Big feature! See its section in the readme or docs.
+- Lots of documentation improvements
+
+**Breaking Change:** [`Value`] type now has a default `MAX_DEPTH` and `EXPECTED_RECURSION_DEPTH` of zero. Manually construct an encoder or decoder for these. See the [dynamic depth](https://docs.rs/bendy/latest/bendy/encoding/index.html#dynamic-depth) section in the encoder documentation for more info.
+
 ## 0.4.0-beta.1 (2021/05/31)
 - Finally retired the use of the failure crate
 - Various internal cleanups
