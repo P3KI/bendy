@@ -23,11 +23,6 @@ categories = ["encoding", "cli"]
 maintenance = {status = "actively-developed"}
 travis-ci = { repository = "P3KI/bendy" }
 
-[profile.release]
-lto = true
-opt-level = 3
-codegen-units = 1
-
 [dependencies]
 anyhow = { version = "1.0.89", features = ["backtrace"] }
 clap = { version = "4.5.45", features = ["derive"] }

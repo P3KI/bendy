@@ -25,11 +25,6 @@ categories = ["encoding", "no-std"]
 maintenance = {status = "actively-developed"}
 travis-ci = { repository = "P3KI/bendy" }
 
-[profile.release]
-lto = true
-opt-level = 3
-codegen-units = 1
-
 ### DEPENDENCIES ###############################################################
 
 [dependencies]
