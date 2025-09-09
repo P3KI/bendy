@@ -12,12 +12,26 @@ use thiserror::Error;
 
 use crate::state_tracker;
 
-#[derive(Debug, Clone, Error)]
-#[error("{source}")]
+#[derive(Debug, Clone)]
 pub struct Error {
     context: Option<String>,
-    #[source]
-    source: ErrorKind,
+    kind: ErrorKind,
+}
+
+impl core::fmt::Display for Error {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        write!(f, "{}", self.kind)?;
+        if let Some(c) = &self.context {
+            write!(f, " {}", c)?;
+        }
+        Ok(())
+    }
+}
+
+impl core::error::Error for Error {
+    fn source(&self) -> Option<&(dyn core::error::Error + 'static)> {
+        self.kind.source()
+    }
 }
 
 // An enumeration of potential errors that appear during bencode deserialization.
@@ -119,7 +133,7 @@ impl From<ErrorKind> for Error {
     fn from(kind: ErrorKind) -> Self {
         Self {
             context: None,
-            source: kind,
+            kind,
         }
     }
 }
@@ -163,4 +177,12 @@ fn decoding_errors_are_sync_send() {
     is_send::<ErrorKind>();
     is_sync::<Error>();
     is_sync::<ErrorKind>();
+}
+
+#[test]
+fn error_context_is_displayed() {
+    let e:Result<(), Error> = Err(Error::missing_field("aaa")).context("bbb");
+    let e = e.unwrap_err().to_string();
+    assert!(e.contains("aaa"));
+    assert!(e.contains("bbb"));
 }
