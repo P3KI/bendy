@@ -73,8 +73,8 @@ impl<'a> Display for InList<'a> {
 }
 
 impl<'a> Inspectable<'a> {
-    /// Pretty-print bencode in a format suitable for
-    /// copy-pasting as a Rust string literal.
+    /// Provides a [`String`] of pretty-printed bencode in a format
+    /// suitable for copy-pasting as a Rust string literal.
     ///
     /// # Example
     ///
@@ -91,15 +91,32 @@ impl<'a> Inspectable<'a> {
     /// // e\
     /// // "
     /// ```
+    #[must_use]
     pub fn as_rust_string_literal(&self) -> String {
         self.internal_pretty_print(true)
     }
 
+    /// Provides a [`String`] of pretty-printed bencode.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use bendy::inspect::*;
+    /// let i = inspect(b"li0ei1ee");
+    /// let lit = i.as_pretty_printed();
+    /// println!("{lit}");
+    /// // Prints:
+    /// // l
+    /// //         i0e
+    /// //         i1e
+    /// // e
+    /// ```
+    #[must_use]
     pub fn as_pretty_printed(&self) -> String {
         self.internal_pretty_print(false)
     }
 
-    pub fn internal_pretty_print(&self, as_literal: bool) -> String {
+    fn internal_pretty_print(&self, as_literal: bool) -> String {
         fn dispatch(
             inspectable: &Inspectable,
             indent: &mut usize,
