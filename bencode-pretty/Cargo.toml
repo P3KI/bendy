@@ -29,7 +29,7 @@ clap = { version = "4.5.45", features = ["derive"] }
 
 [dependencies.bendy]
 path = "../bendy-lib"
-version = "0.4.0"
+version = "0.5.0"
 features = ["inspect", "std"]
 
 [dev-dependencies]

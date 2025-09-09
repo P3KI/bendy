@@ -4,39 +4,45 @@ All notable changes to this project will be documented in this file.
 
 ## Unreleased
 
-## 0.4.0 (2025/09/02)
+## 0.5.0 (2025-09-09)
+
+Breaking Changes:
+- Remove internal [`Inspectable`] pretty printing function from public API
+- Restore ability to display [`DecodingError`] context
+
+## 0.4.0 (2025-09-02)
 - Swapped dependency from snafu to thiserror
 - Added reflection capability. Big feature! See its section in the readme or docs.
 - Lots of documentation improvements
 
 **Breaking Change:** [`Value`] type now has a default `MAX_DEPTH` and `EXPECTED_RECURSION_DEPTH` of zero. Manually construct an encoder or decoder for these. See the [dynamic depth](https://docs.rs/bendy/latest/bendy/encoding/index.html#dynamic-depth) section in the encoder documentation for more info.
 
-## 0.4.0-beta.1 (2021/05/31)
+## 0.4.0-beta.1 (2021-05-31)
 - Finally retired the use of the failure crate
 - Various internal cleanups
 
-## 0.3.3 (2020/11/17)
+## 0.3.3 (2020-11-17)
 - Improved documentation of serde support (thanks @casey)
 
-## 0.3.2 (2020/06/04)
+## 0.3.2 (2020-06-04)
 
 - Fix lifetime on Deserializer implementation for Value (thanks @euclio)
 - Many documentation fixes (thanks @casey)
 
-## 0.3.1 (2020/05/07)
+## 0.3.1 (2020-05-07)
 
 - Bugfix release allowing generic values to be contained within lists or maps
 
-## 0.3.0 (2020/03/13)
+## 0.3.0 (2020-03-13)
 
 - Added serde support
 - Added generic value type that can represent any Bencode value
 
-## 0.2.2 (2020/01/29)
+## 0.2.2 (2020-01-29)
 
 - Make the `no_std` api match the `std` api a little bit more closely.
 
-## 0.2.1 (2019/09/03)
+## 0.2.1 (2019-09-03)
 
 - Add missing [`FromBencode`] implementation for [`BTreeMap`].
 - Introduce `std` as default enabled feature.
@@ -47,7 +53,7 @@ All notable changes to this project will be documented in this file.
 - Update minimal required rustc version to v1.36 (to use `extern crate alloc`
   inside tests and examples).
 
-## 0.2.0 (2019/02/28)
+## 0.2.0 (2019-02-28)
 - Add new `try_into_*` utility methods on [`Object`].
 - Introduce ...
   - [`FromBencode`] trait for simpler decoding.
@@ -68,13 +74,13 @@ All notable changes to this project will be documented in this file.
 - Replaced all occurrences of [`Error`] inside the API with the new high level decoding
   [`Error`][`DecodingError`] and encoding [`Error`][`EncodingError`].
 
-## 0.1.2 (2018/08/14)
+## 0.1.2 (2018-08-14)
 - Add [`AsRef<[u8]>`][`AsRef`] and [`From<&[u8]>`][`From`] for [`AsString`] if the content supports them.
 
-## 0.1.1 (2018/08/07)
+## 0.1.1 (2018-08-07)
 - Add missing trait derives for the [`AsString`] encoding wrapper.
 
-## 0.1.0 (2018/07/24)
+## 0.1.0 (2018-07-24)
 Initial release
 
 <!-- -->
@@ -92,8 +98,10 @@ Initial release
 [`Error`]: https://docs.rs/bendy/0.1.2/bendy/enum.Error.html
 [`From`]: https://doc.rust-lang.org/std/convert/trait.From.html
 [`FromBencode`]: https://docs.rs/bendy/latest/bendy/decoding/trait.FromBencode.html
+[`Inspectable`]: https://docs.rs/bendy/latest/bendy/inspect/enum.Inspectable.html
 [`Object`]: https://docs.rs/bendy/latest/bendy/decoding/enum.Object.html
 [`ResultExt`]: https://docs.rs/bendy/latest/bendy/decoding/trait.ResultExt.html
 [`state_tracker`]: https://docs.rs/bendy/latest/bendy/state_tracker/index.html
 [`ToBencode`]: https://docs.rs/bendy/latest/bendy/encoding/trait.ToBencode.html
 [`Token`]: https://docs.rs/bendy/latest/bendy/state_tracker/enum.Token.html
+[`Value`]: https://docs.rs/bendy/latest/bendy/value/enum.Value.html
