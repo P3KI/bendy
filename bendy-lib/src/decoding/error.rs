@@ -22,7 +22,7 @@ impl core::fmt::Display for Error {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         write!(f, "{}", self.kind)?;
         if let Some(c) = &self.context {
-            write!(f, " {}", c)?;
+            write!(f, " in {}", c)?;
         }
         Ok(())
     }
