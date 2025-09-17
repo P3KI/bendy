@@ -22,7 +22,7 @@ impl core::fmt::Display for Error {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         write!(f, "{}", self.kind)?;
         if let Some(c) = &self.context {
-            write!(f, " {}", c)?;
+            write!(f, "\nin context:\n\t{}", c)?;
         }
         Ok(())
     }
@@ -80,7 +80,7 @@ pub trait ResultExt {
 impl Error {
     pub fn context(mut self, context: impl Display) -> Self {
         if let Some(current) = self.context.as_mut() {
-            *current = format!("{context}.{current}");
+            *current = format!("{current}\n\t{context}");
         } else {
             self.context = Some(context.to_string());
         }
@@ -181,8 +181,11 @@ fn decoding_errors_are_sync_send() {
 
 #[test]
 fn error_context_is_displayed() {
-    let e:Result<(), Error> = Err(Error::missing_field("aaa")).context("bbb");
+    let e:Result<(), Error> = Err(Error::missing_field("aaa")).context("bbb").context("ccc");
     let e = e.unwrap_err().to_string();
-    assert!(e.contains("aaa"));
-    assert!(e.contains("bbb"));
+    println!("{}", &e);
+    assert!(e.contains("aaa\n"));
+    assert!(e.contains("in context:\n"));
+    assert!(e.contains("bbb\n"));
+    assert!(e.contains("ccc"));
 }
