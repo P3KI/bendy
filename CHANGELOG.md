@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 
 ## Unreleased
 
+## 0.6.0 (2025-09-17)
+
+Breaking Changes:
+- Change formatting of [`DecodingError`] with contextual info when `Display`ed
+
 ## 0.5.0 (2025-09-09)
 
 Breaking Changes:
