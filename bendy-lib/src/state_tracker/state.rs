@@ -1,6 +1,8 @@
 #[cfg(not(feature = "std"))]
 use alloc::vec::Vec;
 
+use core::mem;
+
 use crate::state_tracker::{StructureError, Token};
 
 /// The state of current level of the decoder
@@ -93,7 +95,7 @@ where
             (Some(MapValue(label)), List) | (Some(MapValue(label)), Dict) => {
                 let dummy: &[u8] = &[];
                 *self.state.last_mut().unwrap() =
-                    MapKey(Some(std::mem::replace(label, dummy.into())));
+                    MapKey(Some(mem::replace(label, dummy.into())));
                 if self.state.len() >= self.max_depth {
                     return self.latch_err(Err(E::from(StructureError::NestingTooDeep)));
                 }
@@ -109,7 +111,7 @@ where
             (Some(MapValue(label)), _) => {
                 let dummy: &[u8] = &[];
                 *self.state.last_mut().unwrap() =
-                    MapKey(Some(std::mem::replace(label, dummy.into())));
+                    MapKey(Some(mem::replace(label, dummy.into())));
             },
             (_oldstate, List) | (_oldstate, Dict) => {
                 if self.state.len() >= self.max_depth {
