@@ -47,12 +47,12 @@ impl Serializer {
         Ok(())
     }
 
-    fn begin_struct(&mut self) -> Result<StructSerializer> {
+    fn begin_struct(&mut self) -> Result<StructSerializer<'_>> {
         let encoder = self.encoder.begin_unsorted_dict()?;
         Ok(StructSerializer::new(&mut self.encoder, encoder))
     }
 
-    fn begin_map(&mut self) -> Result<MapSerializer> {
+    fn begin_map(&mut self) -> Result<MapSerializer<'_>> {
         let encoder = self.encoder.begin_unsorted_dict()?;
         Ok(MapSerializer::new(&mut self.encoder, encoder))
     }

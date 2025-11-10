@@ -359,7 +359,7 @@ mod test {
 
     static SIMPLE_MSG: &'static [u8] = b"d3:bari1e3:fooli2ei3eee";
 
-    fn decode_tokens(msg: &[u8]) -> Vec<Token> {
+    fn decode_tokens(msg: &[u8]) -> Vec<Token<'_>> {
         let tokens: Vec<Result<Token, Error>> = Decoder::new(msg).tokens().collect();
         if tokens.iter().all(Result::is_ok) {
             tokens.into_iter().map(Result::unwrap).collect()
