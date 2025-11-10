@@ -4,6 +4,10 @@ All notable changes to this project will be documented in this file.
 
 ## Unreleased
 
+## 0.6.1 (2025-11-10)
+- Unbreak no_std support by using `core::mem::replace` rather than the same from `std::mem`
+- Make some liftimes explicit to get rid of some compiler warnings
+
 ## 0.6.0 (2025-09-17)
 
 Breaking Changes:
