@@ -114,13 +114,13 @@ impl<'ser> Decoder<'ser> {
             return Err(StructureError::UnexpectedEof);
         }
 
-        #[cfg(debug_assertions)]
-        let ival = str::from_utf8(&self.source[self.offset..curpos])
-            .expect("the loop above should have established that the slice is valid UTF-8");
-
-        #[cfg(not(debug_assertions))]
-        let ival = // Avoid a second UTF-8 check here
-            unsafe { str::from_utf8_unchecked(&self.source[self.offset..curpos]) };
+        let ival = if cfg!(debug_assertions) {
+            str::from_utf8(&self.source[self.offset..curpos])
+                .expect("the loop above should have established that the slice is valid UTF-8")
+        } else {
+            // Avoid a second UTF-8 check here
+            unsafe { str::from_utf8_unchecked(&self.source[self.offset..curpos]) }
+        };
 
         self.offset = curpos + 1;
 
