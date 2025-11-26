@@ -53,9 +53,6 @@ std = ["thiserror/std"]
 # Support serde serialization to and deserialization from bencode
 serde = ["serde_", "serde_bytes"]
 
-# Adds extra UTF-8 decode checks
-debug = []
-
 # Provide utilities for inspecting, testing, debugging bencode
 inspect = ["smallvec"]
 
