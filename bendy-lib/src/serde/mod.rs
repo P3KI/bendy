@@ -12,8 +12,8 @@
 //! assert_eq!(to_bytes(&10).unwrap(), b"i10e");
 //! assert_eq!(from_bytes::<u64>(b"i10e").unwrap(), 10);
 //!
-//! #[serde(crate = "serde_")]
 //! #[derive(Serialize, Deserialize, Debug, PartialEq)]
+//! #[serde(crate = "serde_")]
 //! struct Foo {
 //!     bar: bool,
 //! }
@@ -97,23 +97,23 @@
 //! map.insert("bar", 2);
 //! repr(map, "d3:bari2e3:fooi1ee");
 //!
-//! #[serde(crate = "serde_")]
 //! #[derive(Serialize)]
+//! #[serde(crate = "serde_")]
 //! struct Unit;
 //! repr(Unit, "le");
 //!
-//! #[serde(crate = "serde_")]
 //! #[derive(Serialize)]
+//! #[serde(crate = "serde_")]
 //! struct Newtype(String);
 //! repr(Newtype("foo".into()), "3:foo");
 //!
-//! #[serde(crate = "serde_")]
 //! #[derive(Serialize)]
+//! #[serde(crate = "serde_")]
 //! struct Tuple(bool, i32);
 //! repr(Tuple(false, 100), "li0ei100ee");
 //!
-//! #[serde(crate = "serde_")]
 //! #[derive(Serialize)]
+//! #[serde(crate = "serde_")]
 //! struct Record {
 //!     a: String,
 //!     b: bool,
@@ -127,8 +127,8 @@
 //!     "d1:a5:hello1:bi0ee",
 //! );
 //!
-//! #[serde(crate = "serde_")]
 //! #[derive(Serialize)]
+//! #[serde(crate = "serde_")]
 //! enum Enum {
 //!     Unit,
 //!     Newtype(i32),
@@ -141,9 +141,9 @@
 //! repr(Enum::Tuple(true, 10), "d5:Tupleli1ei10eee");
 //! repr(Enum::Struct { a: 'x', b: true }, "d6:Structd1:a1:x1:bi1eee");
 //!
+//! #[derive(Serialize)]
 //! #[serde(untagged)]
 //! #[serde(crate = "serde_")]
-//! #[derive(Serialize)]
 //! enum Untagged {
 //!     Foo { x: i32 },
 //!     Bar { y: char },
