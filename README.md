@@ -576,8 +576,8 @@ respectively:
 
 use serde_derive::{Deserialize, Serialize};
 
-#[serde(crate = "serde_")]
 #[derive(Serialize, Deserialize, PartialEq, Debug)]
+#[serde(crate = "serde_")]
 struct Foo {
     bar: String,
 }
