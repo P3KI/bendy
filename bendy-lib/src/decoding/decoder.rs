@@ -114,13 +114,11 @@ impl<'ser> Decoder<'ser> {
             return Err(StructureError::UnexpectedEof);
         }
 
-        #[cfg(feature = "debug")]
-        let ival = str::from_utf8(&self.source[self.offset..curpos])
-            .expect("We've already examined every byte in the string");
-
-        #[cfg(not(feature="debug"))]
-        let ival = // Avoid a second UTF-8 check here
-            unsafe { str::from_utf8_unchecked(&self.source[self.offset..curpos]) };
+        let bytes = &self.source[self.offset..curpos];
+        debug_assert!(str::from_utf8(bytes).is_ok());
+        // SAFETY: We checked above that `bytes` contains only ASCII characters
+        // from the set {'-', '0'..='9'} which is a subset of UTF-8.
+        let ival = unsafe { str::from_utf8_unchecked(bytes) };
 
         self.offset = curpos + 1;
 
