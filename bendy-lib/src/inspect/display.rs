@@ -217,6 +217,7 @@ mod tests {
 
     #[ignore]
     #[test]
+    #[cfg(feature = "std")]
     fn as_rust_string_literal_test() {
         fn print(b: impl AsRef<[u8]>) {
             let b = b.as_ref();
@@ -238,6 +239,7 @@ mod tests {
 
     #[ignore]
     #[test]
+    #[cfg(feature = "std")]
     fn debug_print_test() {
         let i = inspect(b"i200e");
         dbg!(i);
@@ -261,6 +263,7 @@ mod tests {
         assert!(!is_printable_byte(b'"'));
     }
 
+    #[cfg(feature = "std")]
     fn all_printables_bencode_list() -> Vec<u8> {
         let mut ap = Vec::new();
         ap.push(b'l');
