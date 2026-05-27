@@ -180,6 +180,7 @@ fn decoding_errors_are_sync_send() {
 }
 
 #[test]
+#[cfg(feature = "std")]
 fn error_context_is_displayed() {
     let e:Result<(), Error> = Err(Error::missing_field("aaa")).context("bbb").context("ccc");
     let e = e.unwrap_err().to_string();
